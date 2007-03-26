@@ -13,14 +13,19 @@ void multiDS_driver()
    double objFun(int, double *);
    void multiDS(int, double *, double, double, double, double, int);
 
+   system("rm -f flo.log");
+
    nparam = npu + npl;
    printf("Number of design parameters = %d\n", nparam);
 
    cc = 0.5;
    ce = 1.5;
    lmin = 1.0e-10;
-   lstart = 0.5;
+   lstart = 0.1;
    maxiter = 100;
+
+   /* Give some non-zero value */
+   clref = cdref = 1.0;
 
    /* Solve for initial shape */
    for(i = 0; i < nparam; i++)
@@ -32,7 +37,6 @@ void multiDS_driver()
    cdref = cd;
 
    printf("Reference values cl, cd = %e %e\n", cl, cd);
-   exit(0);
 
    /* Call multi-directional search */
    multiDS(nparam, a, cc, ce, lmin, lstart, maxiter);
