@@ -146,6 +146,12 @@ void multiDS(int n, double *x, double cc, double ce, double lmin,
    for(i = 0; i < n; i++)
       x[i] = xs[0][i];
 
+   /* Best vertex found */
+   printf("Best vertex:\n");
+   for(i = 0; i < n; i++) printf("%e ", x[i]);
+   printf("\n");
+
+
    /* Free memory */
    for(i = 0; i < n + 1; i++) {
       free(xs[i]);
