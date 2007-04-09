@@ -1,1 +1,1 @@
-double cl, cd, clref, cdref;
+double cl, cd, clref, cdref, cost0;

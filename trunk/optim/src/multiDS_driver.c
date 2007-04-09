@@ -22,19 +22,21 @@ void multiDS_driver()
    ce = 1.5;
    lmin = 1.0e-10;
    lstart = 0.1;
-   maxiter = 100;
+   maxiter = 2;
 
    /* Give some non-zero value */
    clref = cdref = 1.0;
 
    /* Solve for initial shape */
    for(i = 0; i < nparam; i++)
-      a[i] = 0.0;
+      a[i] = 1.0;
    cost = objFun(nparam, a);
 
    /* Set reference values */
    clref = cl;
    cdref = cd;
+
+   cost0 = cost;
 
    printf("Reference values cl, cd = %e %e\n", cl, cd);
 
