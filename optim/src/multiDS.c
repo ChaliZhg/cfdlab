@@ -3,9 +3,11 @@
  * x = double array of design parameters; initial value on input
  * lmin = minimum edge length of simplex for convergence criterion
  */
-#include<stdio.h>
-#include<stdlib.h>
-#include<math.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <math.h>
+#include "mpi/MPI.h"
+#include "opt.h"
 
 
 void multiDS(int n, double *x, double cc, double ce, double lmin,
@@ -70,11 +72,23 @@ void multiDS(int n, double *x, double cc, double ce, double lmin,
    /* Initialize the simplex */
    initSimplex(n, x, xs, ssize);
 
+   /* Assign evaluations to different proc */
+   mpi_assign(n);
+
    /* Calculate initial function values */
-   printf("Initial simplex and function values:\n");
-   for(i = 0; i < n + 1; i++) {
-      fs[i] = objFun(n, xs[i]);
+   /* Zeroth vertex is starting vertex, cost = 1. No need to calculate again
+    * since it is already done in multiDS_driver.c */
+   fs[0] = cost0;
+
+   for(i = 1; i < n + 1; i++) {
+      if(proc[i] == myproc)
+         fs[i] = objFun(n, xs[i]);
    }
+
+   /* Distribute cost functions */
+   mpi_distribute(n, fs);
+
+   printf("Initial simplex and function values:\n");
    printSimplex(0, n, xs, fs);
 
    /* Find best vertex and put in first position */
@@ -91,8 +105,10 @@ void multiDS(int n, double *x, double cc, double ce, double lmin,
          printf("   Rotation:\n");
          for(i = 1; i <= n; i++) {
             vecAdd(n, xs[0], xs[i], xr[i], 1.0);
-            fr[i] = objFun(n, xr[i]);
+            if(proc[i] == myproc)
+               fr[i] = objFun(n, xr[i]);
          }
+         mpi_distribute(n, fr);
          printSimplex(1, n, xr, fr);
 
          frmin = dmin(n, fr);
@@ -102,8 +118,10 @@ void multiDS(int n, double *x, double cc, double ce, double lmin,
             printf("   Expansion:\n");
             for(i = 1; i <= n; i++) {
                vecAdd(n, xs[0], xs[i], xe[i], ce);
-               fe[i] = objFun(n, xe[i]);
+               if(proc[i] == myproc)
+                  fe[i] = objFun(n, xe[i]);
             }
+            mpi_distribute(n, fe);
             printSimplex(1, n, xe, fe);
 
             femin = dmin(n, fe);
@@ -117,8 +135,10 @@ void multiDS(int n, double *x, double cc, double ce, double lmin,
             printf("   Contraction step:\n");
             for(i = 1; i <= n; i++) {
                vecAdd(n, xs[0], xs[i], xc[i], -cc);
-               fc[i] = objFun(n, xc[i]);
+               if(proc[i] == myproc)
+                  fc[i] = objFun(n, xc[i]);
             }
+            mpi_distribute(n, fc);
             printSimplex(1, n, xc, fc);
 
             fcmin = dmin(n, fc);
@@ -148,7 +168,8 @@ void multiDS(int n, double *x, double cc, double ce, double lmin,
 
    /* Best vertex found */
    printf("Best vertex:\n");
-   for(i = 0; i < n; i++) printf("%e ", x[i]);
+   for(i = 0; i < n; i++)
+      printf("%e ", x[i]);
    printf("\n");
 
 
