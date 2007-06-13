@@ -1,11 +1,16 @@
 #include <stdio.h>
 #include <mpi.h>
-#include "MPI.h"
+//#include "MPI.h"
+//#include "../opt.h"
 
-void mpi_init()
+void mpi_init(int argc, char **argv)
 {
-   int argc, rank, size;
-   char **argv;
+   int rank, size, len;
+   char command[100];
+   extern char rundir[], deform[], flosol[];
+   extern int myproc, nproc;
+
+   printf("Initializing mpi ...\n");
 
    MPI_Init(&argc, &argv);
    MPI_Comm_rank(MPI_COMM_WORLD, &rank);
@@ -14,12 +19,27 @@ void mpi_init()
    nproc  = size;
    printf("Number of proc    = %d\n", nproc);
    printf("Rank of this proc = %d\n", myproc);
+
+   if(rank < 10)               sprintf(rundir, "P00%d", rank);
+   if(rank>=10 && rank <100)   sprintf(rundir, "P0%d", rank);
+   if(rank>=100 && rank <1000) sprintf(rundir, "P%d", rank);
+
+   sprintf(deform, "./run.sh deform %s", rundir);
+   sprintf(flosol, "./run.sh solve %s", rundir);
+
+   printf("Run directory  = %s\n", rundir);
+   printf("Deform command = %s\n", deform);
+   printf("Flow   command = %s\n", flosol);
+
+   sprintf(command,"rm -rf %s && mkdir %s", rundir, rundir);
+   system(command);
 }
 
 /* Assign processor for each evaluation */
 void mpi_assign(int n)
 {
    int i, count;
+   extern int nproc, proc[];
 
    count = 0;
    proc[0] = -1;
@@ -36,9 +56,10 @@ void mpi_assign(int n)
 void mpi_distribute(int n, double *f)
 {
    int i;
+   extern int myproc, proc[];
 
    for(i = 1; i <= n; i++) {
-      MPI_Bcast(&f[i], 1, MPI_DOUBLE_PRECISION, proc[i], MPI_COMM_WORLD);
+      MPI_Bcast(&f[i], 1, MPI_DOUBLE, proc[i], MPI_COMM_WORLD);
       printf("Vertex = %d, sender = %d, receiver = %d, cost = %f\n", i,
              proc[i], myproc, f[i]);
    }

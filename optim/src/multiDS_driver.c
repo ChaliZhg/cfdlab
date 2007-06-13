@@ -4,12 +4,12 @@
 #include "shape.h"
 #include "opt.h"
 
-void multiDS_driver()
+void multiDS_driver(int *iopt, double *ropt)
 {
    int nparam;
    int i, maxiter;
    double a[NPARMAX];
-   double cc, ce, lmin, lstart, cost;
+   double cc, ce, lmin, lstart;
    double objFun(int, double *);
    void multiDS(int, double *, double, double, double, double, int);
 
@@ -18,25 +18,23 @@ void multiDS_driver()
    nparam = npu + npl;
    printf("Number of design parameters = %d\n", nparam);
 
-   cc = 0.5;
-   ce = 1.5;
-   lmin = 1.0e-10;
-   lstart = 0.1;
-   maxiter = 2;
+   cc = ropt[1];
+   ce = ropt[2];
+   lmin = ropt[3];
+   lstart = ropt[4];
+   maxiter = iopt[2];
 
    /* Give some non-zero value */
    clref = cdref = 1.0;
 
    /* Solve for initial shape */
    for(i = 0; i < nparam; i++)
-      a[i] = 1.0;
-   cost = objFun(nparam, a);
+      a[i] = 0.0;
+   cost0 = objFun(nparam, a);
 
    /* Set reference values */
    clref = cl;
    cdref = cd;
-
-   cost0 = cost;
 
    printf("Reference values cl, cd = %e %e\n", cl, cd);
 
