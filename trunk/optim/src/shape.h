@@ -1,7 +1,9 @@
    int nsp, npu, npl;
-   int idx[NSPMAX];
-   double xb[NSPMAX], yb[NSPMAX];
+   int nl, idl[NSPMAX];
+   int nu, idu[NSPMAX];
+   double xbl[NSPMAX], ybl[NSPMAX];
+   double xbu[NSPMAX], ybu[NSPMAX];
    double thickness;
 
    void newShape(int, double *, int, double *, int, double *, double *,
-                 double, double *);
+                 int, double*, double *, double, double*, double*);

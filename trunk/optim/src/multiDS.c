@@ -16,6 +16,7 @@ void multiDS(int n, double *x, double cc, double ce, double lmin,
    int i, imin, replaced, iter = 0;
    double **xs, **xr, **xe, **xc, *fs, *fr, *fe, *fc, fsmin, frmin,
       femin, fcmin, ssize;
+   FILE *fp;
    void initSimplex(int, double *, double **, double);
    void printSimplex(int, int, double **, double *);
    void findBest(int, double **, double *, int *, double *);
@@ -24,6 +25,8 @@ void multiDS(int n, double *x, double cc, double ce, double lmin,
    double simplexSize(int, double **);
    void vecAdd(int, double *, double *, double *, double);
    double dmin(int, double *);
+   void mpi_assign(int);
+   void mpi_distribute(int, double*);
 
    /* Initial size of simplex */
    ssize = lstart;
@@ -94,6 +97,9 @@ void multiDS(int n, double *x, double cc, double ce, double lmin,
    /* Find best vertex and put in first position */
    findBest(n, xs, fs, &imin, &fsmin);
 
+   if(myproc == 0)
+      fp = fopen("cost.dat", "w");
+
    /* Main iteration loop */
    while(ssize > lmin && iter < maxiter) {
       printf("Iteration = %d\n\n", iter + 1);
@@ -160,7 +166,13 @@ void multiDS(int n, double *x, double cc, double ce, double lmin,
       printf("Minimum length of simplex = %12.4e\n", ssize);
       printf("Minimum function value    = %12.4e\n", fs[0]);
       printf("-------------------------------------------------\n");
+      if(myproc == 0) {
+         fprintf(fp, "%5d %20.10e %20.10e %5d\n", iter, fs[0], ssize, imin);
+         fflush(fp);
+      }
    }                            /* End of main iteration loop */
+   if(myproc == 0)
+      fclose(fp);
 
    /* Copy best vertex for output */
    for(i = 0; i < n; i++)
@@ -264,6 +276,10 @@ void findBest(int n, double **xs, double *fs, int *imin, double *fsmin)
 void printSimplex(int i1, int n, double **x, double *f)
 {
    int i, j;
+
+   if(myproc != 0)
+      return;
+
    for(i = i1; i <= n; i++) {
       printf("     ");
       for(j = 0; j < n; j++)

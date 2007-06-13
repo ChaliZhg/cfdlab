@@ -1,5 +1,9 @@
+#include<stdio.h>
 #include<stdlib.h>
+
 void runSolver()
 {
-   system("run.sh solve");
+   extern char flosol[];
+   printf("Executing %s\n", flosol);
+   system(flosol);
 }

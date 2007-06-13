@@ -2,10 +2,24 @@
 #include<mpi.h>
 #include "MPI.h"
 
-void mpi_init()
+void mpi_init(int argc, char **argv)
 {
+   extern char rundir[], deform[], flosol[];
+   char command[100];
+
    myproc = 0;
    nproc  = 1;
+
+   sprintf(rundir, "P000");
+   sprintf(deform, "./run.sh deform P000");
+   sprintf(flosol, "./run.sh solve P000");
+
+   printf("Run directory = %s\n", rundir);
+   printf("Deform command = %s\n", deform);
+   printf("Flow   command = %s\n", flosol);
+
+   sprintf(command,"rm -rf %s && mkdir %s", rundir, rundir);
+   system(command);
 }
 
 /* Assign processor for each evaluation */

@@ -6,12 +6,16 @@
 double objFun(int n, double *x)
 {
    int i, iter;
-   double au[NPARMAX], al[NPARMAX], y[NSPMAX];
+   double au[NPARMAX], al[NPARMAX], yl[NSPMAX], yu[NSPMAX];
    double cost = 0.0, dx, dy;
    double residue, tmp, liftpenalty;
+   char deffile[100], flofile[100];
    FILE *fpt;
    void deformGrid(void);
    void runSolver(void);
+
+   sprintf(deffile, "%s/def.dat", rundir);
+   sprintf(flofile, "%s/FLO.OUT", rundir);
 
    /* Separate Hicks-Henne params for lower and upper surface */
    for(i = 0; i < npl; i++)
@@ -31,21 +35,26 @@ double objFun(int n, double *x)
 
    /* Rudimentary handling of bound constraint */
    for(i = 0; i < n; i++)
-      if(x[i] > 0.5 || x[i] < -0.5) {
+      if(x[i] > 0.25 || x[i] < -0.25) {
          printf("Out of bounds; setting large value\n");
          return 1.0e20;
       }
 
    /* Generate new shape */
-   newShape(npu, au, npl, al, nsp, xb, yb, thickness, y);
+   newShape(npu, au, npl, al, nl, xbl, ybl, nu, xbu, ybu, thickness, yl, yu);
 
    /* Write shape deformation */
-   fpt = fopen("def.dat", "w");
+   fpt = fopen(deffile, "w");
    fprintf(fpt, "%d\n", nsp);
-   for(i = 0; i < nsp; i++) {
+   for(i = 0; i < nl; i++) {
       dx = 0.0;
-      dy = y[i] - yb[i];
-      fprintf(fpt, "%6d %20.10e %20.10e\n", idx[i] + 1, dx, dy);
+      dy = yl[i] - ybl[i];
+      fprintf(fpt, "%6d %20.10e %20.10e\n", idl[i], dx, dy);
+   }
+   for(i = 0; i < nu; i++) {
+      dx = 0.0;
+      dy = yu[i] - ybu[i];
+      fprintf(fpt, "%6d %20.10e %20.10e\n", idu[i], dx, dy);
    }
    fclose(fpt);
 
@@ -56,7 +65,7 @@ double objFun(int n, double *x)
    runSolver();
 
    /* Read flo solution */
-   fpt = fopen("FLO.OUT", "r");
+   fpt = fopen(flofile, "r");
    fscanf(fpt, "%d%lf%lf%lf", &iter, &residue, &cl, &cd);
    fclose(fpt);
    printf("Number of iterations = %d\n", iter);
