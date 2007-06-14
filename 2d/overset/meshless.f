@@ -45,7 +45,7 @@ c           find left-right states
      +                       Qy1(1,j,i), Ql, Qr)
 
 c           find flux
-c           call roeflx(Ql, Qr, flr, cx(j), cy(j))
+            call roeflx(flr, Ql, Qr, cx(j), cy(j), 0.0)
 
 c           update residue
             do k=1,nvar
