@@ -1,7 +1,8 @@
 c======================================================================
       subroutine xyflux(q, fx, fy)
 c======================================================================
-c Computes fluxes in x and y direction
+c Computes fluxes in x and y direction given
+c q = (rho, u, v, p)
 c Requires gm1 = gamma - 1.0, defined locally. But replace it later.
 c======================================================================
       implicit none
