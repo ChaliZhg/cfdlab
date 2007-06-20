@@ -5,12 +5,14 @@ SOLVER=$HOME/work/euler2d/src-flo/flo
 MODE=$1
 DIR=$2
 
+#Deform the grid
 if [ $MODE == "deform" ]
 then
    cd $DIR
    $DEFORM ../flo2.inp > flo.log
 fi
 
+#Run the flow solver
 if [ $MODE == "solve" ]
 then
    cd $DIR

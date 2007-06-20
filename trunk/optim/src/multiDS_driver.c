@@ -23,6 +23,7 @@ void multiDS_driver(int *iopt, double *ropt)
    lmin = ropt[3];
    lstart = ropt[4];
    maxiter = iopt[2];
+   costfun = iopt[3];
 
    /* Give some non-zero value */
    clref = cdref = 1.0;
