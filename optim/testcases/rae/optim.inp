@@ -1,5 +1,6 @@
 Nparam         10 10
 MaxIter        200
+CostFun        2
 Thickness      0.06
 Contract       0.5
 Expansion      1.5

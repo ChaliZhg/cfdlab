@@ -35,8 +35,12 @@ optim_mpi:  ${optim_mpi}
 # transformation rules
 ##############################################################################
 
-.f.o:     ; ${FC} ${FFLAGS} -c $*.f
-.c.o:     ; ${CC} ${CFLAGS} -Wall -c $*.c
+.c.o:
+		${CC} ${CFLAGS} -Wall \
+	      -c $*.c
+
+#.f.o:     ; ${FC} ${FFLAGS} -c $*.f
+#.c.o:     ; ${CC} ${CFLAGS} -Wall -c $*.c
 
 mpi/%.o:  mpi/%.c
 		cd mpi; ${CC} -c $*.c
