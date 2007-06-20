@@ -1,0 +1,7 @@
+Nparam         10 10
+MaxIter        200
+Thickness      0.06
+Contract       0.5
+Expansion      1.5
+Lmin           1.0e-10
+Lstart         0.01
