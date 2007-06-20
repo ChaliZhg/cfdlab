@@ -7,7 +7,7 @@ c x0(n),y0(n) = coordinates of pts req meshless update
 c x1(nnbr,n),y1(nnbr,n) = coordinates of neighbouring points
 c Q0(nvar,n)
 c Q1(nvar,nnbr,n)
-c Qx1(nvar,nnbr,n), Qy1(nvar,nnbr,n) = derivatives at neighbouring pts
+c Qx1, Qy1(nvar,nnbr,n) = derivatives at neighbouring pts
 c======================================================================
       implicit none
       include 'misc.h'
