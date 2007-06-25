@@ -85,8 +85,7 @@ double objFun(int n, double *x)
    switch(costfun){
       case 1: /* pressure matching */
          cost = 0.0;
-         for(i=0; i<nsp; i++) cost += (CP[i] - CP0[i])*(CP[i] - CP0[i]);
-         cost = cost/nsp;
+         for(i=0; i<nsp; i++) cost += 0.5*(CP[i] - CP0[i])*(CP[i] - CP0[i]);
          break;
       case 2: /* drag with lift penalty */
          tmp = 1.0 - cl / clref;
