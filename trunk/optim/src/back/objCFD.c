@@ -77,17 +77,18 @@ double objFun(int n, double *x)
 
    /* Read pressure coefficient on the airfoil */
    fpt = fopen(cpfile, "r");
-   for(i=0; i<nsp; i++)
-   fscanf(fpt, "%lf%lf%lf", &rdummy, &CP[i], &rdummy);
+   for(i = 0; i < nsp; i++)
+      fscanf(fpt, "%lf%lf%lf", &rdummy, &CP[i], &rdummy);
    fclose(fpt);
 
    /* Compute cost function */
-   switch(costfun){
-      case 1: /* pressure matching */
+   switch (costfun) {
+      case 1:                  /* pressure matching */
          cost = 0.0;
-         for(i=0; i<nsp; i++) cost += 0.5*(CP[i] - CP0[i])*(CP[i] - CP0[i]);
+         for(i = 0; i < nsp; i++)
+            cost += 0.5 * (CP[i] - CP0[i]) * (CP[i] - CP0[i]);
          break;
-      case 2: /* drag with lift penalty */
+      case 2:                  /* drag with lift penalty */
          tmp = 1.0 - cl / clref;
          tmp = (tmp > 0.0) ? tmp : 0.0;
          liftpenalty = 1.0e4 * tmp;

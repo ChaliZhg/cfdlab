@@ -4,3 +4,6 @@ int costfun;
 char rundir[100];
 char deform[100];
 char flosol[100];
+
+   double objFun(int, double *);
+void objGrad(int, double*, double*);

@@ -20,13 +20,12 @@ void multiDS(int n, double *x, double cc, double ce, double lmin,
    void initSimplex(int, double *, double **, double);
    void printSimplex(int, int, double **, double *);
    void findBest(int, double **, double *, int *, double *);
-   double objFun(int, double *);
    void copySimplex(int, double **, double **, double *, double *);
    double simplexSize(int, double **);
    void vecAdd(int, double *, double *, double *, double);
    double dmin(int, double *);
    void mpi_assign(int);
-   void mpi_distribute(int, double*);
+   void mpi_distribute(int, double *);
 
    /* Initial size of simplex */
    ssize = lstart;
