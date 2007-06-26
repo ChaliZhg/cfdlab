@@ -10,7 +10,6 @@ void multiDS_driver(int *iopt, double *ropt)
    int i, maxiter;
    double a[NPARMAX];
    double cc, ce, lmin, lstart;
-   double objFun(int, double *);
    void multiDS(int, double *, double, double, double, double, int);
 
    system("rm -f flo.log");

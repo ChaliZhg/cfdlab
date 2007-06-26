@@ -24,13 +24,13 @@ void readParam(int *iopt, double *ropt)
     * pressure distribution. Note that the order of points in this file must
     * match the order in which the flow-solver outputs the pressure
     * coefficient into WALL.DAT */
-   if(iopt[3] == 1){
+   if(iopt[3] == 1) {
       printf("Reading cp0.dat ... ");
       fpt = fopen("cp0.dat", "r");
-      fscanf(fpt,"%d", &nsolid);
+      fscanf(fpt, "%d", &nsolid);
       printf("there are %5d points in there\n", nsolid);
-      for(i=0; i<nsolid; i++)
-         fscanf(fpt,"%lf%lf%lf", &rdummy, &CP0[i], &rdummy);
+      for(i = 0; i < nsolid; i++)
+         fscanf(fpt, "%lf%lf%lf", &rdummy, &CP0[i], &rdummy);
       fclose(fpt);
    }
 
