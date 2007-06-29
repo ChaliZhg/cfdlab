@@ -1,10 +1,11 @@
-#include<math.h>
+#include <math.h>
+#include "size.h"
+#include "shape.h"
 
 double HicksHenne(int n, double *a, double x)
 {
    int i;
    double y;
-   double HicksHenneFun(int, int, double);
 
    y = 0.0;
    for(i = 0; i < n; i++)

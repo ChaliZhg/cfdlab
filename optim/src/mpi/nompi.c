@@ -1,10 +1,11 @@
 #include <stdio.h>
-#include<mpi.h>
+#include <mpi.h>
 #include "MPI.h"
+#include "opt.h"
 
 void mpi_init(int argc, char **argv)
 {
-   extern char rundir[], deform[], flosol[];
+   //extern char rundir[], deform[], flosol[], adjsol[], adjmesh[];
    char command[100];
 
    myproc = 0;
@@ -13,6 +14,8 @@ void mpi_init(int argc, char **argv)
    sprintf(rundir, "P000");
    sprintf(deform, "./run.sh deform P000");
    sprintf(flosol, "./run.sh solve P000");
+   sprintf(adjsol, "./run.sh adjoint P000");
+   sprintf(adjmesh, "./run.sh adjmesh P000");
 
    printf("Run directory = %s\n", rundir);
    printf("Deform command = %s\n", deform);
