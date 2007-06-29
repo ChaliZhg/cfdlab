@@ -1,14 +1,12 @@
 #include <stdio.h>
 #include <mpi.h>
-//#include "MPI.h"
-//#include "../opt.h"
+#include "MPI.h"
+#include "opt.h"
 
 void mpi_init(int argc, char **argv)
 {
    int rank, size, len;
    char command[100];
-   extern char rundir[], deform[], flosol[];
-   extern int myproc, nproc;
 
    printf("Initializing mpi ...\n");
 
@@ -26,6 +24,8 @@ void mpi_init(int argc, char **argv)
 
    sprintf(deform, "./run.sh deform %s", rundir);
    sprintf(flosol, "./run.sh solve %s", rundir);
+   sprintf(adjsol, "./run.sh adjoint %s", rundir);
+   sprintf(adjmesh, "./run.sh adjmesh %s", rundir);
 
    printf("Run directory  = %s\n", rundir);
    printf("Deform command = %s\n", deform);
@@ -39,7 +39,6 @@ void mpi_init(int argc, char **argv)
 void mpi_assign(int n)
 {
    int i, count;
-   extern int nproc, proc[];
 
    count = 0;
    proc[0] = -1;
@@ -56,7 +55,6 @@ void mpi_assign(int n)
 void mpi_distribute(int n, double *f)
 {
    int i;
-   extern int myproc, proc[];
 
    for(i = 1; i <= n; i++) {
       MPI_Bcast(&f[i], 1, MPI_DOUBLE, proc[i], MPI_COMM_WORLD);

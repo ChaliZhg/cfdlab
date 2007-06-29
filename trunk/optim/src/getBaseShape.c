@@ -1,13 +1,12 @@
 #include<stdio.h>
 #include "size.h"
-#include "flo.h"
+#include "mpi/MPI.h"
 
 void getBaseShape(int *n, int *nl, int *idl, double *xbl, double *ybl,
                   int *nu, int *idu, double *xbu, double *ybu)
 {
    FILE *fp;
    int i, idummy;
-   extern int myproc;
 
    fp = fopen("base.dat", "r");
    /* Lower surface */
