@@ -27,9 +27,11 @@ void mpi_init(int argc, char **argv)
    sprintf(adjsol, "./run.sh adjoint %s", rundir);
    sprintf(adjmesh, "./run.sh adjmesh %s", rundir);
 
-   printf("Run directory  = %s\n", rundir);
-   printf("Deform command = %s\n", deform);
-   printf("Flow   command = %s\n", flosol);
+   printf("Run directory        = %s\n", rundir);
+   printf("Deform command       = %s\n", deform);
+   printf("Flow   command       = %s\n", flosol);
+   printf("Adjoint flow command = %s\n", adjsol);
+   printf("Adjoint mesh command = %s\n", adjmesh);
 
    sprintf(command,"rm -rf %s && mkdir %s", rundir, rundir);
    system(command);

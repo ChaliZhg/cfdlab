@@ -8,6 +8,7 @@ void readParam(int *iopt, double *ropt)
    int nsolid, i;
    double rdummy;
 
+   printf("Reading parameters file optim.inp ...\n");
    fpt = fopen("optim.inp", "r");
    fscanf(fpt, "%s%d%d", dummy, &iopt[0], &iopt[1]);
    fscanf(fpt, "%s%d", dummy, &iopt[2]);
