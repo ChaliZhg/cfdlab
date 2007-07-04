@@ -51,12 +51,12 @@ double objFun(int n, double *x)
    for(i = 0; i < nl; i++) {
       dx = 0.0;
       dy = yl[i] - ybl[i];
-      fprintf(fpt, "%6d %20.10e %20.10e\n", idl[i], dx, dy);
+      fprintf(fpt, "%6d %25.15e %25.15e\n", idl[i], dx, dy);
    }
    for(i = 0; i < nu; i++) {
       dx = 0.0;
       dy = yu[i] - ybu[i];
-      fprintf(fpt, "%6d %20.10e %20.10e\n", idu[i], dx, dy);
+      fprintf(fpt, "%6d %25.15e %25.15e\n", idu[i], dx, dy);
    }
    fclose(fpt);
 
