@@ -1,0 +1,13 @@
+0.80                    -> Mach no
+1.25                    -> AOA
+0.8                     -> CFL
+00000                   -> MAX ITER
+1.0e-6                  -> MIN RESIDUE
+100                     -> Save interval
+30                      -> No of contours
+1                       -> Flux: 1=roe, 2=kfvs
+0.33333333              -> Factor for MUSCL Limiter
+2                       -> Gradient: 1=least squares, 2=green gauss
+1                       -> Limiter: 0=no, 1=yes
+"../grd4/bip-hyb.7804"  -> grid file
+2                       -> grid type: 1=triangles, 2=hybrid
