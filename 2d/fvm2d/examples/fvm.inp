@@ -1,13 +1,16 @@
-0.80                    -> Mach no
-1.25                    -> AOA
-0.8                     -> CFL
-00000                   -> MAX ITER
-1.0e-6                  -> MIN RESIDUE
-100                     -> Save interval
-30                      -> No of contours
-1                       -> Flux: 1=roe, 2=kfvs
-0.33333333              -> Factor for MUSCL Limiter
-2                       -> Gradient: 1=least squares, 2=green gauss
-1                       -> Limiter: 0=no, 1=yes
-"../grd4/bip-hyb.7804"  -> grid file
-2                       -> grid type: 1=triangles, 2=hybrid
+Start     1
+FlowType  1
+Mach      0.63
+AOA       2.00
+Reynolds  100.0
+CFL       0.1
+LastIter  0
+MaxIter   0
+MinRes    1.0e-6
+SaveInt   100
+NoIso     30
+Flux      3
+Limiter   0
+FarBC     0  0.25  0.0
+CellType  2
+GridFile  "../grd/naca.4738"
