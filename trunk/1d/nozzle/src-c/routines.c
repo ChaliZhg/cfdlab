@@ -184,7 +184,6 @@ void flux_lf(REALX a, REALQ * ql, REALQ * qr, REALA * resl, REALA * resr)
 
 //Flux for interior face
 //KFVS flux, taken from nozzle code of Manoj Nair
-/*
 void flux_kfvs(REALX a, REALQ *ql, REALQ *qr, REALA *resl, REALA *resr)
 {
    int i;
@@ -225,7 +224,6 @@ void flux_kfvs(REALX a, REALQ *ql, REALQ *qr, REALA *resl, REALA *resr)
       resr[i] = resr[i] - a * (Fp[i] + Fm[i]);
    }
 }
-*/
 
 //Flux for outflow face
 void flux_out(REALX a, REALQ * ql, REALQ * qll, REALA * res)
