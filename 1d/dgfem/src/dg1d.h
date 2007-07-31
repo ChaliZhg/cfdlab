@@ -1,3 +1,7 @@
+#ifndef _DG1D
+
+#define _DG1D  1
+
 #define LINCON 1
 #define BURGER 2
 #define EULER  3
@@ -33,3 +37,5 @@ void LFCFlux (REAL * Ul, REAL * Ur, REAL * flux);
 
 void EigMat (REAL *, REAL[][3], REAL[][3]);
 void Multi (REAL[][3], REAL *);
+
+#endif
