@@ -19,8 +19,8 @@ void residu(int nc, int nf, REALX * a, REALQ ** q, REALA ** res)
       nr = i;
       if(flux1 == 1)
          flux_ausm(a[i], q[nl], q[nr], res[nl], res[nr]);
-//    else if(flux1 == 2)
-//       flux_kfvs(a[i], q[nl], q[nr], res[nl], res[nr]);
+      else if(flux1 == 2)
+         flux_kfvs(a[i], q[nl], q[nr], res[nl], res[nr]);
       else if(flux1 == 3)
          flux_lf(a[i], q[nl], q[nr], res[nl], res[nr]);
       else {
