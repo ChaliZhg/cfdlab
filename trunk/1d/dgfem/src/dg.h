@@ -1,3 +1,7 @@
+#ifndef _DG
+
+#define _DG         1
+
 #define REAL        double
 #define UINT        int
 
@@ -27,3 +31,5 @@ UINT NC, NVAR, NG, RK, PORD, FLUX, NPLT;
 REAL xg[10][10], wg[10][10];
 
 REAL ark[3], brk[3];
+
+#endif
