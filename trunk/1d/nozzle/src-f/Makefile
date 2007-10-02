@@ -15,7 +15,7 @@ CFLAGS   = -O3
 CPPFLAGS = -O3
 LFLAGS   = -O3
 
-TARGETS =  nozzle noz_adj
+TARGETS =  noz_flo noz_adj
 
 #
 # transformation rules
@@ -28,7 +28,7 @@ TARGETS =  nozzle noz_adj
 # program dependencies
 #
 
-nozzle = nozzle.o common.o routines.o
+noz_flo = nozzle.o common.o residu.o routines.o
 
 noz_adj = noz_adj.o common.o routines.o     \
           adBuffer.o adStack.o              \
@@ -53,14 +53,14 @@ TESTLINADJ = testlinadj.o routines.o Croutines.o adStack.o \
 
 ALL:		$(TARGETS)
 
-nozzle:	                           ${nozzle}
-		${FC} ${FFLAGS} -o nozzle ${nozzle}
+noz_flo:	${noz_flo}
+		${FC} ${FFLAGS} -o noz_flo ${noz_flo}
 
-noz_adj:	                           ${noz_adj}
+noz_adj: ${noz_adj}
 		${FC} ${FFLAGS} -o noz_adj ${noz_adj}
 		${RM} -f *~ *.msg
 
-testlinadj:	                              ${TESTLINADJ}
+testlinadj: ${TESTLINADJ}
 		${FC} ${FFLAGS} -o testlinadj ${TESTLINADJ}
 
 #
