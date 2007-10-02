@@ -39,6 +39,7 @@ int main()
       bq[i] = new adouble[3];
       bres[i] = new adouble[3];
    }
+   adouble *ba = new adouble[nf];
 
    double *resb = new double[3 * nc];
    double *resb_old = new double[3 * nc];
@@ -53,7 +54,7 @@ int main()
 
 //Read target pressure from a file
    fpt = fopen("flow-target.dat", "r");
-   if(fpt==NULL){
+   if(fpt == NULL) {
       printf("File flow-target.dat not found !!!\n");
       exit(0);
    }
@@ -103,7 +104,8 @@ int main()
       for(i = 0; i < 3 * nc; i++)
          resb_old[i] = resb[i];
 
-      reverse(tag, 3 * nc, 3 * nc, 0, resb, qb);
+      //reverse(tag, 3 * nc, 3 * nc, 0, resb, qb);
+      fos_reverse(tag, 3 * nc, 3 * nc, resb, qb);
 
       for(i = 0; i < nc; i++) {
          ar = 0.5 * (a[i] + a[i + 1]);
@@ -126,11 +128,37 @@ int main()
    printf("Number of adjoint iterations = %d\n", iter);
    fpt = fopen("flowb.dat", "w");
    for(i = 0; i < nc; i++)
-      fprintf(fpt, "%18.10e%18.10e%18.10e%18.10e\n", x[i] + 0.5 * dx, resb[3*i],
-              resb[3*i + 1], resb[3*i + 2]);
+      fprintf(fpt, "%18.10e%18.10e%18.10e%18.10e\n", x[i] + 0.5 * dx,
+              resb[3 * i], resb[3 * i + 1], resb[3 * i + 2]);
    fclose(fpt);
 
-      for(i = 0; i < nc; i++) {
+//Now we compute gradient trans(adj) * dR/da
+//Generate tape for adjoint equation
+   //for(i = 0; i < nf; i++)
+   //ba[i] = a[i];
+   tag = 0;
+   trace_on(tag, 1);
+   for(i = 1; i < nf - 1; i++)
+      ba[i] <<= a[i];
+   residu(nc, nf, ba, q, bres);
+   for(i = 0; i < nc; i++)
+      for(j = 0; j < 3; j++)
+         bres[i][j] >>= res_dummy;
+   trace_off();
+   printf("Tape for dR/da\n");
+   print_tapestats(tag);
+
+   fos_reverse(tag, 3 * nc, nf - 2, resb, qb);
+
+   //Save gradient
+   fpt = fopen("shapeb.dat", "w");
+   fprintf(fpt, "%18.10e%18.10e\n", x[0], 0.0);
+   for(i = 1; i < nf - 1; i++)
+      fprintf(fpt, "%18.10e%18.10e\n", x[i], qb[i - 1]);
+   fprintf(fpt, "%18.10e%18.10e\n", x[nf - 1], 0.0);
+   fclose(fpt);
+
+   for(i = 0; i < nc; i++) {
       free(q[i]);
    }
    free(q);

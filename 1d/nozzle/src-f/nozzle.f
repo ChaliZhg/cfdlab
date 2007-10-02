@@ -36,23 +36,7 @@ C Time step loop
             enddo
          enddo
 
-         call flux_in(a(1), res(1,1))
-         do i=2,nf-1
-            nl = i-1
-            nr = i
-            if(flux1 .eq. 1)then
-            call flux_ausm(a(i), q(1,nl), q(1,nr), res(1,nl), res(1,nr))
-            elseif(flux1 .eq. 2)then
-            call flux_kfvs(a(i), q(1,nl), q(1,nr), res(1,nl), res(1,nr))
-            elseif(flux1 .eq. 3)then
-            call flux_lf(a(i), q(1,nl), q(1,nr), res(1,nl), res(1,nr))
-            endif
-         enddo
-         call flux_out(a(nf), q(1,nf-1), q(1,nf-2), res(1,nf-1))
-
-         do i=1,nc
-            call source_term(a(i), a(i+1), q(1,i), res(1,i))
-         enddo
+         call residu(nf, nc, a, q, res)
 
          do i=1,nc
             ar = 0.5d0*(a(i) + a(i+1))

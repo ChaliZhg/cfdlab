@@ -17,14 +17,11 @@ TARGETS = noz_flo noz_adj
 #
 
 FLO_OBJC  = noz_flo.o \
-	     	  	residu.o \
 		  		routines.o \
 		  		common_cc.o
 noz_flo= $(FLO_OBJC)
 
 ADJ_OBJC  = noz_adj.o \
-            residu_q.o \
-            residu_x.o \
             routines_q.o \
             routines_x.o \
             common_cpp.o
@@ -51,9 +48,6 @@ noz_flo.o: noz_flo.c
 common_cc.o: common.c
 	${CC} ${CFLAGS} -DDIF0 -c $< -o $*.o
 
-residu.o: residu.c
-	${CC} ${CFLAGS} -DDIF0 -c $*.c
-
 routines.o: routines.c
 	${CC} ${CFLAGS} -DDIF0 -c $*.c
 
@@ -63,12 +57,6 @@ noz_adj.o: noz_adj.c
 
 common_cpp.o: common.c
 	${CPP} ${CPPFLAGS} -DDIF0 -c $< -o $*.o
-
-residu_q.o: residu.c
-	${CPP} ${CPPFLAGS} -DDIFQ -c $< -o $*.o
-
-residu_x.o: residu.c
-	${CPP} ${CPPFLAGS} -DDIFX -c $< -o $*.o
 
 routines_q.o: routines.c
 	${CPP} ${CPPFLAGS} -DDIFQ -c $< -o $*.o
