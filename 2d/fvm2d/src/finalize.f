@@ -1,15 +1,15 @@
-      subroutine finalize(prim, coord, elem, ptype)
+      subroutine finalize(prim, nut, coord)
       implicit none
       include 'param.h'
-      integer          elem(nvemax,ntmax), ptype(npmax)
-      double precision prim(nvar,npmax), coord(2,npmax)
+      include 'gdata.h'
+      double precision prim(nvar,npmax), nut(npmax), coord(2,npmax)
       real             et, etime, times(2)
 
       integer          i
       double precision u1, u2, u3, u4, u5
 
-      call vigie(coord, elem, prim)
-      call mayavi(coord, elem, prim)
+      call vigie(coord, elem, prim, nut)
+      call mayavi(coord, elem, prim, nut)
 
       open(unit=20, file='SOL')
       do i=1,np
@@ -18,7 +18,7 @@
             u3 = u1*prim(3,i)
             u4 = prim(4,i)/GAMMA1 + 0.5d0*prim(1,i)*(prim(2,i)**2 +
      &                                        prim(3,i)**2)
-            u5 = prim(5,i)
+            u5 = nut(i)
             write(20,*)u1, u2, u3, u4, u5
       enddo
       close(20)
@@ -36,8 +36,8 @@
       Write(20,'(" Iterations        =",i12)')iter
       write(20,'(" Cl                =",f12.6)')cl
       write(20,'(" Cd                =",f12.6)')cd
-      write(20,'(" L2 residue        =",f12.6)')dlog10(res)
-      write(20,'(" Linf residue      =",e16.6)')resi
+      write(20,'(" L2 residue        =",f12.6)')dlog10(fres)
+      write(20,'(" Linf residue      =",e16.6)')fresi
       write(20,'(" Linf point        =",f12.6,f12.6,i8,i4)')
      &      coord(1,iresi), coord(2,iresi), iresi, ptype(iresi)
       write(20,'(" Minimum density   =",f12.6)')rmin

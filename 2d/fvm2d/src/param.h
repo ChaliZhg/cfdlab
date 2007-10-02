@@ -1,3 +1,5 @@
+      include 'common.h'
+
       integer no, yes
       parameter(no=0, yes=1)
 
@@ -21,11 +23,6 @@ c nvemax= max number of vertices in an element
      &          nbemax= 2000,
      &          nvemax=3)
 
-c nvar = number of variables, fixed at 5, which includes turbulent
-c viscosity
-      integer nvar
-      parameter(nvar=5)
-
 C Actual number of points, elements, edges and boundary edges
 C     np = number of points
 C     nt = number of triangles/elements
@@ -35,7 +32,9 @@ C     nfp= number of farfield boundary points
 C     nop= number of outflow boundary points
 C     nbp= number of boundary points, must equal nsp+nfp+nop
       integer np,nt,ne,nsp,nfp,nop,nbp,nbe
-      common/dims/np,nt,ne,nsp,nfp,nop,nbp,nbe
+      integer netot, nswe1, nswe2, nffe1, nffe2
+      common/dims/np,nt,ne,nsp,nfp,nop,nbp,nbe,nswe1,nswe2,nffe1,nffe2,
+     +            netot
 
 C Range of bounding box
       double precision xmin, xmax, ymin, ymax
@@ -69,16 +68,9 @@ C     Number of contours
 
       double precision mach_inf, aoa, aoa_deg, q_inf, u_inf, v_inf, 
      &                 r_inf, p_inf, T_inf, T_infd, ent_inf, 
-     &                 prim_inf(nvar), a_inf, H_inf
+     &                 prim_inf(nvar), a_inf, H_inf, nut_inf
       common/inf/mach_inf,aoa,aoa_deg,q_inf,u_inf,v_inf,r_inf,p_inf,
-     &           T_inf,T_infd,ent_inf,prim_inf,a_inf,H_inf
-
-C     GAMMA = ratio of specific heats
-C     GAMMA1= GAMMA - 1
-C     GAS_CONST = gas constant, this can be set to 1.0
-C     M_PI = value of pi
-      double precision GAMMA, GAMMA1, GAS_CONST, M_PI
-      common/const/GAMMA, GAMMA1, GAS_CONST, M_PI
+     &           T_inf,T_infd,ent_inf,prim_inf,a_inf,H_inf,nut_inf
 
       double precision minelarea, maxelarea, mincvarea, maxcvarea
       double precision minflen, maxflen
@@ -94,9 +86,9 @@ C mmin,mmax = mach number
       common/minmaxprim/rmin, rmax, umin, umax, vmin, vmax, pmin, pmax, 
      &                  mmin, mmax, emin, emax, nmin, nmax
 
-      double precision res, res1, resi
+      double precision fres, fres1, fresi
       integer          iresi
-      common/resparam/res,res1,resi,iresi
+      common/resparam/fres,fres1,fresi,iresi
 
       double precision wd1(nspmax), wdmin, wdmax
       common/wdparam/wd1, wdmin, wdmax
@@ -127,14 +119,13 @@ C Size of connectivity list; required by mayavi
 
       integer iflux, iroe, ikfvs, ihllc
       parameter(iroe=1, ikfvs=2, ihllc=3)
-      common/flux/iflux
+      common/fluxtype/iflux
 
 C laminar paramters
 C Rey = Reynolds number
 C SCONST = Constant in Sutherland Law
       integer          iflow
-      double precision Rey, prandtl, prandtl_turb, SCONST
-      common/viscparam/Rey, prandtl, prandtl_turb, SCONST, iflow
+      common/flowtype/iflow
 
       integer inviscid, laminar, turbulent
       parameter(inviscid=1, laminar=2, turbulent=3)
@@ -146,11 +137,7 @@ C SCONST = Constant in Sutherland Law
       parameter(median=1, barth=2)
       common/celltypes/cell_type
 
-      double precision Cb1, Cb2, sigma_sa, kolm, Cw1, Cw2, Cw3, Cv1, 
-     &                 Cv2, Cv11, Cw31, Cw32, kolm2, Cb2Sig1, Cb2Sig2
-      common/samodel/Cb1, Cb2, sigma_sa, kolm, Cw1, Cw2, Cw3, Cv1,
-     &               Cv2, Cv11, Cw31, Cw32, kolm2, Cb2Sig1, Cb2Sig2
-
       integer          vortex
       double precision xref, yref
       common/farfieldbc/xref, yref, vortex
+

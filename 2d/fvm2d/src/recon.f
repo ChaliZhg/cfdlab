@@ -1,45 +1,46 @@
 c------------------------------------------------------------------------------
 c Limited reconstruction using van-albada limiter
 c------------------------------------------------------------------------------
-      subroutine recon(e1, e2, coord, prim, qx, qy, priml, primr)
+      subroutine recon(x1, x2, prim1, prim2, qx1, qy1, qx2, qy2, 
+     &                 priml, primr)
       implicit none
       include 'param.h'
-      integer          e1, e2
-      double precision coord(2,npmax), prim(nvar,npmax), qx(nvar,npmax),
-     &                 qy(nvar,npmax), priml(nvar), primr(nvar)
+      double precision x1(2), x2(2), prim1(nvar), prim2(nvar),
+     &                 qx1(nvar), qx2(nvar), qy1(nvar), qy2(nvar), 
+     &                 priml(nvar), primr(nvar)
 
       integer          i
       double precision dx, dy, dqp, dql, si, dqr, sj, limit_albada
 
-      dx = coord(1,e2) - coord(1,e1)
-      dy = coord(2,e2) - coord(2,e1)
+      dx = x2(1) - x1(1)
+      dy = x2(2) - x1(2)
 
       if(ilimit .eq. yes)then
 
-         do i=1,nvar-1
-            dqp = prim(i,e2) - prim(i,e1)
+         do i=1,nvar
+            dqp = prim2(i) - prim1(i)
 
-            dql = ALBADA21*(dx*qx(i,e1) + dy*qy(i,e1)) + ALBADA22*dqp
+            dql = ALBADA21*(dx*qx1(i) + dy*qy1(i)) + ALBADA22*dqp
             si  = limit_albada(dql, dqp)
-            priml(i) = prim(i,e1) + 0.5d0*si
+            priml(i) = prim1(i) + 0.5d0*si
 
-            dqr = ALBADA21*(dx*qx(i,e2) + dy*qy(i,e2)) + ALBADA22*dqp
+            dqr = ALBADA21*(dx*qx2(i) + dy*qy2(i)) + ALBADA22*dqp
             sj  = limit_albada( dqr, dqp )
-            primr(i) = prim(i,e2) - 0.5d0*sj
+            primr(i) = prim2(i) - 0.5d0*sj
          enddo
 
       else
 
-         do i=1,nvar-1
-            dqp = prim(i,e2) - prim(i,e1)
+         do i=1,nvar
+            dqp = prim2(i) - prim1(i)
 
-            dql = dx*qx(i,e1) + dy*qy(i,e1)
+            dql = dx*qx1(i) + dy*qy1(i)
             si  = ALBADA11*dql + ALBADA12*dqp
-            priml(i) = prim(i,e1) + 0.5d0*si
+            priml(i) = prim1(i) + 0.5d0*si
 
-            dqr = dx*qx(i,e2) + dy*qy(i,e2)
+            dqr = dx*qx2(i) + dy*qy2(i)
             sj  = ALBADA11*dqr + ALBADA12*dqp
-            primr(i) = prim(i,e2) - 0.5d0*sj
+            primr(i) = prim2(i) - 0.5d0*sj
          enddo
 
       endif

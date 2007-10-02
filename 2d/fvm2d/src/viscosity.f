@@ -1,8 +1,9 @@
 C.....Calculate total Reynolds number
-      subroutine viscosity(prim, mul, mu)
+      subroutine viscosity(prim, nut, mul, mu)
       implicit none
       include 'param.h'
-      double precision prim(nvar,npmax), mul(npmax), mu(npmax)
+      double precision prim(nvar,npmax), nut(npmax), mul(npmax), 
+     +                 mu(npmax)
 
       integer          i
       double precision mut, mu_turb
@@ -13,7 +14,7 @@ C.....Calculate total Reynolds number
          enddo
       elseif(iflow .eq. turbulent)then
          do i=1,np
-            mut   = mu_turb(mul(i), prim(1,i), prim(5,i))
+            mut   = mu_turb(mul(i), prim(1,i), nut(i))
             mu(i) = mul(i) + mut
          enddo
       endif

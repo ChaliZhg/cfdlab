@@ -14,7 +14,6 @@ c Time-step for viscous flow
                   a        = dsqrt(GAMMA*prim(4,i)/prim(1,i))
                   dtv      = 2.0d0*GAMMA*mu(i)/(prim(1,i)*prandtl)
                   dt(i)    = CFL*drmin(i)**2/(drmin(i)*(q + a) + dtv)
-
             enddo
       else
 c Time-step for inviscid flow
@@ -22,7 +21,6 @@ c Time-step for inviscid flow
                   q        = dsqrt(prim(2,i)**2 + prim(3,i)**2)
                   a        = dsqrt(GAMMA*prim(4,i)/prim(1,i))
                   dt(i)    = CFL*drmin(i)/(q + a)
-
             enddo
       endif
 

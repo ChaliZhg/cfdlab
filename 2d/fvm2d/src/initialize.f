@@ -1,9 +1,10 @@
 C.....Variables stored are primitive - density, u, v, pressure
 C.....Initialize primitive variables to free stream values
-      subroutine initialize(prim, mul, mu)
+      subroutine initialize(prim, nut, mul, mu)
       implicit none
       include 'param.h'
-      double precision prim(nvar, npmax), mul(npmax), mu(npmax)
+      double precision prim(nvar, npmax), nut(npmax), mul(npmax), 
+     +                 mu(npmax)
       
       integer          i, j
       double precision u1, u2, u3, u4, u5
@@ -28,7 +29,7 @@ c Primitive variables in free-stream
       prim_inf(2) = u_inf
       prim_inf(3) = v_inf
       prim_inf(4) = p_inf
-      prim_inf(5) = 0.0d0
+      nut_inf     = 0.0d0
 
       if(iflow.eq.inviscid) print*,'Euler computation'
       if(iflow.eq.laminar)  print*,'Laminar Navier-Stokes computation'
@@ -57,32 +58,32 @@ C Runge-Kutta time stepping
       if(istart .eq. scratch)then
             print*,'Initializing solution to free stream values'
             do j=1,np
-                  do i=1,nvar-1
-                        prim(i,j) = prim_inf(i)
+                  do i=1,nvar
+                     prim(i,j) = prim_inf(i)
                   enddo
             enddo
 
             if(iflow .eq. turbulent)then
                   call sutherland(prim, mul)
                   do i=1,np
-                        prim(5,i) = 0.1d0*mul(i)/prim(1,i)
+                     nut(i) = 0.1d0*mul(i)/prim(1,i)
                   enddo
-                  call viscosity(prim, mul, mu)
-                  prim_inf(5) = prim(5,1)
+                  call viscosity(prim, nut, mul, mu)
+                  nut_inf = nut(1)
             elseif(iflow .eq. laminar)then
                   call sutherland(prim, mul)
                   do i=1,np
-                        prim(5,i) = 0.0d0
+                     nut(i) = 0.0d0
                   enddo
-                  call viscosity(prim, mul, mu)
-                  prim_inf(5) = 0.0d0
+                  call viscosity(prim, nut, mul, mu)
+                  nut_inf = 0.0d0
             else
                   do i=1,np
                         mul(i)    = 0.0d0
                         mu(i)     = 0.0d0
-                        prim(5,i) = 0.0d0
+                        nut(i) = 0.0d0
                   enddo
-                  prim_inf(5) = 0.0d0
+                  nut_inf = 0.0d0
             endif
 
       else
@@ -94,7 +95,7 @@ C Runge-Kutta time stepping
                   prim(2,j) = u2/u1
                   prim(3,j) = u3/u1
                   prim(4,j) = GAMMA1*( u4 - 0.5d0*(u2**2 + u3**2)/u1 )
-                  prim(5,j) = u5
+                  nut(j)    = u5
             enddo
             close(20)
       endif

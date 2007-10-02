@@ -1,9 +1,9 @@
 C.....Result in VTK format for MayaVi
-      subroutine mayavi(coord, elem, prim)
+      subroutine mayavi(coord, elem, prim, nut)
       implicit none
       include 'param.h'
       integer           elem(nvemax,ntmax)
-      double precision  coord(2,npmax), prim(nvar,npmax)
+      double precision  coord(2,npmax), prim(nvar,npmax), nut(npmax)
 
       integer           i, maya
       double precision  q2, mach
@@ -81,7 +81,7 @@ C.....Result in VTK format for MayaVi
       write(maya,18) 'Viscosity'
       write(maya,19)
             do i=1,np
-                  write(maya,*)  prim(5,i)/nmax
+                  write(maya,*)  nut(i)/nmax
             enddo
       endif
 

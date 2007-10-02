@@ -19,7 +19,7 @@
             enddo
       enddo
 
-      do i=1,ne
+      do i=1,netot
             n1 = edge(1,i)
             n2 = edge(2,i)
             do j=1,nvar
@@ -30,7 +30,7 @@
              enddo
       enddo
 
-      do i=1,ne
+      do i=1,netot
             n1 = edge(1,i)
             n2 = edge(2,i)
             dx = coord(1,n2) - coord(1,n1)
