@@ -1,8 +1,8 @@
-      subroutine vigie(coord, elem, prim)
+      subroutine vigie(coord, elem, prim, nut)
       implicit none
       include 'param.h'
       integer           elem(nvemax,ntmax)
-      double precision  coord(2,npmax), prim(nvar,npmax)
+      double precision  coord(2,npmax), prim(nvar,npmax), nut(npmax)
 
       integer           i, vig
       double precision  q2, mach
@@ -45,7 +45,7 @@
       if(iflow .eq. turbulent)then
       write(vig,*)'scalars  Viscosity'
             do i=1,np
-                  write(vig,*)  prim(5,i)/nmax
+                  write(vig,*)  nut(i)/nmax
             enddo
       endif
 

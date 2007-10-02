@@ -2,11 +2,12 @@ C------------------------------------------------------------------------------
 C.....Update the solution
 C.....Current implementation is single step forward Euler
 C------------------------------------------------------------------------------
-      subroutine update(irk, divf, prim_old, prim, cvarea, spts, dt)
+      subroutine update(irk, res, prim_old, prim, cvarea, dt)
       implicit none
       include 'param.h'
-      integer          irk, spts(nspmax)
-      double precision divf(nvar,npmax), prim_old(nvar,npmax), 
+      include 'gdata.h'
+      integer          irk
+      double precision res(nvar,npmax), prim_old(nvar,npmax), 
      &                 prim(nvar,npmax), cvarea(npmax), dt(npmax)
 
       integer          i, j
@@ -14,12 +15,12 @@ C------------------------------------------------------------------------------
      &                 con_new(nvar,npmax)
 
       do i=1,np
-         call prim_to_con(i, prim_old, con0_old)
-         call prim_to_con(i, prim,     con1_old)
-         do j=1,nvar-1
+         call prim2con(prim_old(1,i), con0_old)
+         call prim2con(prim(1,i),     con1_old)
+         do j=1,nvar
             con_new(j,i) = airk(irk)*con0_old(j) + 
      &                     birk(irk)*(con1_old(j) - 
-     &                     (dt(i)/cvarea(i))*divf(j,i))
+     &                     (dt(i)/cvarea(i))*res(j,i))
          enddo
       enddo
                   

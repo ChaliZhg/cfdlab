@@ -1,9 +1,9 @@
-      subroutine write_result(prim, mu, qx, qy, coord, elem, spts, dsb, 
-     &                        ptype)
+      subroutine write_result(prim, nut, mu, qx, qy, coord, dsb)
       implicit none
       include 'param.h'
-      integer          ptype(npmax), elem(nvemax,ntmax), spts(nspmax)
-      double precision prim(nvar,npmax), qx(nvar,npmax), qy(nvar,npmax),
+      include 'gdata.h'
+      double precision prim(nvar,npmax), nut(npmax), qx(nvar,npmax), 
+     &                 qy(nvar,npmax),
      &                 coord(2,npmax), dsb(2,npmax), mu(npmax)
 
       integer          ifile, ii, is, it, i
@@ -43,8 +43,8 @@
           ent  = dlog10(prim(4,is)/prim(1,is)**GAMMA/ent_inf)
           emin = dmin1(emin, ent)
           emax = dmax1(emax, ent)
-          nmin = dmin1(nmin, prim(5,is))
-          nmax = dmax1(nmax, prim(5,is))
+          nmin = dmin1(nmin, nut(is))
+          nmax = dmax1(nmax, nut(is))
       enddo
 
       write(*,9)('-',i=1,70)
@@ -55,29 +55,40 @@
       write(*,11)iflux,ilimit,gridfile
 11    format(' Flux =',i2, ',     Lim = ',i2,',    Grid= ',a30)
       write(*,9)('-',i=1,70)
-      write(*,'(" Iterations        =",i12)')iter
-      write(*,'(" Cl, Cd            =",2f12.6)')cl,cd
-      write(*,'(" L2 residue        =",f12.6)')dlog10(res)
-      write(*,'(" Linf residue      =",e16.6)')resi
-      write(*,'(" Linf point        =",f12.6,f12.6,i8,i4)')
+      write(*,'(" Iterations      =",i12)')iter
+      write(*,'(" Cl, Cd          =",f12.6,4x,f12.6)')cl,cd
+      write(*,'(" Residue L2,Linf =",e16.6,e16.6)')fres,fresi
+      write(*,'(" Linf point      =",f12.6,4x,f12.6,i8,i4)')
      &      coord(1,iresi), coord(2,iresi), iresi, ptype(iresi)
-      write(*,'(" Minimum density   =",f12.6)')rmin
-      write(*,'(" Maximum density   =",f12.6)')rmax
-      write(*,'(" Minimum pressure  =",f12.6)')pmin
-      write(*,'(" Maximum pressure  =",f12.6)')pmax
-      write(*,'(" Minimum mach no   =",f12.6)')mmin
-      write(*,'(" Maximum mach no   =",f12.6)')mmax
-      write(*,'(" Minimum x vel     =",f12.6)')umin
-      write(*,'(" Maximum x vel     =",f12.6)')umax
-      write(*,'(" Minimum y vel     =",f12.6)')vmin
-      write(*,'(" Maximum y vel     =",f12.6)')vmax
-      write(*,'(" Minimum entropy   =",f12.6)')emin
-      write(*,'(" Maximum entropy   =",f12.6)')emax
-      write(*,'(" Minimum viscosity =",e16.6)')nmin
-      write(*,'(" Maximum viscosity =",e16.6)')nmax
+      write(*,*)
+      write(*,'(" Range of solution:")')
+      write(*,'(" Density         =",f12.6,4x,f12.6)')rmin,rmax
+      write(*,'(" Pressure        =",f12.6,4x,f12.6)')pmin,pmax
+      write(*,'(" Mach no         =",f12.6,4x,f12.6)')mmin,mmax
+      write(*,'(" X vel           =",f12.6,4x,f12.6)')umin,umax
+      write(*,'(" Y vel           =",f12.6,4x,f12.6)')vmin,vmax
+      write(*,'(" Entropy         =",f12.6,4x,f12.6)')emin,emax
+      write(*,'(" Viscosity       =",2e16.6)')nmin,nmax
+      write(*,*)
+      write(*,*)
+      write(*,*)
+      write(*,*)
+      write(*,*)
       call flush(6)
 
 C Write pressure coefficient
+c     do i=1,nsp
+c        cf(i) = 0.0d0
+c     enddo
+c     do i=nswe1,nswe2
+c        ie = beindx(i)
+c        n1 = edge(1,ie)
+c        n2 = edge(2,ie)
+c        dx = coord(1,n2) - coord(1,n1)
+c        dy = coord(2,n2) - coord(2,n1)
+c        sx = 
+c     enddo
+
       open(unit=10, file='WALL.DAT')
       do i=1,nsp
             is = spts(i)      
@@ -138,7 +149,7 @@ c Normalizing value for turbulent viscosity
                   ft1(i)     = prim(4,is)
                   q2         = prim(2,is)**2 + prim(3,is)**2
                   ft2(i)     = dsqrt(q2*prim(1,is)/(GAMMA*prim(4,is)))
-                  ft3(i)     = prim(5,is)/nuref
+                  ft3(i)     = nut(is)/nuref
             enddo
             call isocont(22,ft1,coort,niso,val1)
             call isocont(23,ft2,coort,niso,val2)

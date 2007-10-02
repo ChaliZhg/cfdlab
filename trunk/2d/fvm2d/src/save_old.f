@@ -7,9 +7,9 @@ C.....Save the current solution into another array
       integer          i, j
 
       do i=1,np
-            do j=1,nvar
-                  prim_old(j,i) = prim(j,i)
-            enddo
+         do j=1,nvar
+            prim_old(j,i) = prim(j,i)
+         enddo
       enddo
 
       return

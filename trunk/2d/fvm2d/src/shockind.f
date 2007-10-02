@@ -14,7 +14,7 @@
             ind(i) = 0.0d0
       enddo
 
-      do i=1,ne
+      do i=1,netot
             n1 = edge(1,i)
             n2 = edge(2,i)
 

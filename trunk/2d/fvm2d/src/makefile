@@ -1,49 +1,37 @@
-#The variables F77 and CFLAGS are assumed to be set in your csh or bash
-#preferences. Otherwise set them here
-#F77=
-#CFLAGS=
+include ../makefile.in
+
 PROGRAM=fvm
 
 OBJS=areas.o \
-     bound_flux.o \
-     clcd.o \
-     create_edge.o \
+	  common.o \
+	  conres.o \
      convert.o \
      check_positivity.o \
-     divergence.o \
-     divergence_hllc.o \
-     divergence_kfvs.o \
-     divergence_roe.o \
-     dtlength.o \
-     el_surr_point.o \
-     el_surr_edge.o \
+	  datastruct.o\
+	  farfield_flux.o \
      finalize.o \
      flength.o \
-     fvm.o \
-     fvm_residual.o \
+     hllc_flux.o \
+     kfvs_flux.o \
+     roe_flux.o \
      geometric.o \
+	  gradient.o \
      green_gauss.o \
-     initialize.o \
      isocont.o \
-     math.o \
+     main.o \
      mayavi.o \
 	  misc.o \
      prep_gnuplot.o \
-     pt_surr_pt.o \
-     read_input.o \
-     read_grid.o \
      recon.o \
-     residue.o \
+     residu.o \
      result.o \
      sa_model.o \
-     save_old.o \
-     time_step.o \
-     tri_orient.o \
+	  solid_flux.o \
+     tri_coord.o \
      update.o \
      vigie.o \
      viscosity.o \
      wall_dist.o \
-     write_grid.o
 
 .f.o:
 	$(F77) $(CFLAGS) -c $*.f

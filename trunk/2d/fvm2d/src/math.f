@@ -85,3 +85,29 @@ C.....Error function, from Abromovitz and Stegun
 
       return
       end
+
+      REAL*8 FUNCTION DRAND(iseed)
+c     -----------------------------------------------------------------
+c     Selection aleatoire d'un nombre entre 0 et 1 suivant une
+c     valeur donnee iseed
+c
+c                  mod(iseed*7141 + 54773, 259200)
+c         ran = -----------------------------------
+c                            259200
+c     -----------------------------------------------------------------
+c
+c     Parametres d'appel 
+c
+      INTEGER iseed
+c
+c     Variables locales 
+c
+      INTEGER ia, ic, im
+      PARAMETER(ia = 7141, ic = 54773, im = 259200)
+c
+      iseed    = ABS(MOD(iseed*ia+ic, im))
+c
+      DRAND    = FLOAT(iseed)/FLOAT(im)
+c
+      RETURN
+      END
