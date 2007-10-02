@@ -1,4 +1,5 @@
 #include<stdio.h>
+#include<stdlib.h>
 #include "size.h"
 #include "shape.h"
 #include "opt.h"
