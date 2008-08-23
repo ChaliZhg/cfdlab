@@ -67,17 +67,14 @@ testlinadj: ${TESTLINADJ}
 # Real version of nonlinear routines
 #
 
-routines.o:	   routines.F
-		${CC} -E -C -P routines.F > routines.f;
+routines.o:	   routines.f
 		${FC} ${FFLAGS} -c routines.f
-	   ${RM} routines.f
 
 ##############################################################################
 # Adjoint versions of nonlinear routines
 ##############################################################################
 
-dmax1_bq.o:	routines.F
-		${CC} -E -C -P routines.F > routines.f;
+dmax1_bq.o:	routines.f
 		${TPN} -backward                     \
 		       -head       dmax1             \
 		       -vars       "a b"             \
@@ -86,8 +83,7 @@ dmax1_bq.o:	routines.F
 		        routines.f;
 		${FC} ${FFLAGS} -c dmax1_bq.f;
 #-----------------------------------------------------------------------------
-dmin1_bq.o:	routines.F
-		${CC} -E -C -P routines.F > routines.f;
+dmin1_bq.o:	routines.f
 		${TPN} -backward                     \
 		       -head       dmin1             \
 		       -vars       "a b"             \
@@ -97,8 +93,7 @@ dmin1_bq.o:	routines.F
 		${FC} ${FFLAGS} -c dmin1_bq.f;
 #-----------------------------------------------------------------------------
 # Error function used by KFVS
-errf_bq.o:	routines.F
-		${CC} -E -C -P routines.F > routines.f;
+errf_bq.o:	routines.f
 		${TPN} -backward                     \
 		       -head       errf              \
 		       -vars       "x"               \
@@ -107,8 +102,7 @@ errf_bq.o:	routines.F
 		        routines.f;
 		${FC} ${FFLAGS} -c errf_bq.f;
 #-----------------------------------------------------------------------------
-nozzle_ba.o:	routines.F
-		${CC} -E -C -P routines.F > routines.f;
+nozzle_ba.o:	routines.f
 		${TPN} -backward                     \
 		       -head       nozzle            \
 		       -vars       "c d"             \
@@ -121,8 +115,7 @@ nozzle_ba.o:	routines.F
 # This takes care of all the flux routines
 # They must be named "flux_name" where name is the name of the flux function
 # for example flux_ausm, flux_kfvs, flux_lf, etc.
-flux_%_bq.o:	routines.F
-		${CC} -E -C -P routines.F > routines.f;
+flux_%_bq.o:	routines.f
 		${TPN} -backward                     \
 		       -head       flux_$*           \
 		       -vars       "ql qr resl resr" \
@@ -131,8 +124,7 @@ flux_%_bq.o:	routines.F
 		        routines.f;
 		${FC} ${FFLAGS} -c flux_$*_bq.f
 
-flux_%_ba.o:	routines.F
-		${CC} -E -C -P routines.F > routines.f;
+flux_%_ba.o:	routines.f
 		${TPN} -backward                 \
 		       -head       flux_$*       \
 		       -vars       "a resl resr" \
@@ -143,8 +135,7 @@ flux_%_ba.o:	routines.F
 
 #-----------------------------------------------------------------------------
 # Flux for inflow face
-flux_in_bq.o:	routines.F
-		${CC} -E -C -P routines.F > routines.f;
+flux_in_bq.o:	routines.f
 		${TPN} -backward             \
 		       -head       flux_in   \
 		       -vars       "res"   \
@@ -153,8 +144,7 @@ flux_in_bq.o:	routines.F
 		        routines.f;
 		${FC} ${FFLAGS} -c flux_in_bq.f;
 
-flux_in_ba.o:	routines.F
-		${CC} -E -C -P routines.F > routines.f;
+flux_in_ba.o:	routines.f
 		${TPN} -backward             \
 		       -head       flux_in   \
 		       -vars       "a res"   \
@@ -165,8 +155,7 @@ flux_in_ba.o:	routines.F
 
 #-----------------------------------------------------------------------------
 # Flux for outflow face
-flux_out_bq.o:	routines.F
-		${CC} -E -C -P routines.F > routines.f;
+flux_out_bq.o:	routines.f
 		${TPN} -backward                 \
 		       -head       flux_out      \
 		       -vars       "ql qll res"  \
@@ -175,8 +164,7 @@ flux_out_bq.o:	routines.F
 		        routines.f;
 		${FC} ${FFLAGS} -c flux_out_bq.f;
 
-flux_out_ba.o:	routines.F
-		${CC} -E -C -P routines.F > routines.f;
+flux_out_ba.o:	routines.f
 		${TPN} -backward                 \
 		       -head       flux_out      \
 		       -vars       "a res"       \
@@ -186,8 +174,7 @@ flux_out_ba.o:	routines.F
 		${FC} ${FFLAGS} -c flux_out_ba.f;
 
 #-----------------------------------------------------------------------------
-source_term_bq.o:	routines.F
-		${CC} -E -C -P routines.F > routines.f;
+source_term_bq.o:	routines.f
 		${TPN} -backward                 \
 		       -head       source_term   \
 		       -vars       "q res"       \
@@ -196,8 +183,7 @@ source_term_bq.o:	routines.F
 		        routines.f;
 		${FC} ${FFLAGS} -c source_term_bq.f;
 
-source_term_ba.o:	routines.F
-		${CC} -E -C -P routines.F > routines.f;
+source_term_ba.o:	routines.f
 		${TPN} -backward                 \
 		       -head       source_term   \
 		       -vars       "al ar res"   \
@@ -207,8 +193,7 @@ source_term_ba.o:	routines.F
 		${FC} ${FFLAGS} -c source_term_ba.f;
 
 #-----------------------------------------------------------------------------
-costfunc_bq.o:	routines.F
-		${CC} -E -C -P routines.F > routines.f;
+costfunc_bq.o:	routines.f
 		${TPN} -backward             \
 		       -head       costfunc  \
 		       -vars       "q cost"  \
