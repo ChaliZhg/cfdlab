@@ -1,10 +1,12 @@
+ADOLC_HOME = /opt/adolc
+
 #
 # fortran flags
 #
 CC       = gcc
 CPP      = g++
 FC       = gfortran
-ADOLCINC = -I/usr/local/include/adolc
+ADOLCINC = -I$(ADOLC_HOME)/include
 CCFLAGS  = ${CFLAGS}
 CPPFLAGS = ${CFLAGS} ${ADOLCINC}
 
@@ -37,7 +39,7 @@ noz_flo:  ${noz_flo}
 		${CC} ${noz_flo} -o noz_flo -lm
 
 noz_adj:  ${noz_adj}
-	${CPP} -o noz_adj ${noz_adj} -ladolc -lm
+	${CPP} -o noz_adj ${noz_adj} -L$(ADOLC_HOME)/lib -ladolc -lm
 
 ##############################################################################
 # transformation rules
