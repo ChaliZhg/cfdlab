@@ -13,7 +13,7 @@
 #define REALX double
 #define REALA adouble
 
-#include "adolc.h"
+#include "adolc/adolc.h"
 
 #elif defined DIFX
 
@@ -21,7 +21,7 @@
 #define REALX adouble
 #define REALA adouble
 
-#include "adolc.h"
+#include "adolc/adolc.h"
 
 #endif
 //#endif
