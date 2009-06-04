@@ -21,8 +21,10 @@ void residu(int nc, int nf, REALX * a, REALQ ** q, REALA ** res)
       nr = i;
       if(flux1 == 1)
          flux_ausm(a[i], q[nl], q[nr], res[nl], res[nr]);
+#ifndef NO_KFVS_
       else if(flux1 == 2)
          flux_kfvs(a[i], q[nl], q[nr], res[nl], res[nr]);
+#endif
       else if(flux1 == 3)
          flux_lf(a[i], q[nl], q[nr], res[nl], res[nr]);
       else {
@@ -217,6 +219,7 @@ void flux_lf(REALX a, REALQ * ql, REALQ * qr, REALA * resl, REALA * resr)
    }
 }
 
+#ifndef NO_KFVS_
 //Flux for interior face
 //KFVS flux, taken from nozzle code of Manoj Nair
 void flux_kfvs(REALX a, REALQ *ql, REALQ *qr, REALA *resl, REALA *resr)
@@ -259,6 +262,7 @@ void flux_kfvs(REALX a, REALQ *ql, REALQ *qr, REALA *resl, REALA *resr)
       resr[i] = resr[i] - a * (Fp[i] + Fm[i]);
    }
 }
+#endif
 
 //Flux for outflow face
 void flux_out(REALX a, REALQ * ql, REALQ * qll, REALA * res)

@@ -8,7 +8,7 @@ CPP      = g++
 FC       = gfortran
 ADOLCINC = -I$(ADOLC_HOME)/include
 CCFLAGS  = ${CFLAGS}
-CPPFLAGS = ${CFLAGS} ${ADOLCINC}
+CPPFLAGS = ${CFLAGS} ${ADOLCINC} -DNO_KFVS_
 
 INDENT   = indent -br -brs -npcs -npsl -nsaf -nsai -nsaw -cli3 -l78 -i3 -ts0
 
