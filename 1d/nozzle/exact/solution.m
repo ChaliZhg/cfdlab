@@ -11,12 +11,20 @@ ul = frate/(rl*a);
 cl = sqrt(gamma*pl/rl);
 ml = ul/cl;
 
-% right state
-pr = pl*(1 + 2*gamma*(ml^2-1)/(gamma+1));
-rr = rl*(gamma+1)*ml^2/((gamma-1)*ml^2 + 2);
-ur = ul*rl/rr;
-cr = sqrt(gamma*pr/rr);
-mr = ur/cr;
+if ml>1.0
+   % right state
+   pr = pl*(1 + 2*gamma*(ml^2-1)/(gamma+1));
+   rr = rl*(gamma+1)*ml^2/((gamma-1)*ml^2 + 2);
+   ur = ul*rl/rr;
+   cr = sqrt(gamma*pr/rr);
+   mr = ur/cr;
+else
+   pr = pl;
+   rr = rl;
+   ur = ul;
+   cr = cl;
+   mr = ml;
+end
 
 % post-shock entropy
 s2 = pr/rr^gamma;
