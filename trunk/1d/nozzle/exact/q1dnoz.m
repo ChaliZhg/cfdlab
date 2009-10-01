@@ -43,6 +43,11 @@ fun = @(x) shockfun(x, x2, r1, s1, p2);
 xs = fminbnd(fun, x1, x2, optimset('TolX',1e-12))
 fun(xs)
 
+% integral of pressure
+fun = @(x) pressure(xs, r1, s1, x);
+integral = quadgk(fun, x1, x2, 'Waypoints', [xs], 'AbsTol', 1e-10, 'RelTol', 0);
+fprintf(1,'Pressure Integral = %24.15e\n', integral);
+
 % Load numerical solution
 load flow.dat
 
