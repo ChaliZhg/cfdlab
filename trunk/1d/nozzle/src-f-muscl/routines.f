@@ -402,22 +402,29 @@ C Source term contribution to residual
       end
 
 C Cost function, L2 norm of pressure difference
-      subroutine costfunc(i, q, ptarg, cost)
+      subroutine costfunc(nc, q, cost)
       implicit none
       include 'param.inc'
+      integer          nc
+      double precision q(3,*), cost
+
+      double precision p, p1, p2
       integer          i
-      double precision q(3), ptarg, cost
 
-      double precision p
+      cost = 0.0d0
+      do i=1,nc-1
+c        p    = gam1*( q(3,i) - 0.5d0*q(2,i)**2/q(1,i) )
+         p1   = gam1*( q(3,i) - 0.5d0*q(2,i)**2/q(1,i) )
+         p2   = gam1*( q(3,i+1) - 0.5d0*q(2,i+1)**2/q(1,i+1) )
 
-      p    = gam1*( q(3) - 0.5d0*q(2)**2/q(1) )
+c        Integral of pressure
+c        cost = cost + p * dx
+         cost = cost + 0.5d0*(p1+p2) * dx
 
-c     Integral of pressure
-c     cost = cost + p * dx
-
-c     Pressure at some cell: WARNING if you change grid you must change
-c     the cell number
-      if(i.eq.28) cost = p
+c        Pressure at some cell: WARNING if you change grid you must change
+c        the cell number
+c        if(i.eq.28) cost = p
+      enddo
 
       return
       end

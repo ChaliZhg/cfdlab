@@ -46,10 +46,7 @@ c     close(pf)
 
 C Compute cost function - L2 norm of pressure difference
       costb = 1.0d0
-c     call costfunc2_bq(nc, q, qb1, cost, costb)
-      do i=1,nc
-         call costfunc_bq(i, q(1,i), qb1(1,i), ptarg(i), cost, costb)
-      enddo
+      call costfunc_bq(nc, q, qb1, cost, costb)
 
       maxres  = 1.0d-10
       residue = 1.0
