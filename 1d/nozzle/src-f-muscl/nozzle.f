@@ -73,10 +73,7 @@ c     enddo
 c     close(pf)
 
 C Compute cost function - L2 norm of pressure difference
-      cost = 0.0d0
-      do i=1,nc
-         call costfunc(i, q(1,i), ptarg(i), cost)
-      enddo
+      call costfunc(nc, q, cost)
       print*,'Cost function =', cost
       open(15, file='cost.dat')
       write(15,'(e24.15)') cost
