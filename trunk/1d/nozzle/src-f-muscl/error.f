@@ -22,8 +22,8 @@
       tolimit= 1
       noztyp = 1
 
-      nc1 = 100
-      nc2 = 100
+      nc1 = 101
+      nc2 = 101
       dnc = 100
 
       open(25,file='error.dat')
@@ -38,7 +38,7 @@
          write(20,*) noztyp
          close(20)
 
-         call system("../src-f-error/noz_flo > flo.log")
+         call system("../src-f-muscl/noz_flo > flo.log")
          call system("tail -n1 res.dat")
 
          open(20,file='cost.dat', status='old')
@@ -46,7 +46,7 @@
          close(20)
 
 
-         call system("../src-f-error/noz_adj > flo.log")
+         call system("../src-f-muscl/noz_adj > flo.log")
          call system("tail -n1 resb.dat")
 
          call init(nf, nc)
@@ -55,7 +55,8 @@
          call init_shape(nf, x, a)
 
 c        call integrate1(nf, nc, q, resb, a, x, error1)
-         call integrate2(nf, nc, q, resb, a, x, error1)
+c        call integrate2(nf, nc, q, resb, a, x, error1)
+         call integrate3(nf, nc, q, resb, a, x, error1)
 
          write(25,'(i6,2e24.15)') i, cost, cost+error1
          write(*,*) i, cost, cost+error1
@@ -216,6 +217,86 @@ c     Extrapolate to two boundaries
       open(30, file='errind.dat')
       error1 = 0.0d0
       do i=1,nc+1
+         x1 = xg(i) 
+         x2 = xg(i+1)
+         errtmp = 0.0d0
+         diverror=0.0d0
+         sourcerror=0.0d0
+         do j=1,3 ! loop over gauss points
+            xgauss = 0.5d0*(x2 - x1)*y(j) + 0.5d0*(x1 + x2)
+            do k=1,3
+               advar(k) = adj(k,i) + 
+     1            (xgauss-x1)*(adj(k,i+1)-adj(k,i))/(x2-x1)
+            enddo
+c           call InterpolateFlux(x1, x2, z(1,i), z(1,i+1), xgauss, flux)
+            fluxb(:) = advar(:)
+            call InterpolateFlux_x(x1, x2, z(1,i), z(1,i+1), 
+     1                             xgauss, xgaussb, flux, fluxb)
+            call InterpolateSource(x1, x2, z(1,i), z(1,i+1), 
+     1                             xgauss, advar, source)
+            diverror = diverror + w(j)*xgaussb
+            sourcerror = sourcerror - w(j)*source
+         enddo
+         diverror = 0.5d0*(x2-x1)*diverror
+         sourcerror = 0.5d0*(x2-x1)*sourcerror
+         error1 = error1 + diverror + sourcerror
+         write(30,'(4e16.8)') 0.5d0*(x1+x2), diverror, sourcerror,
+     1               diverror+sourcerror
+      enddo
+      close(30)
+
+
+      return
+      end
+c
+c     error estimation using linear interpolation for Roe variables
+c     first cell center at xmin, last at xmax
+c     domain of integration is [xmin, xmax]
+c
+      subroutine integrate3(nf, nc, q, resb, a, x, error1)
+      implicit none
+      include 'param.inc'
+      integer nf, nc
+      double precision q(3,*), resb(3,*), a(*), x(*), error1
+
+      integer          i, j, k
+      double precision z(3,nc), adj(3,nc), xg(nc), rho, u, p, H
+      double precision x1, x2, xgauss, y(3), advar(3), w(3), errtmp
+      double precision flux(3), fluxb(3), xgaussb, source
+      double precision diverror, sourcerror
+
+      do i=1,nc
+         rho      = q(1,i)
+         u        = q(2,i)/q(1,i)
+         p        = gam1*( q(3,i) - 0.5d0*rho*u**2 )
+         H        = gam*p/rho/gam1 + 0.5d0*u**2
+         z(1,i) = dsqrt(rho)
+         z(2,i) = dsqrt(rho) * u
+         z(3,i) = dsqrt(rho) * H
+         adj(:,i) = resb(:,i)
+         xg(i) = 0.5d0*(x(i) + x(i+1))
+      enddo
+
+      open(22,file='z.dat')
+      open(23,file='adj.dat')
+      do i=1,nc
+         write(22,'(4e16.8)')xg(i),z(1,i),z(2,i),z(3,i)
+         write(23,'(4e16.8)')xg(i),adj(1,i),adj(2,i),adj(3,i)
+      enddo
+      close(22)
+      close(23)
+
+      y(1) = -dsqrt(3.0d0/5.0d0)
+      y(2) = 0.0d0
+      y(3) = +dsqrt(3.0d0/5.0d0)
+
+      w(1) = 5.0d0/9.0d0
+      w(2) = 8.0d0/9.0d0
+      w(3) = 5.0d0/9.0d0
+
+      open(30, file='errind.dat')
+      error1 = 0.0d0
+      do i=1,nc-1
          x1 = xg(i) 
          x2 = xg(i+1)
          errtmp = 0.0d0
