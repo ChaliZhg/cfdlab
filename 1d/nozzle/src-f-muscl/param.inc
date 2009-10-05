@@ -1,8 +1,8 @@
       double precision gam, gam1, gasconst, cfl
       common/gas/gam, gam1, gasconst, cfl
 
-      double precision dx, ain, aout, da, db, dc, dd, L, xmin
-      common/grid/dx, ain, aout, da, db, dc, dd, L, xmin
+      double precision dx, ain, ath, aout, da, db, dc, dd, L, xmin
+      common/grid/dx, ain, ath, aout, da, db, dc, dd, L, xmin
 
       double precision rinf, uinf, pinf, minf, Tinf, pout, prat, qinf(3)
       common/flow/rinf, uinf, pinf, minf, Tinf, pout, prat, qinf

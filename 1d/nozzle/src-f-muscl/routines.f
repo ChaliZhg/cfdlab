@@ -464,16 +464,26 @@ C Returns nozzle cross-section area
       implicit none
       include 'param.inc'
       double precision x
+      ! S-shaped diverging nozzle
       if(noztyp.eq.1)then
          nozzle = da + db*dtanh(dc*x - dd)
+      ! Converging-diverging nozzle: This is not C^2
       elseif(noztyp.eq.2)then
          if(x.lt.-0.5d0 .or. x.gt.0.5d0)then
             nozzle = 2.0d0
          else
             nozzle = 1.0d0 + dsin(M_PI*x)**2
          endif
+      ! Straight diverging nozzle
       elseif(noztyp.eq.3)then
          nozzle = ain + x*(aout-ain)/L
+      ! Polynomial converging-diverging nozzle
+      elseif(noztyp.eq.4)then
+         if(x.lt.-1.0d0 .or. x.gt.+1.0d0)then
+            nozzle = ain
+         else
+            nozzle = ath + (ain-ath)*(3.0d0*x**2 - 3.0d0*x**4 + x**6)
+         endif
       endif
       return
       end
@@ -562,6 +572,8 @@ c
      2                / ( 2.E0*D1*D1 - D1*D2 + 2.E0*D2*D2 + 3.E0*EPSQ )
 
          qjph(i) = qj(i) + 0.5d0 * xm
+c        Unlimited case
+c        qjph(i) = qj(i) + 0.25d0 * (d1 + d2)
       enddo
 
       endif

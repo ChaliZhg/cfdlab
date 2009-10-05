@@ -127,7 +127,7 @@ C Save flow solution and nozzle shape
          call con_to_prim(r, u, p, q(1,i))
          son  = dsqrt(gam*p/r)
          mach = u/son
-         write(11,'(5e18.10)') x(i)+0.5d0*dx, r, u, p, mach
+         write(11,'(5e24.15)') x(i)+0.5d0*dx, r, u, p, mach
       enddo
       close(11)
 
@@ -216,13 +216,13 @@ C Save adjoint flow solution and shape gradient
 
       open(unit=11, file='flowb.dat')
       do i=1,nc
-         write(11,'(4e18.10)') x(i)+0.5d0*dx, q(1,i), q(2,i), q(3,i)
+         write(11,'(4e24.15)') x(i)+0.5d0*dx, q(1,i), q(2,i), q(3,i)
       enddo
       close(11)
 
       open(unit=11, file='shapeb.dat')
       do i=1,nf
-         write(11,'(2e18.10)') x(i), a(i)
+         write(11,'(2e24.15)') x(i), a(i)
       enddo
       close(11)
 
@@ -253,6 +253,11 @@ C Set nozzle shape
          ain = 2.0d0
          aout= 2.0d0
          xmin=-1.0d0
+      elseif(noztyp.eq.4)then
+         L   = 4.0d0
+         xmin= -2.0d0
+         ain = 2.0d0
+         ath = 1.0d0
       else
          print*,'nozzle type unknown'
          stop
