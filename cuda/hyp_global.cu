@@ -14,8 +14,6 @@ void initCond(int, float, float*);
 __global__ void fluxFun(float*, float*);
 __global__ void update(int, float, float, float*, float*, float*);
 
-float airk[3] = {0.0, 3.0/4.0, 1.0/3.0};
-
 int main(){
    float *u, *uper;
    float *uold_d, *u_d, *uper_d, *fl_d;
@@ -133,6 +131,7 @@ __global__ void update(int nirk, float dt, float dx, float *uold, float *fl,
                        float *u){
    int idx = blockIdx.x*blockDim.x + threadIdx.x;
    float res;
+   float airk[3] = {0.0, 3.0/4.0, 1.0/3.0};
 
    res = fl[idx+1] - fl[idx];
    u[idx] = airk[nirk]*uold[idx] + 
