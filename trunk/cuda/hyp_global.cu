@@ -13,11 +13,12 @@
 void initCond(int, float, float*);
 __global__ void fluxFun(float*, float*);
 __global__ void update(int, float, float, float*, float*, float*);
+__global__ void periodic(float*, int);
 
 int main(){
-   float *u, *uper;
-   float *uold_d, *u_d, *uper_d, *fl_d;
-   int np = 101;
+   float *u;
+   float *uold_d, *u_d, *fl_d;
+   int np = 101, ns;
    float dx = 1.0/(np-1);
    float dt, cfl;
    int niter, maxiter;
@@ -26,12 +27,12 @@ int main(){
    FILE *fpt;
    dim3 grid, block;
 
-   u    = (float*)malloc(np*sizeof(float));
-   uper = (float*)malloc((np+2+2)*sizeof(float));
+   ns   = np + 2 + 2;
 
-   cudaMalloc((void**)&uold_d, (np)*sizeof(float));
-   cudaMalloc((void**)&u_d, (np)*sizeof(float));
-   cudaMalloc((void**)&uper_d, (np+2+2)*sizeof(float));
+   u    = (float*)malloc(ns*sizeof(float));
+
+   cudaMalloc((void**)&uold_d, (ns)*sizeof(float));
+   cudaMalloc((void**)&u_d,    (ns)*sizeof(float));
    cudaMalloc((void**)&fl_d,   (np+1)*sizeof(float));
 
    cfl = 0.9;
@@ -42,12 +43,12 @@ int main(){
    initCond(np, dx, u);
 
    fpt = fopen("init.dat", "w");
-   for(i=0; i<np; i++) fprintf(fpt, "%e %e\n", dx*i, u[i]);
+   for(i=0; i<np; i++) fprintf(fpt, "%e %e\n", dx*i, u[i+2]);
    fclose(fpt);
 
-   cudaMemcpy(uold_d, u, (np)*sizeof(float), 
+   cudaMemcpy(uold_d, u, (ns)*sizeof(float), 
               cudaMemcpyHostToDevice);
-   cudaMemcpy(u_d, u, (np)*sizeof(float), 
+   cudaMemcpy(u_d, u, (ns)*sizeof(float), 
               cudaMemcpyHostToDevice);
 
    //time-step loop
@@ -56,43 +57,36 @@ int main(){
       //RK stages
       for(nirk=0; nirk<rkmax; nirk++){
 
-         //periodic array for MUSCL scheme
-         uper[0] = u[np-2];
-         uper[1] = u[np-1];
-         for(i=2; i<=np+1; i++) uper[i] = u[i-2];
-         uper[np+2] = u[0];
-         uper[np+3] = u[1];
-
-         cudaMemcpy(uper_d, uper, (np+2+2)*sizeof(float), 
-                    cudaMemcpyHostToDevice);
-
          //flux computation
          block.x = 3;
          grid.x  = (np+1)/block.x;
-         fluxFun<<<grid,block>>>(uper_d, fl_d);
+         fluxFun<<<grid,block>>>(u_d, fl_d);
 
          //update conserved variable
          block.x = 1;
          grid.x  = (np)/block.x;
          update<<<grid,block>>>(nirk, dt, dx, uold_d, fl_d, u_d);
-         cudaMemcpy(u, u_d, (np)*sizeof(float), 
-                    cudaMemcpyDeviceToHost);
+
+         //set periodicity
+         block.x = 1;
+         grid.x  = (ns)/block.x;
+         periodic<<<grid,block>>>(u_d, np);
       }
-      cudaMemcpy(uold_d, u_d, (np)*sizeof(float), 
+      cudaMemcpy(uold_d, u_d, (ns)*sizeof(float), 
                  cudaMemcpyDeviceToDevice);
 
    }
+   cudaMemcpy(u, u_d, (ns)*sizeof(float), 
+              cudaMemcpyDeviceToHost);
 
    fpt = fopen("final.dat", "w");
-   for(i=0; i<np; i++) fprintf(fpt, "%e %e\n", dx*i, u[i]);
+   for(i=0; i<np; i++) fprintf(fpt, "%e %e\n", dx*i, u[i+2]);
    fclose(fpt);
 
    free(u);
-   free(uper);
 
    cudaFree(uold_d);
    cudaFree(u_d);
-   cudaFree(uper_d);
    cudaFree(fl_d);
 
 }
@@ -104,8 +98,13 @@ void initCond(int np, float dx, float *u){
 
    for(i=0; i<np; i++){
       x = dx*i;
-      u[i] = sin(2.0*M_PI*x);
+      u[i+2] = sin(2.0*M_PI*x);
    }
+   u[0]    = u[np];
+   u[1]    = u[np+1];
+   u[np+2] = u[2];
+   u[np+3] = u[3];
+
 }
 
 //flux function
@@ -127,6 +126,7 @@ __global__ void fluxFun(float *u, float *fl){
 
 }
 
+//perform one stage of RK
 __global__ void update(int nirk, float dt, float dx, float *uold, float *fl, 
                        float *u){
    int idx = blockIdx.x*blockDim.x + threadIdx.x;
@@ -134,6 +134,23 @@ __global__ void update(int nirk, float dt, float dx, float *uold, float *fl,
    float airk[3] = {0.0, 3.0/4.0, 1.0/3.0};
 
    res = fl[idx+1] - fl[idx];
-   u[idx] = airk[nirk]*uold[idx] + 
-          (1.0-airk[nirk])*(u[idx] - (dt/dx)*res);
+   u[idx+2] = airk[nirk]*uold[idx+2] + 
+          (1.0-airk[nirk])*(u[idx+2] - (dt/dx)*res);
+}
+
+//set periodic BC
+__global__ void periodic(float *u, int np){
+   int idx = blockIdx.x*blockDim.x + threadIdx.x;
+
+   if(idx==0)
+      u[idx] = u[np];
+   else if(idx==1)
+      u[idx] = u[np+1];
+   else if(idx==np+2)
+      u[idx] = u[2];
+   else if(idx==np+3)
+      u[idx] = u[3];
+   else
+      u[idx] = u[idx];
+
 }
