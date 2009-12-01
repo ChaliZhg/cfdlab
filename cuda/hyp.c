@@ -14,8 +14,8 @@ void fluxFun(float*, float*);
 float airk[3] = {0.0, 3.0/4.0, 1.0/3.0};
 
 int main(){
-   float *uold, *u, *uper, *fl, res;
-   int np = 101;
+   float *uold, *u, *fl, res;
+   int np = 101, ns;
    float dx = 1.0/(np-1);
    float dt, cfl;
    int niter, maxiter;
@@ -23,9 +23,10 @@ int main(){
    int i;
    FILE *fpt;
 
-   uold = (float*)malloc(np*sizeof(float));
-   u    = (float*)malloc(np*sizeof(float));
-   uper = (float*)malloc((np+2+2)*sizeof(float));
+   ns = np + 2 + 2;
+
+   uold = (float*)malloc(ns*sizeof(float));
+   u    = (float*)malloc(ns*sizeof(float));
    fl   = (float*)malloc((np+1)*sizeof(float));
 
    cfl = 0.9;
@@ -36,46 +37,44 @@ int main(){
    initCond(np, dx, u);
 
    fpt = fopen("init.dat", "w");
-   for(i=0; i<np; i++) fprintf(fpt, "%e %e\n", dx*i, u[i]);
+   for(i=0; i<np; i++) fprintf(fpt, "%e %e\n", dx*i, u[i+2]);
    fclose(fpt);
 
 
    //time-step loop
    for(niter=0; niter<maxiter; niter++){
 
-      for(i=0; i<np; i++) uold[i] = u[i];
+      for(i=0; i<ns; i++) uold[i] = u[i];
 
       //RK stages
       for(nirk=0; nirk<rkmax; nirk++){
 
-         //periodic array for MUSCL scheme
-         uper[0] = u[np-2];
-         uper[1] = u[np-1];
-         for(i=2; i<=np+1; i++) uper[i] = u[i-2];
-         uper[np+2] = u[0];
-         uper[np+3] = u[1];
-
          //flux computation
-         for(i=0; i<np+1; i++) fluxFun(&uper[i+1], &fl[i]);
+         for(i=0; i<np+1; i++) fluxFun(&u[i+1], &fl[i]);
 
          //update conserved variable
          for(i=0; i<np; i++){
             res = fl[i+1] - fl[i];
-            u[i] = airk[nirk]*uold[i] + 
-                   (1.0-airk[nirk])*(u[i] - (dt/dx)*res);
+            u[i+2] = airk[nirk]*uold[i+2] + 
+                     (1.0-airk[nirk])*(u[i+2] - (dt/dx)*res);
          }
+
+         //set periodicity
+         u[0]    = u[np];
+         u[1]    = u[np+1];
+         u[np+2] = u[2];
+         u[np+3] = u[3];
 
       }
 
    }
 
    fpt = fopen("final.dat", "w");
-   for(i=0; i<np; i++) fprintf(fpt, "%e %e\n", dx*i, u[i]);
+   for(i=0; i<np; i++) fprintf(fpt, "%e %e\n", dx*i, u[i+2]);
    fclose(fpt);
 
    free(uold);
    free(u);
-   free(uper);
    free(fl);
 
 }
@@ -87,8 +86,15 @@ void initCond(int np, float dx, float *u){
 
    for(i=0; i<np; i++){
       x = dx*i;
-      u[i] = sin(2.0*M_PI*x);
+      u[i+2] = sin(2.0*M_PI*x);
    }
+
+   //set periodicity
+   u[0]    = u[np];
+   u[1]    = u[np+1];
+   u[np+2] = u[2];
+   u[np+3] = u[3];
+
 }
 
 //flux function
