@@ -70,24 +70,30 @@ subroutine roe_flux(ct, st, conl, conr, flux)
       una = ua*ct + va*st
       vna =-ua*st + va*ct
 
-!     Eigenvalues with entropy fix
-      e1 = abs(una - aa)
+!     Eigenvalues
+      l1 = abs(una - aa)
       l2 = abs(una)
       l3 = l2
-      e4 = abs(una + aa)
+      l4 = abs(una + aa)
 
-      del= ETOL*aa
-      if(e1 .lt. del)then
-         l1 = 0.5*(del + e1**2/del)
-      else
-         l1 = e1
-      endif
+!     Eigenvalues with entropy fix
+!     e1 = abs(una - aa)
+!     l2 = abs(una)
+!     l3 = l2
+!     e4 = abs(una + aa)
 
-      if(e4 .lt. del)then
-         l4 = 0.5*(del + e4**2/del)
-      else
-         l4 = e4
-      endif
+!     del= ETOL*aa
+!     if(e1 .lt. del)then
+!        l1 = 0.5*(del + e1**2/del)
+!     else
+!        l1 = e1
+!     endif
+
+!     if(e4 .lt. del)then
+!        l4 = 0.5*(del + e4**2/del)
+!     else
+!        l4 = e4
+!     endif
 
 !     Difference of conserved variables
       du1 = rr           - rl
