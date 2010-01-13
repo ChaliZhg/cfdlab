@@ -15,22 +15,21 @@ program main
    ymin =-5.0
    ymax = 5.0
 
-   itmax = 5000
+   itmax = 10000
    itsave= 100
 
    ! options: iroe, irusanov
    fluxtype = iroe
-   !fluxtype = irusanov
 
-   ! limiter: nolim, mmod
-   limtype = nolim
+   ! limiter: ford, muscl3, mmod
+   limtype = muscl3
 
    fileid = 0
 
    dx = (xmax - xmin)/(nx-1)
    dy = (ymax - ymin)/(ny-1)
 
-   cfl = 0.9
+   cfl = 0.4
 
    ark(1) = 0.0
    ark(2) = 3.0/4.0

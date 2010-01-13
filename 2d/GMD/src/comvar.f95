@@ -18,6 +18,6 @@ module comvar
    integer :: iroe=1, irusanov=2
 
    integer :: limtype
-   integer :: nolim=0, mmod=1
+   integer :: ford=0, muscl3=1, mmod=2
 
 end module comvar
