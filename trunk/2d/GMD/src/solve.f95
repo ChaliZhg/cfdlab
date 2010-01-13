@@ -18,6 +18,7 @@ subroutine solve(rho, vex, vey, pre, co0, co1, phi, psi, res)
    real    :: lambda
    real    :: xflux(4), yflux(4)
    real    :: time
+   real    :: resid(4), resid1(4)
 
 
    ! set initial condition
@@ -85,15 +86,18 @@ subroutine solve(rho, vex, vey, pre, co0, co1, phi, psi, res)
          enddo
 
          ! compute residual
+         resid = 0.0
          do i=1,nx
             do j=1,ny
                res(:,i,j) = ( ( phi(:,i+1,j) + phi(:,i+1,j+1) ) - &
                               ( phi(:,i  ,j) + phi(:,i  ,j+1) ) )*dy + &
                             ( ( psi(:,i,j+1) + psi(:,i+1,j+1) ) - &
                               ( psi(:,i  ,j) + psi(:,i+1,j  ) ) )*dx
+               resid = resid + res(:,i,j)**2
             enddo
          enddo
          res = 0.5 * 0.5 * res
+         resid = sqrt(resid)
 
          do i=1,nx
             do j=1,ny
@@ -112,8 +116,12 @@ subroutine solve(rho, vex, vey, pre, co0, co1, phi, psi, res)
          call savevort(rho, vex, vey, pre)
       endif
 
+      if(it==1)then
+         resid1 = resid
+      endif
+
       time = time + dt
-      write(*,*)'Iter =',it,time
+      write(*,'(I6,F10.2,4E12.4)')it,time,resid(:)/resid1(:)
 
    enddo ! time iteration loop
 
