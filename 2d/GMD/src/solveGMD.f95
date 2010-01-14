@@ -1,4 +1,4 @@
-subroutine solve(rho, vex, vey, pre, co0, co1, phi, psi, res)
+subroutine solveGMD(rho, vex, vey, pre, co0, co1, phi, psi, res)
 
    use comvar
 
@@ -12,7 +12,7 @@ subroutine solve(rho, vex, vey, pre, co0, co1, phi, psi, res)
    real :: co1(4, -1:nx+2, -1:ny+2)
    real :: phi(4,nx+1,ny+1)
    real :: psi(4,nx+1,ny+1)
-   real :: res(4,nx,ny)
+   real :: res(4,0:nx+1,0:ny+1)
 
    integer :: it, i, j, rks
    real    :: lambda
@@ -126,4 +126,4 @@ subroutine solve(rho, vex, vey, pre, co0, co1, phi, psi, res)
    enddo ! time iteration loop
 
 
-end subroutine solve
+end subroutine solveGMD

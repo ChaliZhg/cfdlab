@@ -20,4 +20,7 @@ module comvar
    integer :: limtype
    integer :: ford=0, muscl3=1, mmod=2
 
+   integer :: scheme
+   integer :: fvm=1, gmd=2
+
 end module comvar
