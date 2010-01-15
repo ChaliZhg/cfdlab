@@ -17,6 +17,7 @@ subroutine solveGMD(rho, vex, vey, pre, co0, co1, phi, psi, res)
    integer :: it, i, j, rks
    real    :: lambda
    real    :: xflux(4), yflux(4)
+   real    :: dxflux(4), dyflux(4)
    real    :: time
    real    :: resid(4), resid1(4)
 
@@ -44,18 +45,18 @@ subroutine solveGMD(rho, vex, vey, pre, co0, co1, phi, psi, res)
          do i=0,nx
             j = 0
             call numflux_x(co1(:,i-1,j), co1(:,i,j), &
-                           co1(:,i+1,j), co1(:,i+2,j), xflux)
+                           co1(:,i+1,j), co1(:,i+2,j), xflux, dxflux)
             phi(:,i+1,j+1) = xflux(:)
             j = ny + 1
             call numflux_x(co1(:,i-1,j), co1(:,i,j), &
-                           co1(:,i+1,j), co1(:,i+2,j), xflux)
+                           co1(:,i+1,j), co1(:,i+2,j), xflux, dxflux)
             phi(:,i+1,j) = xflux(:)
          enddo
 
          do i=0,nx
             do j=1,ny
                call numflux_x(co1(:,i-1,j), co1(:,i,j), &
-                              co1(:,i+1,j), co1(:,i+2,j), xflux)
+                              co1(:,i+1,j), co1(:,i+2,j), xflux, dxflux)
                phi(:,i+1,j)   = phi(:,i+1,j)   + xflux(:)
                phi(:,i+1,j+1) = phi(:,i+1,j+1) + xflux(:)
             enddo
@@ -67,19 +68,19 @@ subroutine solveGMD(rho, vex, vey, pre, co0, co1, phi, psi, res)
          do j=0,ny
             i = 0
             call numflux_y(co1(:,i,j-1), co1(:,i,j), &
-                           co1(:,i,j+1), co1(:,i,j+2), yflux)
+                           co1(:,i,j+1), co1(:,i,j+2), yflux, dyflux)
             psi(:,i+1,j+1) = yflux(:)
 
             i = nx + 1
             call numflux_y(co1(:,i,j-1), co1(:,i,j), &
-                           co1(:,i,j+1), co1(:,i,j+2), yflux)
+                           co1(:,i,j+1), co1(:,i,j+2), yflux, dyflux)
             psi(:,i,j+1) = yflux(:)
          enddo
 
          do i=1,nx
             do j=0,ny
                call numflux_y(co1(:,i,j-1), co1(:,i,j), &
-                              co1(:,i,j+1), co1(:,i,j+2), yflux)
+                              co1(:,i,j+1), co1(:,i,j+2), yflux, dyflux)
                psi(:,i,  j+1) = psi(:,i,  j+1) + yflux(:)
                psi(:,i+1,j+1) = psi(:,i+1,j+1) + yflux(:)
             enddo

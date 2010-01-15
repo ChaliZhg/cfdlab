@@ -15,6 +15,7 @@ subroutine solveFVM(rho, vex, vey, pre, co0, co1, res)
    integer :: it, i, j, rks
    real    :: lambda
    real    :: xflux(4), yflux(4)
+   real    :: dxflux(4), dyflux(4)
    real    :: time
    real    :: resid(4), resid1(4)
 
@@ -42,7 +43,7 @@ subroutine solveFVM(rho, vex, vey, pre, co0, co1, res)
          do i=0,nx
             do j=1,ny
                call numflux_x(co1(:,i-1,j), co1(:,i,j), co1(:,i+1,j), &
-                              co1(:,i+2,j), xflux)
+                              co1(:,i+2,j), xflux, dxflux)
                res(:,i,j)   = res(:,i,j)   + dy*xflux(:)
                res(:,i+1,j) = res(:,i+1,j) - dy*xflux(:)
             enddo
@@ -52,7 +53,7 @@ subroutine solveFVM(rho, vex, vey, pre, co0, co1, res)
          do j=0,ny
             do i=1,nx
                call numflux_y(co1(:,i,j-1), co1(:,i,j), co1(:,i,j+1), &
-                              co1(:,i,j+2), yflux)
+                              co1(:,i,j+2), yflux, dyflux)
                res(:,i,j)   = res(:,i,j)   + dx*yflux(:)
                res(:,i,j+1) = res(:,i,j+1) - dx*yflux(:)
             enddo
