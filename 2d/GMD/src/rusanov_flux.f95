@@ -1,8 +1,8 @@
-subroutine rusanov_flux(sx, sy, conl, conr, flux)
+subroutine rusanov_flux(sx, sy, conl, conr, flux, dflux)
    use comvar
    implicit none
 
-   real :: sx, sy, conl(4), conr(4), flux(4)
+   real :: sx, sy, conl(4), conr(4), flux(4), dflux(4)
 
    real :: rhol, vexl, veyl, prel, sonl, hl, vnl, laml
    real :: rhor, vexr, veyr, prer, sonr, hr, vnr, lamr
@@ -36,5 +36,8 @@ subroutine rusanov_flux(sx, sy, conl, conr, flux)
    flux(3) = 0.5*(prel*sy + rhol*veyl*vnl + prer*sy + rhor*veyr*vnr - &
              lam*(conr(3)-conl(3)))
    flux(4) = 0.5*(rhol*vnl*hl + rhor*vnr*hr - lam*(conr(4)-conl(4)))
+
+   ! dissipative flux
+   dflux = -0.5*lam*(conr - conl)
 
 end subroutine rusanov_flux

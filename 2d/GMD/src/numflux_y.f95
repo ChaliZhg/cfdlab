@@ -1,8 +1,8 @@
-subroutine numflux_y(conjm1, conj, conjp1, conjp2, flux)
+subroutine numflux_y(conjm1, conj, conjp1, conjp2, flux, dflux)
    use comvar
    implicit none
 
-   real :: conjm1(4), conj(4), conjp1(4), conjp2(4), flux(4)
+   real :: conjm1(4), conj(4), conjp1(4), conjp2(4), flux(4), dflux(4)
 
    real :: conl(4), conr(4)
    real :: rhol, vexl, veyl, prel, sonl, hl, laml
@@ -13,9 +13,9 @@ subroutine numflux_y(conjm1, conj, conjp1, conjp2, flux)
    call reconstruct(conjm1, conj, conjp1, conjp2, conl, conr)
 
    if(fluxtype == iroe)then
-      call roe_flux(0.0, 1.0, conl, conr, flux)
+      call roe_flux(0.0, 1.0, conl, conr, flux, dflux)
    else if(fluxtype == irusanov)then
-      call rusanov_flux(0.0, 1.0, conl, conr, flux)
+      call rusanov_flux(0.0, 1.0, conl, conr, flux, dflux)
    else
       write(*,*)'Uknown flux type fluxtype =', fluxtype
       stop

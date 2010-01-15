@@ -1,8 +1,8 @@
-subroutine roe_flux(ct, st, conl, conr, flux)
+subroutine roe_flux(ct, st, conl, conr, flux, dflux)
       use comvar
       implicit none
 
-      real :: ct, st, conl(4), conr(4), flux(4)
+      real :: ct, st, conl(4), conr(4), flux(4), dflux(4)
 
       integer :: i
       real    :: rl, ul, vl, pl, al2, hl, rr, ur, vr, pr, ar2, hr, &
@@ -127,6 +127,7 @@ subroutine roe_flux(ct, st, conl, conr, flux)
               a4l4*(ha + una*aa)
 
 !     Total flux
-      flux    = 0.5*( Fc - Fd )
+      flux    =  0.5*( Fc - Fd )
+      dflux   = -0.5*Fd
 
 end subroutine roe_flux
