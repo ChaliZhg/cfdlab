@@ -1,4 +1,4 @@
-subroutine solveFVM(rho, vex, vey, pre, co0, co1, res)
+subroutine solveFVM(rho, vex, vey, pre, omg, co0, co1, res)
 
    use comvar
 
@@ -8,6 +8,7 @@ subroutine solveFVM(rho, vex, vey, pre, co0, co1, res)
    real :: vex(-1:nx+2, -1:ny+2)
    real :: vey(-1:nx+2, -1:ny+2)
    real :: pre(-1:nx+2, -1:ny+2)
+   real :: omg( 1:nx+1,  1:ny+1)
    real :: co0(4, -1:nx+2, -1:ny+2)
    real :: co1(4, -1:nx+2, -1:ny+2)
    real :: res(4,0:nx+1,0:ny+1)
@@ -24,8 +25,9 @@ subroutine solveFVM(rho, vex, vey, pre, co0, co1, res)
    call init_cond(rho, vex, vey, pre)
    call prim2cons(rho, vex, vey, pre, co1)
    call periodic(co1)
-   !call saveprim(rho, vex, vey, pre)
-   call savevort(rho, vex, vey, pre)
+   call saveprim(rho, vex, vey, pre)
+   call vorticity(rho, vex, vey, pre, omg)
+   call savevort(omg)
    call timestep(rho, vex, vey, pre)
 
    lambda = dt/dx/dy
@@ -76,8 +78,9 @@ subroutine solveFVM(rho, vex, vey, pre, co0, co1, res)
 
       if(mod(it,itsave)==0)then
          call cons2prim(co1,rho,vex,vey,pre)
-         !call saveprim(rho, vex, vey, pre)
-         call savevort(rho, vex, vey, pre)
+         call saveprim(rho, vex, vey, pre)
+         call vorticity(rho, vex, vey, pre, omg)
+         call savevort(omg)
       endif
 
       if(it==1)then

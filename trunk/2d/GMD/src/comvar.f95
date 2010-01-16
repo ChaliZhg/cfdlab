@@ -12,7 +12,7 @@ module comvar
    real :: gamma = 1.4
    real :: M_PI = 4.0*atan(1.0)
 
-   integer :: fileid
+   integer :: fileid_sol, fileid_omg
 
    integer :: fluxtype
    integer :: iroe=1, irusanov=2
@@ -22,5 +22,9 @@ module comvar
 
    integer :: scheme
    integer :: fvm=1, gmd=2
+
+   integer :: vconf
+
+   integer :: no=0, yes=1
 
 end module comvar

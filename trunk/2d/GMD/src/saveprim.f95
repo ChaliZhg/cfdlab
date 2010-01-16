@@ -12,7 +12,7 @@ subroutine saveprim(rho, vex, vey, pre)
    character(len=512) :: filename
 
    filename = 'sol'
-   call getfilename(filename, fileid)
+   call getfilename(filename, fileid_sol)
 
    open(10,file=trim(filename))
    write(10,*)'TITLE = "vortex flow"'

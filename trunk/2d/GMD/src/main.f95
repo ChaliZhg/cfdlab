@@ -6,6 +6,8 @@ program main
 
    real, dimension(:), allocatable :: rho, vex, vey, pre, co0, co1, res
    real, dimension(:), allocatable :: phi, psi
+   real, dimension(:), allocatable :: phid, psid
+   real, dimension(:), allocatable :: omg
 
    nx = 51
    ny = 51
@@ -25,9 +27,13 @@ program main
    limtype = muscl3
 
    ! fvm or gmd
-   scheme = fvm
+   scheme = gmd
 
-   fileid = 0
+   ! vorticity confinement
+   vconf  = no
+
+   fileid_sol = 0
+   fileid_omg = 0
 
    dx = (xmax - xmin)/(nx-1)
    dy = (ymax - ymin)/(ny-1)
@@ -42,17 +48,21 @@ program main
    allocate( vex( (nx+4)*(ny+4) ) )
    allocate( vey( (nx+4)*(ny+4) ) )
    allocate( pre( (nx+4)*(ny+4) ) )
+   allocate( omg( (nx+1)*(ny+1) ) )
    allocate( co0( 4*(nx+4)*(ny+4) ) )
    allocate( co1( 4*(nx+4)*(ny+4) ) )
 
    allocate( phi(4*(nx+1)*(ny+1)) )
    allocate( psi(4*(nx+1)*(ny+1)) )
+   allocate( phid(4*(nx+1)*(ny+1)) )
+   allocate( psid(4*(nx+1)*(ny+1)) )
    allocate( res(4*(nx+2)*(ny+2)) )
 
    if(scheme==fvm)then
-      call solveFVM(rho, vex, vey, pre, co0, co1, res)
+      call solveFVM(rho, vex, vey, pre, omg, co0, co1, res)
    else if(scheme==gmd)then
-      call solveGMD(rho, vex, vey, pre, co0, co1, phi, psi, res)
+      call solveGMD(rho, vex, vey, pre, omg, co0, co1, phi, psi,  &
+                    phid, psid, res)
    else
       write(*,*)'Unknown scheme =',scheme
       stop
