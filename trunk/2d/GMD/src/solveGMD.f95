@@ -124,9 +124,11 @@ subroutine solveGMD(rho, vex, vey, pre, omg, co0, co1, phi, psi, &
                                 (abs(omg(i  ,j)) + abs(omg(i  ,j+1))) )/dx
                   etay = -0.5*( (abs(omg(i,j+1)) + abs(omg(i+1,j+1))) - &
                                 (abs(omg(i  ,j)) + abs(omg(i+1,j  ))) )/dy
-                  neta = sqrt(etax**2 + etay**2) + 1.0e-8
-                  etax = etax/neta
-                  etay = etay/neta
+                  neta = sqrt(etax**2 + etay**2)
+                  if(neta > 0.0)then
+                     etax = etax/neta
+                     etay = etay/neta
+                  endif
 
                   ! x velocity at vertices
                   ane = 0.25*(vex(i,j) + vex(i+1,j) + vex(i,j+1) + vex(i+1,j+1))
@@ -156,7 +158,12 @@ subroutine solveGMD(rho, vex, vey, pre, omg, co0, co1, phi, psi, &
                        0.25*( ( phid(2,i,j+1) + phid(2,i+1,j+1) ) - &
                               ( phid(2,i  ,j) + phid(2,i+1,j  ) ) )/dy
 
-                  ep = (xd*kx + yd*ky)/(kx**2 + ky**2 + 1.0e-8)
+                  if(kx**2 + ky**2 > 0.0)then
+                     ep = (xd*kx + yd*ky)/(kx**2 + ky**2)
+                  else
+                     ep=0.0
+                  endif
+
                   res(2,i,j) = res(2,i,j) - ep*kx*(dx*dy)
                   res(3,i,j) = res(3,i,j) - ep*ky*(dx*dy)
                   res(4,i,j) = res(4,i,j) - &
