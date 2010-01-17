@@ -144,8 +144,8 @@ subroutine solveGMD(rho, vex, vey, pre, omg, co0, co1, phi, psi, &
                   omg0= 0.5*((bne + bse) - (bnw + bsw))/dx - &
                         0.5*((anw + ane) - (asw + ase))/dy
 
-                  kx =  etay*omg0
-                  ky = -etax*omg0
+                  kx = -etay*omg0
+                  ky = +etax*omg0
 
                   xd =-0.25*( ( psid(3,i+1,j) + psid(3,i+1,j+1) ) - &
                               ( psid(3,i  ,j) + psid(3,i  ,j+1) ) )/dx + &
