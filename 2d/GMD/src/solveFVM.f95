@@ -19,6 +19,9 @@ subroutine solveFVM(rho, vex, vey, pre, omg, co0, co1, res)
    real    :: dxflux(4), dyflux(4)
    real    :: time
    real    :: resid(4), resid1(4)
+   real    :: etax, etay, neta, kx, ky, omg0, ep, cv
+   real    :: ane, ase, anw, asw
+   real    :: bne, bse, bnw, bsw
 
 
    ! set initial condition
@@ -60,6 +63,46 @@ subroutine solveFVM(rho, vex, vey, pre, omg, co0, co1, res)
                res(:,i,j+1) = res(:,i,j+1) - dx*yflux(:)
             enddo
          enddo
+
+         ! add vorticity confinement terms
+         if(vconf==yes)then
+            call cons2prim(co1,rho,vex,vey,pre)
+            call vorticity(rho, vex, vey, pre, omg)
+
+            do i=1,nx
+               do j=1,ny
+                  etax = -0.5*( (abs(omg(i+1,j)) + abs(omg(i+1,j+1))) - &
+                                (abs(omg(i  ,j)) + abs(omg(i  ,j+1))) )/dx
+                  etay = -0.5*( (abs(omg(i,j+1)) + abs(omg(i+1,j+1))) - &
+                                (abs(omg(i  ,j)) + abs(omg(i+1,j  ))) )/dy
+
+                  ! x velocity at vertices
+                  ane = 0.25*(vex(i,j) + vex(i+1,j) + vex(i,j+1) + vex(i+1,j+1))
+                  ase = 0.25*(vex(i,j) + vex(i+1,j) + vex(i,j-1) + vex(i+1,j-1))
+                  anw = 0.25*(vex(i,j) + vex(i-1,j) + vex(i,j+1) + vex(i-1,j+1))
+                  asw = 0.25*(vex(i,j) + vex(i-1,j) + vex(i,j-1) + vex(i-1,j-1))
+
+                  ! y velocity at vertices
+                  bne = 0.25*(vey(i,j) + vey(i+1,j) + vey(i,j+1) + vey(i+1,j+1))
+                  bse = 0.25*(vey(i,j) + vey(i+1,j) + vey(i,j-1) + vey(i+1,j-1))
+                  bnw = 0.25*(vey(i,j) + vey(i-1,j) + vey(i,j+1) + vey(i-1,j+1))
+                  bsw = 0.25*(vey(i,j) + vey(i-1,j) + vey(i,j-1) + vey(i-1,j-1))
+
+                  ! vorticity at cell center (i,j)
+                  omg0= 0.5*((bne + bse) - (bnw + bsw))/dx - &
+                        0.5*((anw + ane) - (asw + ase))/dy
+
+                  cv = 0.01
+                  kx = -cv*rho(i,j)*etay*omg0*(dx*dy)
+                  ky = +cv*rho(i,j)*etax*omg0*(dx*dy)
+
+                  res(2,i,j) = res(2,i,j) - kx*(dx*dy)
+                  res(3,i,j) = res(3,i,j) - ky*(dx*dy)
+                  res(4,i,j) = res(4,i,j) - &
+                               (vex(i,j)*kx + vey(i,j)*ky)*(dx*dy)
+               enddo
+            enddo
+         endif
 
          ! update conserved variables
          resid = 0.0
