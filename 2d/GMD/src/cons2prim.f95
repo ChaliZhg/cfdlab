@@ -10,8 +10,8 @@ subroutine cons2prim(con, rho, vex, vey, pre)
 
    integer :: i, j
 
-   do i=1,nx
-      do j=1,ny
+   do i=-1,nx+2
+      do j=-1,ny+2
          rho(i,j) = con(1,i,j)
          vex(i,j) = con(2,i,j)/con(1,i,j)
          vey(i,j) = con(3,i,j)/con(1,i,j)
