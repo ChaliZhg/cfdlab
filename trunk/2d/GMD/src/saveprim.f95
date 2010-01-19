@@ -19,8 +19,8 @@ subroutine saveprim(rho, vex, vey, pre)
    write(10,*)'VARIABLES = "x", "y", "Density", "Velx", "Vely", "Pressure"'
    write(10,*)'ZONE I=',nx,', J=',ny,', DATAPACKING=POINT'
 
-   do i=1,nx
-      do j=1,ny
+   do j=1,ny
+      do i=1,nx
          x = xmin + (i-1)*dx
          y = ymin + (j-1)*dy
 

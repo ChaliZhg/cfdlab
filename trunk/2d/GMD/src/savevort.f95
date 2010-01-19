@@ -17,8 +17,8 @@ subroutine savevort(omg)
    write(10,*)'ZONE I=',nx+1,', J=',ny+1,', DATAPACKING=POINT'
 
    ! vorticity is computed at vertices (not at cell centers)
-   do i=1,nx+1
-      do j=1,ny+1
+   do j=1,ny+1
+      do i=1,nx+1
          x = xmin + (i-1)*dx - 0.5*dx
          y = ymin + (j-1)*dy - 0.5*dy
 
