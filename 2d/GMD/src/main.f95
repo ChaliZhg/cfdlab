@@ -20,6 +20,10 @@ program main
    itmax = 10000
    itsave= 100
 
+   ! periodicity conditions
+   xperiod = yes
+   yperiod = yes
+
    ! options: iroe, irusanov
    fluxtype = iroe
 
@@ -27,18 +31,19 @@ program main
    limtype = muscl3
 
    ! fvm or gmd
-   scheme = gmd
+   scheme = fvm
 
    ! vorticity confinement
    vconf  = no
 
+   ! file id for saving solution
    fileid_sol = 0
    fileid_omg = 0
 
    dx = (xmax - xmin)/(nx-1)
    dy = (ymax - ymin)/(ny-1)
 
-   cfl = 0.4
+   cfl = 0.8
 
    ark(1) = 0.0
    ark(2) = 3.0/4.0

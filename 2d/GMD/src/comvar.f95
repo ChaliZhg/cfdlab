@@ -27,4 +27,6 @@ module comvar
 
    integer :: no=0, yes=1
 
+   integer :: xperiod, yperiod
+
 end module comvar
