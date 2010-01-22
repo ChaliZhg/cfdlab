@@ -33,9 +33,10 @@ subroutine solveGMD(rho, vex, vey, pre, omg, co0, co1, phi, psi, &
    call init_cond(rho, vex, vey, pre)
    call prim2cons(rho, vex, vey, pre, co1)
    call periodic(co1)
-   call saveprim(rho, vex, vey, pre)
+   call cons2prim(co1, rho, vex, vey, pre)
+   call saveprim(0.0, rho, vex, vey, pre)
    call vorticity(rho, vex, vey, pre, omg)
-   call savevort(omg)
+   call savevort(0.0, omg)
    call timestep(rho, vex, vey, pre)
 
    lambda = dt/dx/dy
@@ -186,19 +187,19 @@ subroutine solveGMD(rho, vex, vey, pre, omg, co0, co1, phi, psi, &
 
       enddo ! Rk stage loop
 
-      if(mod(it,itsave)==0)then
-         call cons2prim(co1,rho,vex,vey,pre)
-         call saveprim(rho, vex, vey, pre)
-         call vorticity(rho, vex, vey, pre, omg)
-         call savevort(omg)
-      endif
-
       if(it==1)then
          resid1 = resid
       endif
 
       time = time + dt
       write(*,'(I6,F10.2,4E12.4)')it,time,resid(:)/resid1(:)
+
+      if(mod(it,itsave)==0)then
+         call cons2prim(co1,rho,vex,vey,pre)
+         call saveprim(time, rho, vex, vey, pre)
+         call vorticity(rho, vex, vey, pre, omg)
+         call savevort(time, omg)
+      endif
 
    enddo ! time iteration loop
 

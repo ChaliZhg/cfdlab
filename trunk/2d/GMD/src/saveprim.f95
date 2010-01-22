@@ -1,7 +1,8 @@
-subroutine saveprim(rho, vex, vey, pre)
+subroutine saveprim(t, rho, vex, vey, pre)
    use comvar
    implicit none
 
+   real    :: t
    real    :: rho(-1:nx+2, -1:ny+2)
    real    :: vex(-1:nx+2, -1:ny+2)
    real    :: vey(-1:nx+2, -1:ny+2)
@@ -17,7 +18,8 @@ subroutine saveprim(rho, vex, vey, pre)
    open(10,file=trim(filename))
    write(10,*)'TITLE = "vortex flow"'
    write(10,*)'VARIABLES = "x", "y", "Density", "Velx", "Vely", "Pressure"'
-   write(10,*)'ZONE I=',nx,', J=',ny,', DATAPACKING=POINT'
+   write(10,*)'ZONE STRANDID=1, SOLUTIONTIME=',t,', I=',nx,', J=',ny,&
+              ', DATAPACKING=POINT'
 
    do j=1,ny
       do i=1,nx
