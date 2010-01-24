@@ -129,6 +129,9 @@ subroutine solveGMD(rho, vex, vey, pre, omg, co0, co1, phi, psi, &
                   if(neta > 0.0)then
                      etax = etax/neta
                      etay = etay/neta
+                  else
+                     etax = 0.0
+                     etay = 0.0
                   endif
 
                   ! x velocity at vertices
@@ -164,6 +167,7 @@ subroutine solveGMD(rho, vex, vey, pre, omg, co0, co1, phi, psi, &
                   else
                      ep=0.0
                   endif
+                  ep = max(0.0, ep)
 
                   res(2,i,j) = res(2,i,j) - ep*kx*(dx*dy)
                   res(3,i,j) = res(3,i,j) - ep*ky*(dx*dy)
