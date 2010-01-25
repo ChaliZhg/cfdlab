@@ -27,6 +27,12 @@ subroutine solveGMD(rho, vex, vey, pre, omg, co0, co1, phi, psi, &
    real    :: etax, etay, neta, kx, ky, omg0, xd, yd, ep
    real    :: ane, ase, anw, asw
    real    :: bne, bse, bnw, bsw
+   real    :: etaxb, etayb
+   real    :: etaxf, etayf
+   real    :: etaxc, etayc
+   real    :: minmod
+   real    :: v_xb, v_xc, v_xf, v_x
+   real    :: u_yb, u_yc, u_yf, u_y
 
 
    ! set initial condition
@@ -121,18 +127,6 @@ subroutine solveGMD(rho, vex, vey, pre, omg, co0, co1, phi, psi, &
 
                ! add vorticity confinement terms
                if(vconf==yes)then
-                  etax = -0.5*( (abs(omg(i+1,j)) + abs(omg(i+1,j+1))) - &
-                                (abs(omg(i  ,j)) + abs(omg(i  ,j+1))) )/dx
-                  etay = -0.5*( (abs(omg(i,j+1)) + abs(omg(i+1,j+1))) - &
-                                (abs(omg(i  ,j)) + abs(omg(i+1,j  ))) )/dy
-                  neta = sqrt(etax**2 + etay**2)
-                  if(neta > 0.0)then
-                     etax = etax/neta
-                     etay = etay/neta
-                  else
-                     etax = 0.0
-                     etay = 0.0
-                  endif
 
                   ! x velocity at vertices
                   ane = 0.25*(vex(i,j) + vex(i+1,j) + vex(i,j+1) + vex(i+1,j+1))
@@ -147,8 +141,42 @@ subroutine solveGMD(rho, vex, vey, pre, omg, co0, co1, phi, psi, &
                   bsw = 0.25*(vey(i,j) + vey(i-1,j) + vey(i,j-1) + vey(i-1,j-1))
 
                   ! vorticity at cell center (i,j)
-                  omg0= 0.5*((bne + bse) - (bnw + bsw))/dx - &
-                        0.5*((anw + ane) - (asw + ase))/dy
+                  v_xb = (vey(i,j) - 0.5*(bnw+bsw))/(0.5*dx)
+                  v_xf = (0.5*(bne+bse) - vey(i,j))/(0.5*dx)
+                  v_xc = (0.5*(bne+bse) - 0.5*(bnw+bsw))/dx
+                  v_x  = minmod(v_xb, v_xc, v_xf)
+                  u_yb = (vex(i,j) - 0.5*(asw+ase))/(0.5*dy)
+                  u_yf = (0.5*(anw+ane) - vex(i,j))/(0.5*dy)
+                  u_yc = (0.5*(anw+ane) - 0.5*(asw+ase))/dy
+                  u_y  = minmod(u_yb, u_yc, u_yf)
+                  omg0 = v_x - u_y
+
+
+                  etaxc = -0.5*( (abs(omg(i+1,j)) + abs(omg(i+1,j+1))) - &
+                                (abs(omg(i  ,j)) + abs(omg(i  ,j+1))) )/dx
+                  etayc = -0.5*( (abs(omg(i,j+1)) + abs(omg(i+1,j+1))) - &
+                                (abs(omg(i  ,j)) + abs(omg(i+1,j  ))) )/dy
+
+                  etaxb = -(abs(omg0) - &
+                            0.5*(abs(omg(i  ,j)) + abs(omg(i  ,j+1))))/(0.5*dx)
+                  etayb = -(abs(omg0) - &
+                            0.5*(abs(omg(i  ,j)) + abs(omg(i+1,j  ))))/(0.5*dy)
+
+                  etaxf = -( 0.5*(abs(omg(i+1,j)) + abs(omg(i+1,j+1))) - &
+                                abs(omg0) )/(0.5*dx)
+                  etayf = -( 0.5*(abs(omg(i,j+1)) + abs(omg(i+1,j+1))) - &
+                                abs(omg0) )/(0.5*dy)
+
+                  etax  = minmod(etaxb, etaxc, etaxf)
+                  etay  = minmod(etayb, etayc, etayf)
+                  neta = sqrt(etax**2 + etay**2)
+                  if(neta > 0.0)then
+                     etax = etax/neta
+                     etay = etay/neta
+                  else
+                     etax = 0.0
+                     etay = 0.0
+                  endif
 
                   kx = -etay*omg0
                   ky = +etax*omg0
@@ -165,7 +193,7 @@ subroutine solveGMD(rho, vex, vey, pre, omg, co0, co1, phi, psi, &
                   if(kx**2 + ky**2 > 0.0)then
                      ep = (xd*kx + yd*ky)/(kx**2 + ky**2)
                   else
-                     ep=0.0
+                     ep = 0.0
                   endif
                   ep = max(0.0, ep)
 
