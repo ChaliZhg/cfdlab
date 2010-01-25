@@ -10,8 +10,8 @@ subroutine prim2cons(rho, vex, vey, pre, con)
 
    integer :: i, j
 
-   do i=1,nx
-      do j=1,ny
+   do i=-1,nx+2
+      do j=-1,ny+2
 
          con(1,i,j) = rho(i,j)
          con(2,i,j) = rho(i,j)*vex(i,j)
