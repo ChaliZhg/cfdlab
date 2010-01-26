@@ -14,8 +14,8 @@ subroutine init_cond_isen(rho, vex, vey, pre)
    circ1= (gamma-1.0)*circ**2/(8.0*gamma*M_PI**2)
    circ2= circ/(2.0*M_PI)
 
-   do i=1,nx
-      do j=1,ny
+   do i=-1,nx+2
+      do j=-1,ny+2
          x = xmin + (i-1)*dx
          y = ymin + (j-1)*dy
 
