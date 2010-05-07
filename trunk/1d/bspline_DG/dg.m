@@ -11,7 +11,8 @@ globals;
 % Set test case
 %testcase = burger_step;
 %testcase = burger_sine;
-testcase = lincon_sine
+%testcase = lincon_sine
+testcase = lincon_step
 
 
 % degree of bspline
@@ -46,6 +47,17 @@ elseif testcase==burger_sine
    tfinal = 2.0;
 
    periodic = yes;
+elseif testcase==lincon_step
+   fluxfun = lincon;
+   % domain size
+   xmin =-1.0
+   xmax = 1.0
+   tfinal = 0.5;
+
+   periodic = no
+   for j=1:N/2
+      U(j,:) = 1.0;
+   end
 elseif testcase==lincon_sine
    fluxfun = lincon;
    % domain size
@@ -86,7 +98,7 @@ end
 invM = inv(M);
 
 % initial condition
-if testcase ~= burger_step
+if testcase ~= burger_step && testcase ~= lincon_step
    for j=1:N
       x1 = xmin + (j-1)*h;
       U(j,1) = initcond(x1);
@@ -242,13 +254,17 @@ end
 
 % Compute error for linear convection equation
 err = 0.0;
-for j=1:N
-   x1  = xmin + (j-1)*h;
-   fun = @(x)( (bezier(U(j,:), x) - initcond(x1+h*x-time)).^2 );
-   err1= quadgk(fun,0,1,'AbsTol',1e-10,'RelTol',0);
-   err = err + err1;
+if testcase==lincon_sine
+   for j=1:N
+      x1  = xmin + (j-1)*h;
+      fun = @(x)( (bezier(U(j,:), x) - initcond(x1+h*x-time)).^2 );
+      err1= quadgk(fun,0,1,'AbsTol',1e-10,'RelTol',0);
+      err = err + err1;
+   end
+   err = sqrt(h*err);
+else
+   fprintf(1,'Error computation not implemented\n');
 end
-err = sqrt(h*err);
 
 fprintf(1,'L2 error = %f\n', err);
 
