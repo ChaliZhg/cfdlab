@@ -1,9 +1,20 @@
-%clear all
-%close all
+% p = degree of bspline
+% N = number of cells = no. of knot intervals
 
 function [ndof, err] = dg(p,N)
 
 globals;
+
+% Default initial values
+ndof = 0; err = 0;
+
+% Number of gauss quadrature points
+Ng = p; % Exact for linear convection
+
+if Ng<1 || Ng>10
+   fprintf(1,'We need 1 <= Ng <=10\n');
+   return
+end
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 % Parameters
@@ -11,15 +22,10 @@ globals;
 % Set test case
 %testcase = burger_step;
 %testcase = burger_sine;
-%testcase = lincon_sine
-testcase = lincon_step
+testcase = lincon_sine
+%testcase = lincon_step
 
 
-% degree of bspline
-%p=1
-
-% number of cells = no. of knot intervals
-%N = 50
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 % Control variables
@@ -201,7 +207,9 @@ for iter=1:niter
       for j=1:N
          for n=0:p
             fun = @(x)( flux( bezier(Ul(j,:), x) ).*dbernstein(p,n,x) );
-            res(j,n+1) = res(j,n+1) - quadgk(fun,0,1);
+            %res(j,n+1) = res(j,n+1) - quadgk(fun,0,1);
+            fg = fun(x_values(Ng,:));
+            res(j,n+1) = res(j,n+1) - sum( fg.*c_values(Ng,:) );
          end
       end
 
