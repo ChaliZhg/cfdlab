@@ -4,13 +4,27 @@ close all
 globals;
 init();
 
+% Test case
+%testcase = burger_step;
+%testcase = burger_sine;
+testcase = lincon_sine
+%testcase = lincon_step
+
+
+% CFL condition
+%cflmode = 'zhang';
+cflmode = 'praveen';
+
+% Number of elements
 N = [20 40 80 160];
-p    = 1;
+
+% Degree of bspline
+p = 1;
 
 ndof = [];
 err  = [];
 for j=1:length(N)
-   [a1, a2] = dg(p,N(j));
+   [a1, a2] = dg(p,N(j),cflmode);
    ndof = [ndof a1];
    err  = [err a2];
    figure(10)

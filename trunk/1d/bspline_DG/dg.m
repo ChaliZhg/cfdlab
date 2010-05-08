@@ -1,18 +1,13 @@
 % p = degree of bspline
 % N = number of cells = no. of knot intervals
+% cflmode = 'zhang' or 'praveen'
 
-function [ndof, err] = dg(p,N)
+function [ndof, err] = dg(p,N,cflmode)
 
 globals;
 
 % Default initial values
 ndof = 0; err = 0;
-
-% Set test case
-%testcase = burger_step;
-%testcase = burger_sine;
-testcase = lincon_sine
-%testcase = lincon_step
 
 % Number of gauss quadrature points
 if testcase==lincon_step || testcase==lincon_sine
@@ -84,20 +79,38 @@ end
 h = (xmax - xmin)/N;
 
 % weights and quadrature points for limiting - zhang-shu
-if p==1
-   xx = [-0.5 +0.5];
-   cfl= 1.0/4.0;
-elseif p==2 || p==3
-   xx = [-0.5 0.0 +0.5];
-   cfl= 1.0/6.0;
-elseif p==4 || p==5
-   xx = [-0.5 -1/sqrt(20) +1/sqrt(20) +0.5];
-   cfl= 1.0/12.0;
+if strcmp(cflmode,'zhang')
+   if p==1
+      xx = [-0.5 +0.5];
+      cfl= 1.0/4.0;
+   elseif p==2 || p==3
+      xx = [-0.5 0.0 +0.5];
+      cfl= 1.0/6.0;
+   elseif p==4 || p==5
+      xx = [-0.5 -1/sqrt(20) +1/sqrt(20) +0.5];
+      cfl= 1.0/12.0;
+   else
+      fprintf(1,'Dont know cfl for this value of p\n');
+      return
+   end
+   xx = xx + 0.5; % shift to [0,1]
 else
-   fprintf(1,'Dont know cfl for this value of p\n');
-   return
+   xx = linspace(0,p,p+1)/p;
+   if p==1
+      cfl= 1.0/4.0;
+   elseif p==2
+      cfl= 1.0/6.0;
+   elseif p==3
+      cfl= 1.0/8.0;
+   elseif p==4
+      cfl= 1.0/12.85714285;
+   elseif p==5
+      cfl= 1.0/15.15789473;
+   else
+      fprintf(1,'Dont know cfl for this value of p\n');
+      return
+   end
 end
-xx = xx + 0.5; % shift to [0,1]
 
 % cell centers
 for j=1:N
