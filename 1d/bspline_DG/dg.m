@@ -75,6 +75,9 @@ elseif testcase==lincon_sine
    xmax = 1.0
    tfinal = 2.0;
    periodic = yes;
+else
+   fprintf(1,'Unknown test case\n');
+   return;
 end
 
 % Cell size
@@ -90,6 +93,9 @@ elseif p==2 || p==3
 elseif p==4 || p==5
    xx = [-0.5 -1/sqrt(20) +1/sqrt(20) +0.5];
    cfl= 1.0/12.0;
+else
+   fprintf(1,'Dont know cfl for this value of p\n');
+   return
 end
 xx = xx + 0.5; % shift to [0,1]
 
