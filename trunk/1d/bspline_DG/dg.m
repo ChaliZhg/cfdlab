@@ -8,22 +8,26 @@ globals;
 % Default initial values
 ndof = 0; err = 0;
 
-% Number of gauss quadrature points
-Ng = p; % Exact for linear convection
-
-if Ng<1 || Ng>10
-   fprintf(1,'We need 1 <= Ng <=10\n');
-   return
-end
-
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-% Parameters
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 % Set test case
 %testcase = burger_step;
 %testcase = burger_sine;
 testcase = lincon_sine
 %testcase = lincon_step
+
+% Number of gauss quadrature points
+if testcase==lincon_step || testcase==lincon_sine
+   Ng = p; % Exact for linear convection
+elseif testcase==burgers_step || testcase==burgers_sine
+   Ng = 2*p; % Exact for quadratic flux
+else
+   fprintf(1,'Dont know Ng\n');
+   return
+end
+
+if Ng<1 || Ng>10
+   fprintf(1,'We need 1 <= Ng <=10\n');
+   return
+end
 
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
