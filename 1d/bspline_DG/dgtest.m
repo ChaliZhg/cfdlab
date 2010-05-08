@@ -2,6 +2,7 @@ clear all
 close all
 
 globals;
+init();
 
 N = [20 40 80 160];
 p    = 1;
