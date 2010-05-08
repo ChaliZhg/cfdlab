@@ -8,8 +8,8 @@ for N=1:20
                       gamma(2*N + 1 - (m+n)) * gamma(m+n+1) / gamma(2+2*N);
       end
    end
-   inv(A)
-   pause
+   %inv(A)
+   %pause
 
    x(N)=N; y(N)=cond(A);
 
