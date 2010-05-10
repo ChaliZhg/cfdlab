@@ -14,7 +14,7 @@ ndof = 0; err = 0;
 % Number of gauss quadrature points
 if testcase==lincon_step || testcase==lincon_sine
    Ng = p; % Exact for linear convection
-elseif testcase==burgers_step || testcase==burgers_sine
+elseif testcase==burger_step || testcase==burger_sine
    Ng = ceil(3*p/2); % Exact for quadratic flux
 else
    fprintf(1,'Dont know Ng\n');
@@ -303,6 +303,6 @@ else
    fprintf(1,'Error computation not implemented\n');
 end
 
-fprintf(1,'L2 error = %f\n', err);
+fprintf(1,'L2 error = %e\n', err);
 
 ndof = N*(p+1);
