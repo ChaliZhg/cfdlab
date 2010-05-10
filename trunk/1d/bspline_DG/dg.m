@@ -174,10 +174,13 @@ amax  = 1; % max speed
 dt    = cfl*h/amax;
 niter = tfinal/dt;
 
-% Cell average values
-for j=1:N
-   ubar(j) = sum(U(j,:))/(p+1);
+% Project initial condition
+[Ul,ubar,mintheta] = project(U);
+if mintheta < 1
+   fprintf(1,'Initial condition is being projected\n');
+   pause
 end
+U = Ul;
 
 time = 0.0;
 
@@ -188,46 +191,33 @@ for iter=1:niter
    % Runge-kutta stages
    for rks=1:3
 
-      Ul       = U;
       res(:,:) = 0.0;
-
-      % limiter
-      for j=1:N
-         ff = bezier(U(j,:), xx);
-         mj = min(ff);
-         Mj = max(ff);
-         a1 = abs(umax - ubar(j))/abs(Mj - ubar(j));
-         a2 = abs(umin - ubar(j))/abs(mj - ubar(j));
-         theta = min( [a1, a2, 1.0] );
-         Ul(j,:) = theta*(U(j,:) - ubar(j)) + ubar(j);
-      end
-
 
       % Inter-element fluxes
       if periodic==no
-         flx = numflux(Ul(1,1), Ul(1,1));
+         flx = numflux(U(1,1), U(1,1));
       else
-         flx = numflux(Ul(N,p+1), Ul(1,1));
+         flx = numflux(U(N,p+1), U(1,1));
       end
       res(1,1) = res(1,1) - flx;
 
       for j=1:N-1
-         flx = numflux(Ul(j,p+1), Ul(j+1,1));
+         flx = numflux(U(j,p+1), U(j+1,1));
          res(j,  p+1) = res(j,  p+1) + flx;
          res(j+1,1  ) = res(j+1,1  ) - flx;
       end
 
       if periodic==no
-         flx = numflux(Ul(N,p+1), Ul(N,p+1));
+         flx = numflux(U(N,p+1), U(N,p+1));
       else
-         flx = numflux(Ul(N,p+1), Ul(1,1));
+         flx = numflux(U(N,p+1), U(1,1));
       end
       res(N,p+1) = res(N,p+1) + flx;
 
       % Flux integral
       for j=1:N
          for n=0:p
-            fun = @(x)( flux( bezier(Ul(j,:), x) ).*dbernstein(p,n,x) );
+            fun = @(x)( flux( bezier(U(j,:), x) ).*dbernstein(p,n,x) );
             %res(j,n+1) = res(j,n+1) - quadgk(fun,0,1);
             fg = fun(x_values(Ng,:));
             res(j,n+1) = res(j,n+1) - sum( fg.*c_values(Ng,:) );
@@ -238,29 +228,14 @@ for iter=1:niter
       for j=1:N
          res(j,:) = invM * (res(j,:))';
          U(j,:) = ark(rks)*Uold(j,:) + ...
-                  brk(rks)*(Ul(j,:) - (dt/h)*res(j,:));
+                  brk(rks)*(U(j,:) - (dt/h)*res(j,:));
       end
 
+      % limiter
+      [Ul,ubar,mintheta] = project(U);
+      U = Ul;
+
    end % end of RK
-
-
-   % Cell average values
-   for j=1:N
-      ubar(j) = sum(U(j,:))/(p+1);
-   end
-
-   % limiter
-   mintheta=1.0e20;
-   for j=1:N
-      ff = bezier(U(j,:), xx);
-      mj = min(ff);
-      Mj = max(ff);
-      a1 = abs(umax - ubar(j))/abs(Mj - ubar(j));
-      a2 = abs(umin - ubar(j))/abs(mj - ubar(j));
-      theta = min( [a1, a2, 1.0] );
-      mintheta = min(mintheta,theta);
-      Ul(j,:) = theta*(U(j,:) - ubar(j)) + ubar(j);
-   end
 
    time = time + dt;
    fprintf(1,'%d %f %f %f\n', iter, dt, time, mintheta);
@@ -270,7 +245,7 @@ for iter=1:niter
    for j=1:N
       x1 = xmin + (j-1)*h;
       s  = linspace(0,1,10);
-      up1= bezier(Ul(j,:), s);
+      up1= bezier(U(j,:), s);
       xp1= x1 + h*s;
       xp = [xp xp1]; up = [up up1];
    end
