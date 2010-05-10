@@ -6,6 +6,8 @@ function [ndof, err] = dg(p,N,cflmode)
 
 globals;
 
+assert(p>=1,'Error: p < 1'); assert(N>=1,'Error: N < 1');
+
 % Default initial values
 ndof = 0; err = 0;
 
@@ -13,17 +15,13 @@ ndof = 0; err = 0;
 if testcase==lincon_step || testcase==lincon_sine
    Ng = p; % Exact for linear convection
 elseif testcase==burgers_step || testcase==burgers_sine
-   Ng = 2*p; % Exact for quadratic flux
+   Ng = ceil(3*p/2); % Exact for quadratic flux
 else
    fprintf(1,'Dont know Ng\n');
    return
 end
 
-if Ng<1 || Ng>10
-   fprintf(1,'We need 1 <= Ng <=10\n');
-   return
-end
-
+assert(Ng>=1 && Ng<=10, 'We need 1 <= Ng <=10\n');
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
@@ -268,20 +266,28 @@ for iter=1:niter
    fprintf(1,'%d %f %f %f\n', iter, dt, time, mintheta);
 
    figure(2)
+   xp = []; up = [];
    for j=1:N
       x1 = xmin + (j-1)*h;
       s  = linspace(0,1,10);
-      up = bezier(Ul(j,:), s);
-      xp = x1 + h*s;
-      plot(xp,up)
-      hold on
+      up1= bezier(Ul(j,:), s);
+      xp1= x1 + h*s;
+      xp = [xp xp1]; up = [up up1];
    end
-   grid
+   plot(xp,up,'LineWidth',1.5); hold on
    plot(xc,ubar,'o')
+   if testcase==lincon_sine
+      x = linspace(xmin,xmax,100);
+      plot(x,initcond(x-time),'--r')
+   end
    hold off
 
 end
 
+% Plot legend
+if testcase==lincon_sine
+   legend('DGFEM', 'Cell avg', 'Exact');
+end
 
 % Compute error for linear convection equation
 err = 0.0;
