@@ -17,10 +17,9 @@ for j=1:N
    ff = bezier(U(j,:), xx);
    mj = min(ff);
    Mj = max(ff);
-   a1 = abs(umax - ubar(j))/abs(Mj - ubar(j));
-   a2 = abs(umin - ubar(j))/abs(mj - ubar(j));
+   a1 = abs(umax - ubar(j))/(abs(Mj - ubar(j)) + 1.0e-14);
+   a2 = abs(umin - ubar(j))/(abs(mj - ubar(j)) + 1.0e-14);
    theta = min( [a1, a2, 1.0] );
    Ul(j,:) = theta*(U(j,:) - ubar(j)) + ubar(j);
-   mintheta = min(mintheta, theta);
+   mintheta = min([mintheta, theta]);
 end
-
