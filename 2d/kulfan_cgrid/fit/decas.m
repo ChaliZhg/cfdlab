@@ -1,3 +1,4 @@
+% de Casteljau algorithm of evaluate bezier curve
 function f = decas(U, s)
 
 p = length(U) - 1;

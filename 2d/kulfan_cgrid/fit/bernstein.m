@@ -1,3 +1,4 @@
+% Evaluates bernstein polynomial of degree N
 function f = bernstein(N,n,x)
 
 if n>N || n<0
