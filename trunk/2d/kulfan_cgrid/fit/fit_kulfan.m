@@ -1,15 +1,23 @@
+% function fit_kulfan(N1, N2, degu, degl)
+%
 % Fit an airfoil to kulfan parameterization
 % Airfoil coordinates must be put in file airfoil.txt in two columns
 % Coordinates must start from TE, go over lower curve, then upper curve and
 % back to TE.
-clear all
+%
+% N1, N2 are powers for LE/TE definition : (psi)^N1 * (1-psi)^N2
+% degl, degu : degree of bezier curves
+function fit_kulfan(N1, N2, degl, degu)
+
+assert(degl>=1, 'Degree must be > 1')
+assert(degu>=1, 'Degree must be > 1')
 
 % Begin parameters
-N1 = 0.5;
-N2 = 1.0;
+%N1 = 0.5;
+%N2 = 1.0;
 
-degu = 8;
-degl = 8;
+%degu = 8;
+%degl = 8;
 % End parameters
 
 load airfoil.txt
@@ -39,6 +47,16 @@ else
    pause
 end
 
+% Check x-coordinate at TE
+% If they differ on lower and upper surface then TE is probably not sharp
+% It will made sharp in the code below
+if max(xu) == max(xl)
+   xte = max(xu);
+else
+   fprintf('TE points differ on lower and upper surfaces')
+end
+
+plot(xu,yu,'o-',xl,yl,'*-')
 plot(xu,yu,'o-',xl,yl,'*-')
 
 % Check if first point on upper and lower curve are same
