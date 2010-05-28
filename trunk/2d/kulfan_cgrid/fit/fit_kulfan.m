@@ -1,10 +1,16 @@
+% Fit an airfoil to kulfan parameterization
+% Airfoil coordinates must be put in file airfoil.txt in two columns
+% Coordinates must start from TE, go over lower curve, then upper curve and
+% back to TE.
 clear all
 
+% Begin parameters
 N1 = 0.5;
 N2 = 1.0;
 
 degu = 8;
 degl = 8;
+% End parameters
 
 load airfoil.txt
 
