@@ -63,15 +63,14 @@ C *****************************************************************************
 
 C ... global dimensions - set as appropriate
       INTEGER im, jm
-      real*8 c
-      PARAMETER (im=387, jm=67,c=1.D0)
+      PARAMETER (im=387, jm=67)
 
 C ... global variables
       CHARACTER*80 title
       CHARACTER*48 fn_grid, fn_gtop, fn_plot
       INTEGER nxa, nxw, ny, ncoo, ip, jp, nle, ntel, nteu, narcl,
      &        narcu, itlapla, itsmoo, itgauss, icd, jcd, ica, jca
-      REAL*8 coeff(4,1),xya(2,im), x(im,jm), y(im,jm), bc(2,3*im+1)
+      REAL*8 xya(2,im), x(im,jm), y(im,jm), bc(2,3*im+1)
       REAL*8 ffdist, dyle, dyte, dxte, dywk, damps, dampa, pspace,
      &       pangle, omega, xcirc
 
@@ -90,7 +89,7 @@ C ... functions
       INTEGER bzdeg,r !  ,c,i,j  already covered above
       !   PARAMETER (c=1) already covered above
       REAL*8 N1,N2,zite_l,zite_u
-      Real*8 al(10,1),au(10,1)
+      Real*8 al(100),au(100)
       Real*8 shap, psi
       Real*8 decas
       Real*8 thetal, thetau, thetate, xi
@@ -149,16 +148,16 @@ C --- read parameters and airfoil coordinates ---------------------------------
       WRITE(*,*) 'degree:', bzdeg
       read(*,*)            !read bezier coefficients for upper surface
       DO r=0, bzdeg
-        READ(*,*) al(r+1,1)
+        READ(*,*) al(r+1)
       ENDDO
-      WRITE(*,*) 'coefficients of lower curve:',(al(r,1),r=1,bzdeg+1)
+      WRITE(*,*) 'coefficients of lower curve:',(al(r),r=1,bzdeg+1)
       READ(*,*) zite_l
       WRITE(*,*) 'zi value of trailing edge for lower surface:', zite_l
       read(*,*)   !now read bezier coefficients for upper surface
       DO r=0,bzdeg
-        READ(*,*) au(r+1,1)
+        READ(*,*) au(r+1)
       ENDDO
-      WRITE(*,*) 'coefficients of upper curve:',(au(r,1),r=1,bzdeg+1)
+      WRITE(*,*) 'coefficients of upper curve:',(au(r),r=1,bzdeg+1)
       READ(*,*) zite_u
       WRITE(*,*) 'zi value of trailing edge for upper surface:', zite_l
       
