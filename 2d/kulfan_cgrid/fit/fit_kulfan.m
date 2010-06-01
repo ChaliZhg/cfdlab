@@ -9,6 +9,7 @@
 % degl, degu : degree of bezier curves
 function fit_kulfan(N1, N2, degl, degu)
 
+assert(nargin==4, 'Specify four arguments, type help fit_kulfan')
 assert(degl>=1, 'Degree must be > 1')
 assert(degu>=1, 'Degree must be > 1')
 
