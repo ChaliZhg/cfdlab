@@ -406,6 +406,14 @@ c     Save grid in plot3d format
       WRITE(10,*) ((y(i,j), i=1,ip), j=1,jp)
       CLOSE(10)
 
+c     Write airfoil coordinates
+      WRITE(*,'(A)') ' Saving airfoil points into afpoints.dat ...'
+      OPEN(10,FILE='afpoints.dat',STATUS='unknown')
+      do i=ntel,nteu
+         WRITE(10,*) x(i,1), y(i,1)
+      enddo
+      close(10)
+
 C --- write out topology
 
       WRITE(*,'(A)') ' Saving topology file ...'
