@@ -11,18 +11,6 @@ assert(p>=1,'Error: p < 1'); assert(N>=1,'Error: N < 1');
 % Default initial values
 ndof = 0; err = 0;
 
-% Number of gauss quadrature points
-if testcase==lincon_step || testcase==lincon_sine
-   Ng = p; % Exact for linear convection
-elseif testcase==burger_step || testcase==burger_sine
-   Ng = ceil(3*p/2); % Exact for quadratic flux
-else
-   fprintf(1,'Dont know Ng\n');
-   return
-end
-
-assert(Ng>=1 && Ng<=10, 'We need 1 <= Ng <=10\n');
-
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 % Control variables
@@ -37,6 +25,7 @@ if testcase==burger_step
    xmin =-1.0
    xmax = 1.0
    tfinal = 1.0;
+   mmconst = 0.1;
 
    periodic = no
    for j=1:N/2
@@ -48,8 +37,21 @@ elseif testcase==burger_sine
    xmin =-1.0
    xmax = 1.0
    tfinal = 2.0;
+   mmconst = 50;
 
    periodic = yes;
+elseif testcase==burger_rare
+   fluxfun = burger;
+   % domain size
+   xmin =-1.0
+   xmax = 1.0
+   tfinal = 0.6;
+
+   periodic = no;
+   U(:,:) = 1.0;
+   for j=1:N/2
+      U(j,:) = -1.0;
+   end
 elseif testcase==lincon_step
    fluxfun = lincon;
    % domain size
@@ -68,10 +70,31 @@ elseif testcase==lincon_sine
    xmax = 1.0
    tfinal = 2.0;
    periodic = yes;
+   mmconst = 50;
+elseif testcase==lincon_hat
+   fluxfun = lincon;
+   % domain size
+   xmin = 0.0
+   xmax = 1.0
+   tfinal = 2.0;
+   periodic = yes;
+   mmconst = 1e20;
 else
    fprintf(1,'Unknown test case\n');
    return;
 end
+
+% Number of gauss quadrature points
+if fluxfun==lincon
+   Ng = p; % Exact for linear convection
+elseif fluxfun==burger
+   Ng = ceil(3*p/2); % Exact for quadratic flux
+else
+   fprintf(1,'Dont know Ng\n');
+   return
+end
+
+assert(Ng>=1 && Ng<=10, 'We need 1 <= Ng <=10\n');
 
 % Cell size
 h = (xmax - xmin)/N;
@@ -125,7 +148,9 @@ end
 invM = inv(M);
 
 % initial condition
-if testcase ~= burger_step && testcase ~= lincon_step
+if testcase ~= burger_step && ...
+   testcase ~= burger_rare && ...
+   testcase ~= lincon_step
    for j=1:N
       x1 = xmin + (j-1)*h;
       U(j,1) = initcond(x1);
@@ -176,16 +201,25 @@ niter = tfinal/dt;
 
 % Project initial condition
 [Ul,ubar,mintheta] = project(U);
-if mintheta < 1
+if mintheta < 1.0
    fprintf(1,'Initial condition is being projected\n');
-   pause
+   fprintf(1,'Minimum theta = %e\n', mintheta);
 end
 U = Ul;
 
+plot(xc,ubar,'o')
+
 time = 0.0;
+iter = 0;
 
 % time integration
-for iter=1:niter
+while time < tfinal
+%for iter=1:niter
+   % Exactly match final time
+   if time + dt > tfinal
+      dt = tfinal - time;
+   end
+
    Uold = U;
 
    % Runge-kutta stages
@@ -237,8 +271,16 @@ for iter=1:niter
 
    end % end of RK
 
+   % compute L2 norm of solution
+   energy = 0.0;
+   for j=1:N
+      energy = energy + U(j,:) * M * (U(j,:))';
+   end
+   energy = h * energy;
+
    time = time + dt;
-   fprintf(1,'%d %f %f %f\n', iter, dt, time, mintheta);
+   iter = iter + 1;
+   fprintf(1,'%d %f %f %f %f\n', iter, dt, time, mintheta, energy);
 
    figure(2)
    xp = []; up = [];
@@ -248,19 +290,22 @@ for iter=1:niter
       up1= bezier(U(j,:), s);
       xp1= x1 + h*s;
       xp = [xp xp1]; up = [up up1];
+      %plot(x1+h*linspace(0,p,p+1)/p,U(j,:),'-*g')
+      %hold on
    end
    plot(xp,up,'LineWidth',1.5); hold on
    plot(xc,ubar,'o')
-   if testcase==lincon_sine
-      x = linspace(xmin,xmax,100);
+   if testcase==lincon_sine || testcase==lincon_hat
+      x = linspace(xmin,xmax,200);
       plot(x,initcond(x-time),'--r')
    end
+   axis tight
    hold off
 
 end
 
 % Plot legend
-if testcase==lincon_sine
+if testcase==lincon_sine || testcase==lincon_hat
    legend('DGFEM', 'Cell avg', 'Exact');
 end
 
