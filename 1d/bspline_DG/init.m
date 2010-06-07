@@ -9,8 +9,14 @@ no=0; yes=1;
 % Test cases
 burger_step = 11;
 burger_sine = 12;
+burger_rare = 13;
 lincon_sine = 21;
 lincon_step = 22;
+lincon_hat  = 23;
+
+% Constant for minmod
+% Dont change this; set it in dg.m in the testcase selection step
+mmconst = 1.0e20;
 
 % Setup Gaussian Coefficients and Evaluation Points
 x_values = zeros(10,10) ;

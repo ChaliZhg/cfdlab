@@ -7,8 +7,10 @@ init();
 % Test case
 %testcase = burger_step;
 %testcase = burger_sine;
+%testcase = burger_rare;
 testcase = lincon_sine
 %testcase = lincon_step
+%testcase = lincon_hat
 
 
 % CFL condition
