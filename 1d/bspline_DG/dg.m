@@ -79,6 +79,14 @@ elseif testcase==lincon_hat
    tfinal = 2.0;
    periodic = yes;
    mmconst = 1e20;
+elseif testcase==lincon_zalesak
+   fluxfun = lincon;
+   % domain size
+   xmin =-1.0
+   xmax = 1.0
+   tfinal = 2.0;
+   periodic = yes;
+   mmconst = 1e20;
 else
    fprintf(1,'Unknown test case\n');
    return;
@@ -295,7 +303,8 @@ while time < tfinal
    end
    plot(xp,up,'LineWidth',1.5); hold on
    plot(xc,ubar,'o')
-   if testcase==lincon_sine || testcase==lincon_hat
+   if testcase==lincon_sine || testcase==lincon_hat || ...
+      testcase==lincon_zalesak
       x = linspace(xmin,xmax,200);
       plot(x,initcond(x-time),'--r')
    end
@@ -305,7 +314,8 @@ while time < tfinal
 end
 
 % Plot legend
-if testcase==lincon_sine || testcase==lincon_hat
+if testcase==lincon_sine || testcase==lincon_hat || ...
+   testcase==lincon_zalesak
    legend('DGFEM', 'Cell avg', 'Exact');
 end
 
