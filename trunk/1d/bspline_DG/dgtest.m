@@ -8,9 +8,10 @@ init();
 %testcase = burger_step;
 %testcase = burger_sine;
 %testcase = burger_rare;
-testcase = lincon_sine
-%testcase = lincon_step
-%testcase = lincon_hat
+%testcase = lincon_sine;
+%testcase = lincon_step;
+%testcase = lincon_hat;
+testcase = lincon_zalesak;
 
 
 % CFL condition
@@ -19,9 +20,10 @@ cflmode = 'praveen';
 
 % Number of elements
 N = [20 40 80 160];
+N = [200];
 
 % Degree of bspline
-p = 1;
+p = 2;
 
 ndof = [];
 err  = [];

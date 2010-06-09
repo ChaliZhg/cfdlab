@@ -13,6 +13,7 @@ burger_rare = 13;
 lincon_sine = 21;
 lincon_step = 22;
 lincon_hat  = 23;
+lincon_zalesak  = 24;
 
 % Constant for minmod
 % Dont change this; set it in dg.m in the testcase selection step
