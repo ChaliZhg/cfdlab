@@ -63,7 +63,7 @@ C *****************************************************************************
 
 C ... global dimensions - set as appropriate
       INTEGER im, jm
-      PARAMETER (im=387, jm=67)
+      PARAMETER (im=500, jm=200)
 
 C ... global variables
       CHARACTER*80 title
