@@ -1,0 +1,15 @@
+#PBS -N test
+#PBS -l nodes=2:ppn=12 
+#PBS -j oe
+#PBS -o test.log
+#PBS -m e
+
+#export OPENMPI=/usr/mpi/gcc/openmpi-1.4.1
+#export LD_LIBRARY_PATH=$OPENMPI/lib64
+
+# bind a mpi process to a cpu; the linux scheduler sucks for mpi
+#export OMPI_MCA_mpi_paffinity_alone=1
+
+cd $PBS_O_WORKDIR
+
+mpirun  ./a.out
