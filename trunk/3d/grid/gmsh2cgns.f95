@@ -95,7 +95,7 @@ PROGRAM GMSH_TO_CGNS
   ! Verification of the command line
   IF(TRIM(fname_mesh) == "")THEN     
      PRINT '(" ")'
-     PRINT '("This convertissor required one arguments")'
+     PRINT '("This convertor requires one argument")'
      PRINT '(" >>> ./gmsh2cgns  filename")'
      PRINT '(" ")'
      STOP
@@ -234,7 +234,7 @@ PROGRAM GMSH_TO_CGNS
   ENDDO
 
   !---------------------
-  ! write NUM3SIS file 
+  ! write CGNS file 
   !---------------------
   fname_out = TRIM(fname_mesh)//'.cgns'
   PRINT*,'     CGNS file written into ', TRIM(fname_out)
