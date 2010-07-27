@@ -62,7 +62,7 @@ PROGRAM GMSH_TO_CGNS
   INTEGER, DIMENSION(:), POINTER :: logfac
 
   !! Array of correspondance between
-  !! the gmsh physical type and the num3sis boundary logicals
+  !! the gmsh physical type and the boundary type
   !! First index denotes the current boundary
   !! Second index denotes:
   !!   -the gmsh type if it is equal to 1
@@ -328,6 +328,7 @@ PROGRAM GMSH_TO_CGNS
 
 END PROGRAM GMSH_TO_CGNS
 
+!------------------------------------------------------------------------------
 subroutine setbcname(phytag, bcname)
   implicit none
   integer :: phytag
