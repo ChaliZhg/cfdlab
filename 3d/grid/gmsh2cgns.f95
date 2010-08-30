@@ -77,6 +77,7 @@ PROGRAM GMSH_TO_CGNS
 
   !! Integer which denotes a useless data read in the input file
   INTEGER :: inull
+  INTEGER :: ntags
   
   integer :: isize(3,3), ipnts(2)
   character(len=32) :: basename,zonename
@@ -157,8 +158,15 @@ PROGRAM GMSH_TO_CGNS
   DO iel=1,nelem
 
      READ(UNIT   = 10, &
-          FMT    = *) inull, type_elem, inull, type_phys, inull, inull, &
+          FMT    = *) inull, type_elem, ntags, type_phys, inull, inull, &
           (list(i), i=1,node_per_element(type_elem))
+
+     IF(ntags /= 3) THEN
+        PRINT*,'!!! ntags is not equal to 3'
+        PRINT*,'Element =',iel
+        PRINT*,'ntags   =',ntags
+        STOP
+     ENDIF
 
      ! case : tetrahedron
      IF(type_elem == 4) THEN
