@@ -1,7 +1,10 @@
-TARGETS: dpl2amdba showamdba showpts naca45
+TARGETS: dpl2amdba showamdba showpts naca45 dpl2flomesh
 
 dpl2amdba: dpl2amdba.c
 	$(CC) -o dpl2amdba dpl2amdba.c
+
+dpl2flomesh: dpl2flomesh.c
+	$(CC) -o dpl2flomesh dpl2flomesh.c
 
 showamdba: showamdba.c
 	$(CC) -o showamdba showamdba.c
