@@ -1,5 +1,6 @@
 #include<stdio.h>
 #include<stdlib.h>
+#include<string.h>
 #define NP		25000
 #define NTRI	2*NP
 #define max(a,b)  (a>b?a:b)
@@ -22,7 +23,8 @@ int main(int argc, char *argv[])
 {
    int i, j, m, dummy;
    double dd;
-   char *dplfile, *line = NULL;
+   char *dplfile;
+   char line[80];
    size_t len = 0;
    ssize_t read;
    FILE *fpt;
@@ -43,7 +45,8 @@ int main(int argc, char *argv[])
       printf("Could not open file %s\n", dplfile);
       exit(0);
    }
-   getline(&line, &len, fpt);   /* First line has some text */
+   //getline(&line, &len, fpt);   /* First line has some text */
+   fgets(line, 80, fpt);   /* First line has some text */
    fscanf(fpt, "%d%d%d", &ntri, &dummy, &dummy);
    if(ntri > NTRI) {
       printf("Increase size of NTRI to atleast %d\n", ntri);
