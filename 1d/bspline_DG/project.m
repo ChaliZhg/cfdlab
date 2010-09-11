@@ -22,8 +22,8 @@ for j=1:N
    ff = bezier(U(j,:), xx);
    mj = min(ff);
    Mj = max(ff);
-   a1 = abs(umax - ubar(j))/(abs(Mj - ubar(j)) + 1.0e-14);
-   a2 = abs(umin - ubar(j))/(abs(mj - ubar(j)) + 1.0e-14);
+   a1 = abs(umax(j) - ubar(j))/(abs(Mj - ubar(j)) + 1.0e-14);
+   a2 = abs(umin(j) - ubar(j))/(abs(mj - ubar(j)) + 1.0e-14);
    theta = min( [a1, a2, 1.0] );
    mintheta = min([mintheta, theta]);
    Ul(j,:) = theta*(U(j,:) - ubar(j)) + ubar(j);
@@ -45,7 +45,7 @@ for j=1:N
       end
    end
 
-   ux = minmod( uxc, uxb, uxf );
+   ux = minmod( uxc, 2*uxb, 2*uxf );
 
    if ux ~= 0.0 % then cell average solution is monotone
       ux1 = derivative(Ul(j,:), xx);

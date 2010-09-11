@@ -25,7 +25,7 @@ if testcase==burger_step
    xmin =-1.0
    xmax = 1.0
    tfinal = 1.0;
-   mmconst = 0.1;
+   mmconst = 1e20;
 
    periodic = no
    for j=1:N/2
@@ -63,6 +63,7 @@ elseif testcase==lincon_step
    for j=1:N/2
       U(j,:) = 1.0;
    end
+   mmconst=1e20;
 elseif testcase==lincon_sine
    fluxfun = lincon;
    % domain size
@@ -159,28 +160,31 @@ invM = inv(M);
 if testcase ~= burger_step && ...
    testcase ~= burger_rare && ...
    testcase ~= lincon_step
-   for j=1:N
-      x1 = xmin + (j-1)*h;
-      U(j,1) = initcond(x1);
-      U(j,p+1) = initcond(x1+h);
-   end
+   %for j=1:N
+   %   x1 = xmin + (j-1)*h;
+   %   U(j,1) = initcond(x1);
+   %   U(j,p+1) = initcond(x1+h);
+   %end
 
-   if p>1
+   if p>=1
       AA = M(2:p,2:p); invAA = inv(AA);
-      b = zeros(p-1,1);
+      %b = zeros(p-1,1);
+      b = zeros(p+1,1);
       for j=1:N
          x1 = xmin + (j-1)*h;
-         for n=1:p-1
-            fun = @(x)( initcond(x1+h*x) .* bernstein(p,n,x) );
-            b(n) = quadgk(fun,0,1) - U(j,1)*M(1,n+1) - U(j,p+1)*M(p+1,n+1);
+         for n=1:p+1
+            fun = @(x)( initcond(x1+h*x) .* bernstein(p,n-1,x) );
+            %b(n) = quadgk(fun,0,1) - U(j,1)*M(1,n+1) - U(j,p+1)*M(p+1,n+1);
+            b(n) = quadgk(fun,0,1);
          end
-         U(j,2:p) = invAA * b;
+         %U(j,2:p) = invAA * b;
+         U(j,:) = invM * b;
       end
    end
 end
 
-umin = 1.0e20;
-umax =-1.0e20;
+umin1 = 1.0e20;
+umax1 =-1.0e20;
 
 % plot initial condition
 figure(1)
@@ -191,13 +195,16 @@ for j=1:N
    up = bezier(U(j,:), s);
    xp = x1 + h*s;
    plot(xp,up)
-   umin = min(umin, min(up));
-   umax = max(umax, max(up));
+   umin1 = min([umin1, min(up)]);
+   umax1 = max([umax1, max(up)]);
 end
 title('Initial condition');
 
-umin
-umax
+umin1
+umax1
+
+umin = umin1 * ones(N,1);
+umax = umax1 * ones(N,1);
 
 % Parameters for runge-kutta
 ark = [0.0 3.0/4.0 1.0/3.0];
@@ -206,6 +213,7 @@ brk = 1 - ark;
 amax  = 1; % max speed
 dt    = cfl*h/amax;
 niter = tfinal/dt;
+
 
 % Project initial condition
 [Ul,ubar,mintheta] = project(U);
@@ -229,6 +237,7 @@ while time < tfinal
    end
 
    Uold = U;
+   %minmax(ubar);
 
    % Runge-kutta stages
    for rks=1:3
@@ -307,6 +316,10 @@ while time < tfinal
       testcase==lincon_zalesak
       x = linspace(xmin,xmax,200);
       plot(x,initcond(x-time),'--r')
+   elseif testcase==lincon_step
+      plot([xmin,time,time,xmax],[1,1,0,0],'--r')
+   elseif testcase==burger_step
+      plot([xmin,0.5*time,0.5*time,xmax],[1,1,0,0],'--r')
    end
    axis tight
    hold off
@@ -315,7 +328,8 @@ end
 
 % Plot legend
 if testcase==lincon_sine || testcase==lincon_hat || ...
-   testcase==lincon_zalesak
+   testcase==lincon_step || testcase==lincon_zalesak || ...
+   testcase==burger_step
    legend('DGFEM', 'Cell avg', 'Exact');
 end
 
@@ -336,3 +350,8 @@ end
 fprintf(1,'L2 error = %e\n', err);
 
 ndof = N*(p+1);
+
+% save cell averages to file
+fp = fopen('solavg.dat','w');
+fprintf(fp,'%e %e\n', [xc; ubar]);
+fclose(fp);
