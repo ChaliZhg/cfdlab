@@ -1,0 +1,7 @@
+This is different from bspline_DG
+
+We do
+
+Apply limiter to cell averages
+Update solution (evolution)
+Do slope limiting
