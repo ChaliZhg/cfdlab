@@ -1,4 +1,4 @@
-TARGETS: dpl2amdba showamdba showpts naca45 dpl2flomesh
+TARGETS = dpl2amdba showamdba showpts naca45 dpl2flomesh
 
 dpl2amdba: dpl2amdba.c
 	$(CC) -o dpl2amdba dpl2amdba.c
@@ -18,4 +18,4 @@ naca45: naca45.c
 ALL:     $(TARGETS)
 
 clean:
-	rm -f dpl2amdba showamdba showpts naca45
+	rm -f $(TARGETS) *.o
