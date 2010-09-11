@@ -9,16 +9,16 @@ program main
    real, dimension(:), allocatable :: phid, psid
    real, dimension(:), allocatable :: omg
 
-   nx = 51
-   ny = 51
+   nx = 201
+   ny = 201
 
    xmin =-5.0
    xmax = 5.0
    ymin =-5.0
    ymax = 5.0
 
-   itmax = 10000
-   itsave= 100
+   itmax = 400
+   itsave= 2
 
    ! periodicity conditions
    xperiod = yes
@@ -28,10 +28,10 @@ program main
    fluxtype = iroe
 
    ! limiter: ford, muscl3, mmod
-   limtype = muscl3
+   limtype = ford
 
    ! fvm or gmd
-   scheme = fvm
+   scheme = gmd
 
    ! vorticity confinement
    vconf  = no
@@ -43,7 +43,7 @@ program main
    dx = (xmax - xmin)/(nx-1)
    dy = (ymax - ymin)/(ny-1)
 
-   cfl = 0.8
+   cfl = 0.4
 
    ark(1) = 0.0
    ark(2) = 3.0/4.0
@@ -68,6 +68,8 @@ program main
    else if(scheme==gmd)then
       call solveGMD(rho, vex, vey, pre, omg, co0, co1, phi, psi,  &
                     phid, psid, res)
+      !call solveGMD_stag(rho, vex, vey, pre, omg, co0, co1, phi, psi,  &
+      !              phid, psid, res)
    else
       write(*,*)'Unknown scheme =',scheme
       stop

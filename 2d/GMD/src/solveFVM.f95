@@ -12,6 +12,8 @@ subroutine solveFVM(rho, vex, vey, pre, omg, co0, co1, res)
    real :: co0(4, -1:nx+2, -1:ny+2)
    real :: co1(4, -1:nx+2, -1:ny+2)
    real :: res(4,0:nx+1,0:ny+1)
+   real :: fd(4,nx+1,ny+1)
+   real :: gd(4,nx+1,ny+1)
 
    integer :: it, i, j, rks
    real    :: lambda
@@ -52,6 +54,7 @@ subroutine solveFVM(rho, vex, vey, pre, omg, co0, co1, res)
                               co1(:,i+2,j), xflux, dxflux)
                res(:,i,j)   = res(:,i,j)   + dy*xflux(:)
                res(:,i+1,j) = res(:,i+1,j) - dy*xflux(:)
+               fd(:,i+1,j)  = dxflux(:)
             enddo
          enddo
 
@@ -62,6 +65,7 @@ subroutine solveFVM(rho, vex, vey, pre, omg, co0, co1, res)
                               co1(:,i,j+2), yflux, dyflux)
                res(:,i,j)   = res(:,i,j)   + dx*yflux(:)
                res(:,i,j+1) = res(:,i,j+1) - dx*yflux(:)
+               gd(:,i,j+1)  = dyflux(:)
             enddo
          enddo
 
@@ -93,7 +97,7 @@ subroutine solveFVM(rho, vex, vey, pre, omg, co0, co1, res)
                   omg0= 0.5*((bne + bse) - (bnw + bsw))/dx - &
                         0.5*((anw + ane) - (asw + ase))/dy
 
-                  cv = 0.01
+                  cv = 0.02
                   kx = -cv*rho(i,j)*etay*omg0*(dx*dy)
                   ky = +cv*rho(i,j)*etax*omg0*(dx*dy)
 
