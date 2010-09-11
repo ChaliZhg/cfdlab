@@ -1,5 +1,5 @@
 FC = ifort
-FFLAGS = -diag-disable vec -r8 -free -Tf
+FFLAGS = -O3 -diag-disable vec -r8 -free -Tf
 
 TARGETS = vort
 
