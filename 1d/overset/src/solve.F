@@ -9,20 +9,26 @@ c------------------------------------------------------------------------------
 
       integer ifid, i, j
       integer niter, nit, irk, nrk
-      real    cfl, dt, dtstage, time
+      real    cfl, dt, dtstage, time, dxmin
       real    errm, err2
+
+c     Equation: linear advection or burgers equation
+      ieq = LINEAR
 
 c     Initial condition
 c     1=gaussian, 2=step
-      ictype = 2
+      ictype = 1
 
 c     Order: 1=first order, 2=second order, 3=limited second order
-      iorder = 3
+      iorder = 2
 
 c     Interpolation meth: 1=linear, 2=quadratic, 3=cubic, 4=meshless
 c     5=3'rd order meshless
       inttyp = 4
 
+c     weight power for meshless method
+      wpower = 1.0
+      
 c     CFL number
       cfl   = 0.95
 
@@ -30,8 +36,8 @@ c     Number of time steps
       niter = 111
 
 c     RK time integration scheme: rk4, rktvd
-      rkmeth = rk4
-c     rkmeth = rktvd
+c     rkmeth = rk4
+      rkmeth = rktvd
 
 c     Number of rk stages
       if(rkmeth.eq.rk4) nrk = 4
@@ -68,6 +74,11 @@ c     Read overlap information
       enddo
       close(ifid)
 
+c     Enlarge stencil if required, but only for second order meshless
+      if(inttyp.eq.4)then
+         call stable_stencil()
+      endif
+
 #ifdef _GRAFIC
       CALL GRINIT(5,6,'DEMONSTRATION OF GRAFIC')
       CALL GRSSET(0.0, 2.0, 0.0, 1.0)
@@ -85,8 +96,11 @@ c     Save initial condition
       call system("mv -f sol.dat sol0.dat")
 
 c     Time step
-      dt = 0.01
-      dt = cfl*dx(1)
+      dxmin = 1.0e20
+      do i=1,ngrid
+         dxmin = min(dxmin, dx(i))
+      enddo
+      dt = cfl*dxmin
       
       niter = 1.0/dt
 
@@ -144,6 +158,38 @@ c     Solve the solution
       stop
       end
 c------------------------------------------------------------------------------
+c     Enlarge stencil for better stability
+c------------------------------------------------------------------------------
+      subroutine stable_stencil()
+      include 'param.h'
+      include 'vars.h'
+      integer i, irg, irp, idg, id1, id2
+      real    ds, fact
+
+      print*,'Setting stable stencil'
+
+      do i=1,nopts
+c        Receiving grid and point
+         irg = olap(1,i)
+         irp = olap(2,i)
+
+c        Donor grid and point
+         idg = olap(3,i)
+         id1 = olap(4,i)
+         id2 = olap(5,i)
+
+         ds  =   x(idg,id2) - x(idg,id1)
+         fact= ( x(irg,irp) - x(idg,id1) )/ds
+
+         if(fact.le.0.5)then
+            olap(4,i) = id1 - 1
+         else if(fact.gt.0.5)then
+            olap(5,i) = id2 + 1
+         endif
+      enddo
+
+      end
+c------------------------------------------------------------------------------
 c     Set initial condition
 c------------------------------------------------------------------------------
       subroutine SetInitCond
@@ -197,22 +243,33 @@ c------------------------------------------------------------------------------
       include 'common.h'
       integer irk, igrid
       real    dt
+      real    fluxfunc
 
       integer i
       real    ul, ur, fl, fr, muscl
 
       do i=1,np(igrid)
          if(utype(igrid,i).eq.UPDATE)then
-c           Left flux
-            ul = muscl( var0(igrid,i-2),
+c           Left face flux
+            ul = var0(igrid,i-1) +
+     1           muscl( var0(igrid,i-2),
      1                  var0(igrid,i-1),
      2                  var0(igrid,i  ) )
-            fl = ul
-c           Right flux
-            ur = muscl( var0(igrid,i-1),
-     1                  var0(igrid,i  ),
+            ur = var0(igrid,i) -
+     1           muscl( var0(igrid,i-1),
+     1                  var0(igrid,i),
      2                  var0(igrid,i+1) )
-            fr = ur
+            fl = fluxfunc(ul,ur)
+c           Right face flux
+            ul = var0(igrid,i) +
+     1           muscl( var0(igrid,i-1),
+     1                  var0(igrid,i),
+     2                  var0(igrid,i+1) )
+            ur = var0(igrid,i+1) -
+     1           muscl( var0(igrid,i),
+     1                  var0(igrid,i+1),
+     2                  var0(igrid,i+2) )
+            fr = fluxfunc(ul,ur)
 c           Perform RK update
             if(rkmeth.eq.rk4)then
                var(igrid,i) = var_old(igrid,i) - dt*(fr - fl)/dx(igrid)
@@ -244,9 +301,12 @@ c------------------------------------------------------------------------------
       dr  = ur - u
       s   = limiter(dl, dr)    
 
-      muscl = u + 0.25*s*( (1.0-kkk)*dl + (1.0+kkk)*dr )
+c     muscl = u + 0.25*s*( (1.0-kkk)*dl + (1.0+kkk)*dr )
 c     muscl = u + 0.5d0*koren_delta(dl, dr)
 c     muscl = u + 0.5d0*albada_delta(dl, dr)
+
+      muscl = 0.25*s*( (1.0-kkk)*dl + (1.0+kkk)*dr )
+c     muscl = 0.5*koren_delta(dl, dr)
 
       return
       end
@@ -302,7 +362,7 @@ c------------------------------------------------------------------------------
       return
       end
 c------------------------------------------------------------------------------
-c     Delta form of val albada limiter
+c     Delta form of van albada limiter
 c------------------------------------------------------------------------------
       real function albada_delta(a, b)
       implicit none
@@ -315,6 +375,36 @@ c------------------------------------------------------------------------------
       num = (a*a + eps)*b + (b*b + eps)*a
       den = a*a + b*b + 2.0*eps
       albada_delta = num/den
+
+      return
+      end
+c------------------------------------------------------------------------------
+c     Numerical flux function
+c------------------------------------------------------------------------------
+      real function fluxfunc(ul, ur)
+      implicit none
+      include 'common.h'
+      real ul, ur
+
+      real a
+
+      if(ieq.eq.LINEAR)then
+         fluxfunc = ul
+      else if(ieq.eq.BURGER)then
+         if(ul.eq.ur)then
+            fluxfunc = 0.5*ul*ul
+         else
+            a = 0.5*(ul + ur)
+            if(a.gt.0.0)then
+               fluxfunc = 0.5*ul*ul
+            else
+               fluxfunc = 0.5*ur*ur
+            endif
+         endif
+      else
+         print*,'Unknown equation'
+         stop
+      endif
 
       return
       end
@@ -486,7 +576,8 @@ c------------------------------------------------------------------------------
 
       integer i, irg, irp, idg, id1, id2
       real    vx1, vx2, vxp, dx1, dx2, dnm, f1, f2, fp, res, dl, dr
-      real    u1, u2, s, limiter, w1, w2
+      real    ul, ur, u1, u2, s, limiter, w1, w2
+      real    fluxfunc
 
       do i=1,nopts
 c        Receiving grid and point
@@ -505,33 +596,48 @@ c        Donor grid and point
 
          dx1 = x(idg,id1) - x(irg,irp)
          dx2 = x(idg,id2) - x(irg,irp)
-         w1  = 1.0/abs(dx1)**0
-         w2  = 1.0/abs(dx2)**0
-         dnm = w1*dx1**2 + w1*dx2**2
+         w1  = 1.0/abs(dx1)**wpower
+         w2  = 1.0/abs(dx2)**wpower
+         dnm = w1*dx1**2 + w2*dx2**2
          vxp = (var0(idg,id1)-var0(irg,irp))*dx1*w1 +
      1         (var0(idg,id2)-var0(irg,irp))*dx2*w2
          vxp = vxp/dnm
 
+c        Left flux F_1p
          dr  = var0(irg,irp) - var0(idg,id1)
          dl  = 2.0*(-vx1*dx1) - dr
          s   = limiter(dl, dr)
-         u1  = var0(idg,id1) + 0.25*s*( (1.0-kkk)*dl + (1.0+kkk)*dr )
-         f1  = u1
+         ul  = var0(idg,id1) + 0.25*s*( (1.0-kkk)*dl + (1.0+kkk)*dr )
+         
+         dl  = var0(irg,irp) - var0(idg,id1)
+         dr  = 2.0*(-vxp*dx1) - dl
+         s   = limiter(dl, dr)
+         ur  = var0(irg,irp) - 0.25*s*( (1.0-kkk)*dl + (1.0+kkk)*dr )
+         
+         f1  = fluxfunc(ul, ur)
 
+c        Right flux F_p2
          dr  = var0(idg,id2) - var0(irg,irp)
          dl  = 2.0*(vxp*dx2) - dr
          s   = limiter(dl, dr)
-         u2  = var0(irg,irp) + 0.25*s*( (1.0-kkk)*dl + (1.0+kkk)*dr )
-         f2  = u2
+         ul  = var0(irg,irp) + 0.25*s*( (1.0-kkk)*dl + (1.0+kkk)*dr )
+         
+         dl  = var0(idg,id2) - var0(irg,irp)
+         dr  = 2.0*(vx2*dx2) - dl
+         s   = limiter(dl, dr)
+         ur  = var0(idg,id2) - 0.25*s*( (1.0-kkk)*dl + (1.0+kkk)*dr )
+         
+         f2  = fluxfunc(ul, ur)
 
-         fp  = var0(irg,irp)
+c        Flux at the node p
+         fp  = fluxfunc(var0(irg,irp), var0(irg,irp))
 
          res = (f1 - fp)*dx1*w1 + (f2 - fp)*dx2*w2
          res = 2.0*res/dnm
 
          if(rkmeth.eq.rk4)then
             var(irg,irp) = var_old(irg,irp) - dt*res
-         elseif(rkmeth.eq.rktvd)then
+         else if(rkmeth.eq.rktvd)then
             var(irg,irp) = ark(irk)*var_old(irg,irp) + 
      1                     brk(irk)*(var0(irg,irp) - dt*res)
          else
@@ -575,8 +681,8 @@ c        Donor grid and point
 
          dx1 = x(idg,id1) - x(irg,irp)
          dx2 = x(idg,id2) - x(irg,irp)
-         w1  = 1.0/abs(dx1)**0
-         w2  = 1.0/abs(dx2)**0
+         w1  = 1.0/abs(dx1)**wpower
+         w2  = 1.0/abs(dx2)**wpower
          dnm = w1*dx1**2 + w1*dx2**2
          vxp = dx2**2 * (var0(idg,id1)-var0(irg,irp)) -
      1         dx1**2 * (var0(idg,id2)-var0(irg,irp))
@@ -694,10 +800,12 @@ c     Plot exact solution
 
       indgr = 1 + 4 + 16 + 64
 
+#ifdef _GRAFIC
 c     call SLEEP(3)
 c     call GRSCPT(1,'x')
       call GRLINE(ILIN, ISYM, 5, '~x~u~Linear advection', INDGR, xx, yy,
      1            nper)
+#endif
 
       return
       end

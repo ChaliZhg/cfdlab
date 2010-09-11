@@ -3,7 +3,11 @@
 #
 FC       = gfortran
 FFLAGS   = ${CFLAGS} -fdefault-real-8
+FC       = g95
 FFLAGS   = ${CFLAGS}
+
+# change this the location of your X libraries
+XFLAGS   = -L/usr/X11/lib -lX11
 
 TARGETS = grid solve solveg
 
@@ -36,10 +40,10 @@ grid: ${grid}
 		${FC} -o grid ${grid}
 
 solve:  ${solve}
-		${FC} -o solve ${solve} -lgrafic -lX11
+		${FC} -o solve ${solve}
 
 solveg:  ${solveg}
-		${FC} -o solveg ${solveg} -lgrafic -lX11
+		${FC} -o solveg ${solveg} -lgrafic ${XFLAGS}
 
 ##############################################################################
 # transformation rules

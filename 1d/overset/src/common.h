@@ -9,3 +9,10 @@
       real ark(3), brk(3)
       common/rkparams/ark, brk
 
+      integer LINEAR, BURGER
+      parameter(LINEAR=1, BURGER=2)
+      integer ieq
+      common/equation/ieq
+
+      real wpower
+      common/weight/wpower
