@@ -3,7 +3,7 @@
 clear all
 close all
 
-global gamma H0 frate L xthroat athroat as as1 p0 noztyp
+global gamma H0 frate L xthroat athroat as1 p0 noztyp
 global xs s1 r1
 
 gamma=1.4;
@@ -18,8 +18,8 @@ x2 = L; % L is set when nozarea is called above
 as = athroat;
 
 % Inflow conditions
-m1=machnum(0); % mach number
-%m1=1.5;
+%m1=machnum(0); % mach number
+m1=1.5;
 ff = (1 + 0.5*(gamma-1)*m1^2)*2/(gamma+1);
 ff = (ff)^((gamma+1)/(gamma-1));
 ff = ff/m1/m1;
@@ -54,13 +54,13 @@ p2=p1*prat;
 % flow rate: this is constant
 frate = r1*u1*a1;
 
-machnum(0)
-machnum(1)
-machnum(2)
-machnum(3)
-machnum(4)
-machnum(5)
-pause
+%machnum(0)
+%machnum(1)
+%machnum(2)
+%machnum(3)
+%machnum(4)
+%machnum(5)
+%pause
 
 %x = linspace(0,4.5,30);
 %for j=1:30
