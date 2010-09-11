@@ -208,3 +208,6 @@ costfunc_bq.o:	routines.f
 
 clean:	
 	${RM} -f *.o *.msg *~ $(TARGETS)
+
+allclean:	
+	${RM} -f *.o *.msg *~ $(TARGETS) *_bq.f *_ba.f
