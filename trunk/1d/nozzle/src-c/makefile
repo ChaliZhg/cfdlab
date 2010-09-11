@@ -6,7 +6,7 @@ ADOLC_HOME = /opt/adolc
 CC       = gcc
 CPP      = g++
 FC       = gfortran
-ADOLCINC = -I$(ADOLC_HOME)/include
+ADOLCINC = -I$(ADOLC_HOME)/include/adolc
 CCFLAGS  = ${CFLAGS}
 CPPFLAGS = ${CFLAGS} ${ADOLCINC} -DNO_KFVS_
 
