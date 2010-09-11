@@ -1,0 +1,66 @@
+\documentclass[11pt]{amsart}
+\usepackage{geometry}                % See geometry.pdf to learn the layout options. There are lots.
+\geometry{letterpaper}                   % ... or a4paper or a5paper or ... 
+%\geometry{landscape}                % Activate for for rotated page geometry
+%\usepackage[parfill]{parskip}    % Activate to begin paragraphs with an empty line rather than an indent
+\usepackage{graphicx}
+\usepackage{amssymb}
+\usepackage{epstopdf}
+\DeclareGraphicsRule{.tif}{png}{.png}{`convert #1 `dirname #1`/`basename #1 .tif`.png}
+
+\newcommand{\ud}{\textrm{d}}
+\newcommand{\dd}[2]{\frac{\ud #1}{\ud #2}}
+
+\title{Adaptive vorticity confinement for finite volume method}
+\author{The Author}
+%\date{}                                           % Activate to display a given date or no date
+
+\begin{document}
+\maketitle
+%\section{}
+%\subsection{}
+
+\begin{equation*}
+U_t + f_x + g_y = 0
+\end{equation*}
+
+\begin{equation*}
+\dd{U_{i,j}}{t} + \frac{F_{i+1/2,j} - F_{i-1/2,j}}{\Delta x} + \frac{G_{i,j+1/2} - G_{i,j-1/2}}{\Delta y} = 0
+\end{equation*}
+
+\begin{eqnarray*}
+F_{i+1/2,j} = F(U_{i+1/2,j}^-, U_{i+1/2,j}^+) &=& \frac{1}{2}[ f(U_{i+1/2,j}^-) + f(U_{i+1/2,j}^+)] + F_{d_{i+1/2,j}} \\
+&=& \mu_x f_{i+1/2,j} + F_{d_{i+1/2,j}}
+\end{eqnarray*}
+
+\begin{equation*}
+\frac{F_{i+1/2,j} - F_{i-1/2,j}}{\Delta x} = \delta_x \mu_x f_{i,j} + \delta_x F_{d_{i,j}}
+\end{equation*}
+
+\begin{equation*}
+\dd{U}{t} + 
+\delta_x \mu_x f + \delta_x F_{d} + \delta_y \mu_y g + \delta_y G_d = 0
+\end{equation*}
+
+Vorticity
+\begin{equation*}
+\Omega = (\rho v)_x - (\rho u)_y \approx \delta_x U^3 - \delta_y U^2
+\end{equation*}
+
+\begin{eqnarray*}
+\dd{\Omega}{t} &+& \delta_x[ \delta_x \mu_x f^{(3)} + \delta_x F^{(3)}_{d} + \delta_y \mu_y g^{(3)} + \delta_y G^{(3)}_d] \\
+&-& \delta_y[ \delta_x \mu_x f^{(2)} + \delta_x F^{(2)}_{d} + \delta_y \mu_y g^{(2)} + \delta_y G^{(2)}_d] = \delta_x \epsilon k^{(2)} - \delta_y \epsilon k^{(1)}
+\end{eqnarray*}
+
+To cancel the dissipation term, choose
+\begin{eqnarray*}
+\delta_x G_d^{(3)} - \delta_y G_d^{(2)} &=& -\epsilon k^{(1)} \\
+\delta_x F_d^{(3)} - \delta_y F_d^{(2)} &=& +\epsilon k^{(2)}
+\end{eqnarray*}
+
+But $f^{(2)}$ and $g^{(3)}$ contain pressure, which should not appear in the vorticity equation. These spurious pressure terms are
+\begin{equation*}
+\delta_x \delta_y \mu_y p - \delta_y \delta_x \mu_x p
+\end{equation*}
+
+\end{document}  
