@@ -4,11 +4,14 @@ c     Generate overset grids in 1-d !!!
       include 'param.h'
 
       integer ifid, i, j, ig1, ig2
+      integer irp, irg, idg, id1, id2
+      real    ds, fact
 
 
-      call SetGrid1
+c     call SetGrid1
 c     call SetGrid2
 c     call SetGrid3
+      call SetGrid4
 
 c     Generate grid
       do i=1,ngrid
@@ -20,6 +23,7 @@ c     Generate grid
          do j=1,np(i)
             x(i,j) = xmin(i) + (j-1)*dx(i)
          enddo
+         print*,'grid=',i,' dx=',dx(i)
       enddo
 
 c     Set update type
@@ -104,6 +108,20 @@ c     Find overlap information
       enddo
       print*,'Number of overlap points =',nopts
 
+
+c     Find overlap factors
+      do i=1,nopts
+         irg = olap(1,i)
+         irp = olap(2,i)
+
+         idg = olap(3,i)
+         id1 = olap(4,i)
+         id2 = olap(5,i)
+         ds  =   x(idg,id2) - x(idg,id1)
+         fact= ( x(irg,irp) - x(idg,id1) )/ds
+         print*,i,fact
+      enddo
+
 100   continue
 
       open(20, file='overlap.dat')
@@ -173,6 +191,26 @@ c     Grid 2
       xmin(2) = 0.76
       xmax(2) = 2.0
       np  (2) = 63
+
+      return
+      end
+c------------------------------------------------------------------------------
+      subroutine SetGrid4
+      implicit none
+      include 'param.h'
+
+c     Number of grids
+      ngrid   = 2
+
+c     Grid 1
+      xmin(1) = 0.0
+      xmax(1) = 1.0
+      np  (1) = 101
+
+c     Grid 2
+      xmin(2) = 0.755
+      xmax(2) = 2.0
+      np  (2) = 126
 
       return
       end
