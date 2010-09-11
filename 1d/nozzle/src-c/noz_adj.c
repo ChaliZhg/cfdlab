@@ -1,5 +1,5 @@
 #define DEFINE_GLOBALS
-#include "adolc/adolc.h"
+#include "adolc.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include "decl.h"
