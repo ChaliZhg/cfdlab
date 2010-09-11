@@ -9,5 +9,6 @@ subroutine init_cond(rho, vex, vey, pre)
 
 
    call init_cond_isen(rho, vex, vey, pre)
+   !call init_cond2(rho, vex, vey, pre)
 
 end subroutine init_cond
