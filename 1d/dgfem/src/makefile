@@ -17,4 +17,4 @@ all:            $(PROGRAM)
 $(PROGRAM):     $(OBJS)
 				        $(LD) -o $(PROGRAM) $(OBJS) -lm
 
-clean:;         rm -f $(OBJS) core 
+clean:;         rm -f $(OBJS) core $(PROGRAM)
