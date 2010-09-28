@@ -1,3 +1,4 @@
+#include <cassert>
 #include "matrix.h"
 
 using namespace std;
@@ -15,7 +16,143 @@ Matrix::Matrix (const unsigned int nrow, const unsigned int ncol)
    nrow (nrow),
    ncol (ncol)
 {
-   data = new double[nrow*ncol];
+   assert (nrow > 0);
+   assert (ncol > 0);
+   data = new double [nrow*ncol];
+}
+
+unsigned int Matrix::index (const unsigned int i, const unsigned int j)
+{
+   return i + nrow * j;
+}
+
+// assign one matrix to another
+Matrix& Matrix::operator= (const Matrix& rhs)
+{
+
+   assert (nrow == rhs.nrow);
+   assert (ncol == rhs.ncol);
+
+   unsigned int n = nrow * ncol;
+   for(unsigned int i=0; i<n; ++i)
+      data[i] = rhs.data[i];
+   
+   return *this;
+}
+
+// assign one matrix to scalar
+Matrix& Matrix::operator= (const double scalar)
+{
+
+   assert (nrow > 0);
+   assert (ncol > 0);
+
+   unsigned int n = nrow * ncol;
+   for(unsigned int i=0; i<n; ++i)
+      data[i] = scalar;
+   
+   return *this;
+}
+
+// add two matrices: result = this + mat2
+Matrix Matrix::operator+ (const Matrix& mat2) const
+{
+
+   assert (nrow == mat2.nrow);
+   assert (ncol == mat2.ncol);
+
+   Matrix result (nrow, ncol);
+
+   unsigned int n = nrow * ncol;
+   for(unsigned int i=0; i<n; ++i)
+      result.data[i] = data[i] + mat2.data[i];
+   
+   return result;
+}
+
+// add two matrices: this = this + mat2
+Matrix& Matrix::operator+= (const Matrix& mat2)
+{
+
+   assert (nrow == mat2.nrow);
+   assert (ncol == mat2.ncol);
+
+   unsigned int n = nrow * ncol;
+   for(unsigned int i=0; i<n; ++i)
+      data[i] += mat2.data[i];
+   
+   return *this;
+}
+
+// subtract two matrices: result = this - mat2
+Matrix Matrix::operator- (const Matrix& mat2) const
+{
+
+   assert (nrow == mat2.nrow);
+   assert (ncol == mat2.ncol);
+
+   Matrix result (nrow, ncol);
+
+   unsigned int n = nrow * ncol;
+   for(unsigned int i=0; i<n; ++i)
+      result.data[i] = data[i] - mat2.data[i];
+   
+   return result;
+}
+
+// add two matrices: this = this - mat2
+Matrix& Matrix::operator-= (const Matrix& mat2)
+{
+
+   assert (nrow == mat2.nrow);
+   assert (ncol == mat2.ncol);
+
+   unsigned int n = nrow * ncol;
+   for(unsigned int i=0; i<n; ++i)
+      data[i] -= mat2.data[i];
+   
+   return *this;
+}
+
+// multiply two matrices element by element
+// result(i,j) = this(i,j) * mat2(i,j)
+Matrix Matrix::operator* (const Matrix& mat2) const
+{
+
+   assert (nrow == mat2.nrow);
+   assert (ncol == mat2.ncol);
+
+   Matrix result (nrow, ncol);
+
+   unsigned int n = nrow * ncol;
+   for(unsigned int i=0; i<n; ++i)
+      result.data[i] = data[i] * mat2.data[i];
+   
+   return result;
+}
+
+// multiply matrix with scalar: result = this * scalar
+Matrix Matrix::operator* (const double scalar) const
+{
+
+   Matrix result (nrow, ncol);
+
+   unsigned int n = nrow * ncol;
+   for(unsigned int i=0; i<n; ++i)
+      result.data[i] = scalar * data[i];
+   
+   return result;
+}
+
+// multiply matrix with scalar: this = this * scalar
+Matrix& Matrix::operator*= (double scalar)
+{
+
+   unsigned int n = nrow * ncol;
+   for(unsigned int i=0; i<n; ++i)
+      data[i] *= scalar;
+   
+   return *this;
 }
 
 // destructor
@@ -39,7 +176,23 @@ double& Matrix::operator() (const unsigned int i, const unsigned int j)
 
 void Matrix::allocate (const unsigned int ni, const unsigned int nj)
 {
+   assert (ni > 0);
+   assert (nj > 0);
+
    nrow = ni;
    ncol = nj;
    data = new double[nrow*ncol];
+}
+
+double Matrix::dot (const Matrix &mat)
+{
+   assert (nrow == mat.nrow);
+   assert (ncol == mat.ncol);
+
+   double result = 0.0;
+   unsigned int n = nrow * ncol;
+   for(unsigned int i=0; i<n; ++i)
+      result += data[i] * mat.data[i];
+
+   return result;
 }
