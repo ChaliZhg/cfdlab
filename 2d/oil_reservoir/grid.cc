@@ -28,8 +28,8 @@ void Grid::allocate ()
    assert (nx > 1);
    assert (ny > 1);
 
-   x.allocate (nx,ny);
-   y.allocate (nx,ny);
+   x.allocate (nx+2,ny+2);
+   y.allocate (nx+2,ny+2);
 
    ibeg.resize (n_boundary);
    iend.resize (n_boundary);
@@ -38,13 +38,13 @@ void Grid::allocate ()
    boundary_condition.resize (n_boundary);
    b_type.resize (n_boundary);
 
-   n_cells = (nx-1) * (ny-1);
+   n_cells = (nx+1) * (ny+1);
 }
 
 // map from (i,j) to cell number
 // cells are numbered starting at bottom left corner, then going
-// horizontally from i=0 to i=grid.nx-2
+// horizontally from i=0 to i=grid.nx+1
 unsigned int Grid::cell_num (const unsigned int i, const unsigned int j)
 {
-   return i + (nx-1)*j;
+   return i + (nx+1)*j;
 }
