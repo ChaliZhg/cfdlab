@@ -1,5 +1,6 @@
 #include <iostream>
 #include <fstream>
+#include <sstream>
 #include <cstdlib>
 #include <cassert>
 #include "pressure.h"
@@ -118,21 +119,26 @@ void ReservoirProblem::solve ()
       time += dt;
       ++iter;
 
+      if (iter == 1 || iter % 10 == 0)
+         output (iter);
+
       cout << "Time= " << time << " iter= " << iter << endl;
    }
 }
 
 // save solution to file
-void ReservoirProblem::output ()
+void ReservoirProblem::output (const unsigned int iter)
 {
 
    unsigned int i, j;
    ofstream vtk;
+   ostringstream filename;
+   filename << "solution-" << iter << ".vtk";
 
-   vtk.open ("solution.vtk");
+   vtk.open (filename.str().c_str());
 
    vtk << "# vtk DataFile Version 2.0" << endl;
-   vtk << "Oil Reservoir Problem" << endl;
+   vtk << "Oil Reservoir Problem: iter = " << iter << endl;
    vtk << "ASCII" << endl;
    vtk << "DATASET STRUCTURED_GRID" << endl;
    vtk << "DIMENSIONS " << grid.nx << " " << grid.ny << " 1" << endl;
@@ -166,5 +172,4 @@ void ReservoirProblem::run ()
    make_grid ();
    initialize ();
    solve ();
-   output ();
 }
