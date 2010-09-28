@@ -114,23 +114,6 @@ Matrix& Matrix::operator-= (const Matrix& mat2)
    return *this;
 }
 
-// multiply two matrices element by element
-// result(i,j) = this(i,j) * mat2(i,j)
-Matrix Matrix::operator* (const Matrix& mat2) const
-{
-
-   assert (nrow == mat2.nrow);
-   assert (ncol == mat2.ncol);
-
-   Matrix result (nrow, ncol);
-
-   unsigned int n = nrow * ncol;
-   for(unsigned int i=0; i<n; ++i)
-      result.data[i] = data[i] * mat2.data[i];
-   
-   return result;
-}
-
 // multiply matrix with scalar: result = this * scalar
 Matrix Matrix::operator* (const double scalar) const
 {

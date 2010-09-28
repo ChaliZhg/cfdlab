@@ -8,12 +8,11 @@ class Matrix
       Matrix (const unsigned int nrow, const unsigned ncol);
       Matrix& operator= (const Matrix&);
       Matrix& operator= (const double);
-      Matrix  operator* (const Matrix&) const; // multiply two matrices
       Matrix  operator+ (const Matrix&) const; // add two matrices
       Matrix  operator- (const Matrix&) const; // subtract two matrices
       Matrix& operator*= (double);             // multiply by scalar
-      Matrix& operator+= (const Matrix&);      // multiply by scalar
-      Matrix& operator-= (const Matrix&);      // multiply by scalar
+      Matrix& operator+= (const Matrix&);      // add a matrix
+      Matrix& operator-= (const Matrix&);      // subtract a matrix
       Matrix  operator* (double) const;        // multiply by scalar
       double dot (const Matrix&);
       ~Matrix ();
