@@ -171,7 +171,7 @@ Matrix PressureProblem::A_times_pressure (const Matrix& saturation,
             else // outlet-horizontal side
             {
                // dpdn = (pressure(i,j-1) - poutlet)/(0.5*dy)
-               flux           = mobility * pressure(i,j)/(0.5 * grid->dy) * grid->dx;
+               flux           = mobility * pressure(i,j-1)/(0.5 * grid->dy) * grid->dx;
                result(i,j-1) -= flux;
             }
          }
