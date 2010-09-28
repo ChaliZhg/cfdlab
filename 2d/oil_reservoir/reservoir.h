@@ -19,6 +19,6 @@ class ReservoirProblem
       void make_grid ();
       void initialize ();
       void solve ();
-      void output ();
+      void output (const unsigned int);
 
 };
