@@ -157,16 +157,18 @@ double& Matrix::operator() (const unsigned int i, const unsigned int j)
    return data[i + nrow*j];
 }
 
+// allocate memory for matrix which has already been declared
 void Matrix::allocate (const unsigned int ni, const unsigned int nj)
 {
-   assert (ni > 0);
-   assert (nj > 0);
+   assert (nrow == 0 && ncol == 0);
+   assert (ni > 0 && nj > 0);
 
    nrow = ni;
    ncol = nj;
    data = new double[nrow*ncol];
 }
 
+// dot product of two matrices, element-by-element
 double Matrix::dot (const Matrix &mat)
 {
    assert (nrow == mat.nrow);
