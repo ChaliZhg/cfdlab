@@ -10,11 +10,11 @@ Grid::Grid(unsigned int nx_, unsigned int ny_)
    :
    nx (nx_),
    ny (ny_),
-   x  (nx_, ny_),
-   y  (nx_, ny_)
+   x  (nx_+2, ny_+2),
+   y  (nx_+2, ny_+2)
 {
 
-   n_cells = (nx-1) * (ny-1);
+   n_cells = (nx+1) * (ny+1);
 
 }
 
@@ -30,6 +30,9 @@ void Grid::allocate ()
 
    x.allocate (nx+2,ny+2);
    y.allocate (nx+2,ny+2);
+
+   xc.allocate (nx+1,ny+1);
+   yc.allocate (nx+1,ny+1);
 
    ibeg.resize (n_boundary);
    iend.resize (n_boundary);

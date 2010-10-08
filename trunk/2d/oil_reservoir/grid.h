@@ -15,9 +15,9 @@ class Grid
       Grid (unsigned int, unsigned int);
       ~Grid ();
 
-      // grid point coordinates
       unsigned int nx, ny;
-      Matrix x, y;
+      Matrix x, y;   // grid vertices
+      Matrix xc, yc; // cell centers
       unsigned int n_boundary;
       unsigned int n_cells;
       double dx, dy;

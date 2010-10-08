@@ -1,3 +1,5 @@
+#define harmonic_average(a,b)   (2.0*(a)*(b)/((a)+(b)))
+
 const double viscosity_oil = 10.0;
 
 // viscosity of water
