@@ -5,8 +5,6 @@
 #include "pressure.h"
 #include "material.h"
 
-#define harmonic_average(a,b)   (2.0*(a)*(b)/((a)+(b)))
-
 using namespace std;
 
 // constructor given grid

@@ -1,3 +1,6 @@
+#ifndef __PRESSURE_H__
+#define __PRESSURE_H__
+
 #include <vector>
 #include <valarray>
 #include "matrix.h"
@@ -30,3 +33,4 @@ class PressureProblem
                        const Matrix& pressure);
 };
 
+#endif
