@@ -33,6 +33,7 @@ class ReservoirProblem
       std::vector<double> num_flux 
          (const unsigned int, const unsigned int,
           const unsigned int, const unsigned int);
+      void updateConcentration (Matrix&);
       void updateGhostCells ();
       void findMinMax ();
 

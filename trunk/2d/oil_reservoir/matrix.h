@@ -10,6 +10,7 @@ class Matrix
       Matrix& operator= (const double);
       Matrix  operator+ (const Matrix&) const; // add two matrices
       Matrix  operator- (const Matrix&) const; // subtract two matrices
+      Matrix  operator* (const Matrix&) const; // element-by-element multiply
       Matrix& operator*= (double);             // multiply by scalar
       Matrix& operator+= (const Matrix&);      // add a matrix
       Matrix& operator-= (const Matrix&);      // subtract a matrix

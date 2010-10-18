@@ -177,7 +177,7 @@ void ReservoirProblem::initialize ()
 
    cfl        = 0.5;
    final_time = 0.1;
-   max_iter   = 2000;
+   max_iter   = 2200;
    dt         = 0.01;
 }
 
@@ -268,6 +268,24 @@ void ReservoirProblem::residual (Matrix& s_residual, Matrix& c_residual)
    double lambda = dt / (grid.dx * grid.dy);
    s_residual *= lambda;
    c_residual *= lambda;
+}
+
+// Update polymer concentration
+void ReservoirProblem::updateConcentration (Matrix& sc)
+{
+   for (unsigned int i=1; i<grid.nx; ++i)
+      for (unsigned int j=1; j<grid.ny; ++j)
+      {
+         if (sc (i,j) < 1.0e-13)
+            concentration (i,j) = 0.0;
+         else if (saturation (i,j) > 0.0)
+            concentration (i,j) = sc (i,j) / saturation (i,j);
+         else
+         {
+            printf("updateConcentration: Error !!!\n");
+            exit(0);
+         }
+      }
 }
 
 // Update solution in ghost cells
@@ -386,6 +404,7 @@ void ReservoirProblem::solve ()
    PressureProblem pressure_problem (&grid);
    Matrix s_residual (grid.nx+1, grid.ny+1);
    Matrix c_residual (grid.nx+1, grid.ny+1);
+   Matrix sc         (grid.nx+1, grid.ny+1);
 
    while (iter < max_iter)
    {
@@ -395,9 +414,14 @@ void ReservoirProblem::solve ()
       // compute residual
       residual (s_residual, c_residual);
       
-      // update saturation/concentration
+      // new value of s*c
+      sc = saturation * concentration - c_residual;
+
+      // update saturation
       saturation    -= s_residual;
-      concentration -= c_residual;
+
+      // update concentration
+      updateConcentration (sc);
 
       // update solution in ghost cells
       updateGhostCells ();
