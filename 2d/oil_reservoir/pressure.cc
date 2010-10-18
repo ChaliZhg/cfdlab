@@ -40,14 +40,14 @@ Matrix PressureProblem::compute_rhs (const Matrix& saturation,
 
             if (grid->ibeg[n] == 1) // inlet-vertical side
             {
-               // dpdn = (pressure(i,j) - pinlet)/(0.5*dx)
-               flux         = mobility * (-pinlet)/(0.5 * grid->dx) * grid->dy;
+               // dpdn = (pressure(i,j) - pinlet)/(dx)
+               flux         = mobility * (-pinlet)/(grid->dx) * grid->dy;
                result(i,j) -= flux;
             }
             else // outlet-vertical side
             {
-               // dpdn = (poutlet - pressure(i-1,j))/(0.5*dx)
-               flux           = mobility * (poutlet)/(0.5 * grid->dx) * grid->dy;
+               // dpdn = (poutlet - pressure(i-1,j))/(dx)
+               flux           = mobility * (poutlet)/(grid->dx) * grid->dy;
                result(i-1,j) += flux;
             }
          }
@@ -64,14 +64,14 @@ Matrix PressureProblem::compute_rhs (const Matrix& saturation,
 
             if(grid->jbeg[n] == 1) // inlet-horizontal side
             {
-               // dpdn = (pinlet - pressure(i,j))/(0.5*dy)
-               flux         = mobility * (pinlet)/(0.5 * grid->dy) * grid->dx;
+               // dpdn = (pinlet - pressure(i,j))/(dy)
+               flux         = mobility * (pinlet)/(grid->dy) * grid->dx;
                result(i,j) += flux;
             }
             else // outlet-horizontal side
             {
-               // dpdn = (pressure(i,j-1) - poutlet)/(0.5*dy)
-               flux           = mobility * (-poutlet)/(0.5 * grid->dy) * grid->dx;
+               // dpdn = (pressure(i,j-1) - poutlet)/(dy)
+               flux           = mobility * (-poutlet)/(grid->dy) * grid->dx;
                result(i,j-1) -= flux;
             }
          }
@@ -138,14 +138,14 @@ Matrix PressureProblem::A_times_pressure (const Matrix& saturation,
 
             if (grid->ibeg[n] == 1) // inlet-vertical side
             {
-               // dpdn = (pressure(i,j) - pinlet)/(0.5*dx)
-               flux         = mobility * pressure(i,j)/(0.5 * grid->dx) * grid->dy;
+               // dpdn = (pressure(i,j) - pinlet)/(dx)
+               flux         = mobility * pressure(i,j)/(grid->dx) * grid->dy;
                result(i,j) -= flux;
             }
             else // outlet-vertical side
             {
-               // dpdn = (poutlet - pressure(i-1,j))/(0.5*dx)
-               flux           = mobility * (-pressure(i-1,j))/(0.5 * grid->dx) * grid->dy;
+               // dpdn = (poutlet - pressure(i-1,j))/(dx)
+               flux           = mobility * (-pressure(i-1,j))/(grid->dx) * grid->dy;
                result(i-1,j) += flux;
             }
          }
@@ -162,14 +162,14 @@ Matrix PressureProblem::A_times_pressure (const Matrix& saturation,
 
             if(grid->jbeg[n] == 1) // inlet-horizontal side
             {
-               // dpdn = (pinlet - pressure(i,j))/(0.5*dy)
-               flux         = mobility * (-pressure(i,j))/(0.5 * grid->dy) * grid->dx;
+               // dpdn = (pinlet - pressure(i,j))/(dy)
+               flux         = mobility * (-pressure(i,j))/(grid->dy) * grid->dx;
                result(i,j) += flux;
             }
             else // outlet-horizontal side
             {
-               // dpdn = (pressure(i,j-1) - poutlet)/(0.5*dy)
-               flux           = mobility * pressure(i,j-1)/(0.5 * grid->dy) * grid->dx;
+               // dpdn = (pressure(i,j-1) - poutlet)/(dy)
+               flux           = mobility * pressure(i,j-1)/(grid->dy) * grid->dx;
                result(i,j-1) -= flux;
             }
          }
@@ -201,7 +201,7 @@ void PressureProblem::run (const Matrix& saturation,
                            const Matrix& concentration,
                                  Matrix& pressure)
 {
-   const unsigned int max_iter = 1000;
+   const unsigned int max_iter = 5000;
    const double tolerance = 1.0e-6;
    unsigned int iter = 0;
    double beta, omega;
@@ -222,7 +222,7 @@ void PressureProblem::run (const Matrix& saturation,
    while ( sqrt(r2[iter]) > tolerance && iter < max_iter )
    {
       if (iter >= 1) // update descent direction
-      {
+      {              // d = r + beta * d
          beta = r2[iter] / r2[iter-1];
          d   *= beta;
          d   += r;
@@ -231,10 +231,10 @@ void PressureProblem::run (const Matrix& saturation,
       v = A_times_pressure (saturation, concentration, d);
       omega = r2[iter] / d.dot(v);
 
-      // update pressure
+      // update pressure: p = p + omega * d
       pressure += d * omega;
 
-      // update residual
+      // update residual: r = r - omega * v
       v *= omega;
       r -= v;
 
