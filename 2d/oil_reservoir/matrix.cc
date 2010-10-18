@@ -100,6 +100,22 @@ Matrix Matrix::operator- (const Matrix& mat2) const
    return result;
 }
 
+// multiply two matrices element by element: result = this * mat2
+Matrix Matrix::operator* (const Matrix& mat2) const
+{
+
+   assert (nrow == mat2.nrow);
+   assert (ncol == mat2.ncol);
+
+   Matrix result (nrow, ncol);
+
+   unsigned int n = nrow * ncol;
+   for(unsigned int i=0; i<n; ++i)
+      result.data[i] = data[i] * mat2.data[i];
+   
+   return result;
+}
+
 // add two matrices: this = this - mat2
 Matrix& Matrix::operator-= (const Matrix& mat2)
 {
