@@ -1,4 +1,4 @@
-CXX    = c++
+CXX    = g++
 CFLAGS = -O2 -Wall
 
 HDR = $(wildcard *.h)
@@ -18,4 +18,8 @@ $(OBJ): $(HDR)
 	$(CXX) $(CFLAGS) -c $*.cc
 
 clean:
-	rm -f *.o $(TARGET) *.vtk
+	rm -f *.o $(TARGET)
+
+allclean:
+	make clean
+	rm -f *.vtk
