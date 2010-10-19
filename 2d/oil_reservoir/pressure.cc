@@ -20,7 +20,9 @@ Matrix PressureProblem::compute_rhs (const Matrix& saturation,
                                      const Matrix& pressure)
 {
    unsigned int i, j;
-   double mobility, mobility_left, mobility_right;
+   double mobility_left, mobility_right;
+   double perm_left, perm_right;
+   double m_perm;
    double flux;
    Matrix result(grid->nx+1, grid->ny+1);
 
@@ -35,19 +37,22 @@ Matrix PressureProblem::compute_rhs (const Matrix& saturation,
          for(j=grid->jbeg[n]; j<grid->jend[n]; ++j)
          {
             mobility_left = mobility_total (saturation(i-1,j), concentration(i-1,j));
+            perm_left = permeability (grid->xc(i-1,j), grid->yc(i-1,j));
             mobility_right = mobility_total (saturation(i,j), concentration(i,j));
-            mobility = harmonic_average (mobility_left, mobility_right);
+            perm_right = permeability (grid->xc(i,j), grid->yc(i,j));
+            m_perm = harmonic_average (mobility_left*perm_left, 
+                                       mobility_right*perm_right);
 
             if (grid->ibeg[n] == 1) // inlet-vertical side
             {
                // dpdn = (pressure(i,j) - pinlet)/(dx)
-               flux         = mobility * (-pinlet)/(grid->dx) * grid->dy;
+               flux         = m_perm * (-pinlet)/(grid->dx) * grid->dy;
                result(i,j) -= flux;
             }
             else // outlet-vertical side
             {
                // dpdn = (poutlet - pressure(i-1,j))/(dx)
-               flux           = mobility * (poutlet)/(grid->dx) * grid->dy;
+               flux           = m_perm * (poutlet)/(grid->dx) * grid->dy;
                result(i-1,j) += flux;
             }
          }
@@ -59,19 +64,22 @@ Matrix PressureProblem::compute_rhs (const Matrix& saturation,
          for(i=grid->ibeg[n]; i<grid->iend[n]; ++i)
          {
             mobility_left = mobility_total (saturation(i,j), concentration(i,j));
+            perm_left = permeability (grid->xc(i,j), grid->yc(i,j));
             mobility_right = mobility_total (saturation(i,j-1), concentration(i,j-1));
-            mobility = harmonic_average (mobility_left, mobility_right);
+            perm_right = permeability (grid->xc(i,j-1), grid->yc(i,j-1));
+            m_perm = harmonic_average (mobility_left  * perm_left, 
+                                       mobility_right * perm_right);
 
             if(grid->jbeg[n] == 1) // inlet-horizontal side
             {
                // dpdn = (pinlet - pressure(i,j))/(dy)
-               flux         = mobility * (pinlet)/(grid->dy) * grid->dx;
+               flux         = m_perm * (pinlet)/(grid->dy) * grid->dx;
                result(i,j) += flux;
             }
             else // outlet-horizontal side
             {
                // dpdn = (pressure(i,j-1) - poutlet)/(dy)
-               flux           = mobility * (-poutlet)/(grid->dy) * grid->dx;
+               flux           = m_perm * (-poutlet)/(grid->dy) * grid->dx;
                result(i,j-1) -= flux;
             }
          }
@@ -88,8 +96,9 @@ Matrix PressureProblem::A_times_pressure (const Matrix& saturation,
                                           const Matrix& pressure)
 {
    unsigned int i, j;
-   double mobility, mobility_left, mobility_right;
-   double dpdn, flux;
+   double mobility_left, mobility_right;
+   double perm_left, perm_right;
+   double m_perm, dpdn, flux;
    Matrix result(grid->nx+1, grid->ny+1);
 
    result = 0.0;
@@ -99,12 +108,15 @@ Matrix PressureProblem::A_times_pressure (const Matrix& saturation,
       for(j=1; j<=grid->ny-1; ++j)
       {
          mobility_left = mobility_total (saturation(i-1,j), concentration(i-1,j));
+         perm_left = permeability (grid->xc(i-1,j), grid->yc(i-1,j));
          mobility_right = mobility_total (saturation(i,j), concentration(i,j));
-         mobility = harmonic_average (mobility_left, mobility_right);
+         perm_right = permeability (grid->xc(i,j), grid->yc(i,j));
+         m_perm = harmonic_average (mobility_left  * perm_left, 
+                                    mobility_right * perm_right);
 
          dpdn = (pressure(i,j) - pressure(i-1,j))/grid->dx;
 
-         flux           = mobility * dpdn * grid->dy;
+         flux           = m_perm * dpdn * grid->dy;
          result(i-1,j) += flux;
          result(i,j)   -= flux;
       }
@@ -114,12 +126,15 @@ Matrix PressureProblem::A_times_pressure (const Matrix& saturation,
       for(i=1; i<=grid->nx-1; ++i)
       {
          mobility_left = mobility_total (saturation(i,j), concentration(i,j));
+         perm_left = permeability (grid->xc(i,j), grid->yc(i,j));
          mobility_right = mobility_total (saturation(i,j-1), concentration(i,j-1));
-         mobility = harmonic_average (mobility_left, mobility_right);
+         perm_right = permeability (grid->xc(i,j-1), grid->yc(i,j-1));
+         m_perm = harmonic_average (mobility_left  * perm_left, 
+                                    mobility_right * perm_right);
 
          dpdn = (pressure(i,j-1) - pressure(i,j))/grid->dy;
 
-         flux           = mobility * dpdn * grid->dx;
+         flux           = m_perm * dpdn * grid->dx;
          result(i,j)   += flux;
          result(i,j-1) -= flux;
       }
@@ -133,19 +148,22 @@ Matrix PressureProblem::A_times_pressure (const Matrix& saturation,
          for(j=grid->jbeg[n]; j<grid->jend[n]; ++j)
          {
             mobility_left = mobility_total (saturation(i-1,j), concentration(i-1,j));
+            perm_left = permeability (grid->xc(i-1,j), grid->yc(i-1,j));
             mobility_right = mobility_total (saturation(i,j), concentration(i,j));
-            mobility = harmonic_average (mobility_left, mobility_right);
+            perm_right = permeability (grid->xc(i,j), grid->yc(i,j));
+            m_perm = harmonic_average (mobility_left  * perm_left, 
+                                       mobility_right * perm_right);
 
             if (grid->ibeg[n] == 1) // inlet-vertical side
             {
                // dpdn = (pressure(i,j) - pinlet)/(dx)
-               flux         = mobility * pressure(i,j)/(grid->dx) * grid->dy;
+               flux         = m_perm * pressure(i,j)/(grid->dx) * grid->dy;
                result(i,j) -= flux;
             }
             else // outlet-vertical side
             {
                // dpdn = (poutlet - pressure(i-1,j))/(dx)
-               flux           = mobility * (-pressure(i-1,j))/(grid->dx) * grid->dy;
+               flux           = m_perm * (-pressure(i-1,j))/(grid->dx) * grid->dy;
                result(i-1,j) += flux;
             }
          }
@@ -157,19 +175,22 @@ Matrix PressureProblem::A_times_pressure (const Matrix& saturation,
          for(i=grid->ibeg[n]; i<grid->iend[n]; ++i)
          {
             mobility_left = mobility_total (saturation(i,j), concentration(i,j));
+            perm_left = permeability (grid->xc(i,j), grid->yc(i,j));
             mobility_right = mobility_total (saturation(i,j-1), concentration(i,j-1));
-            mobility = harmonic_average (mobility_left, mobility_right);
+            perm_right = permeability (grid->xc(i,j-1), grid->yc(i,j-1));
+            m_perm = harmonic_average (mobility_left  * perm_left, 
+                                       mobility_right * perm_right);
 
             if(grid->jbeg[n] == 1) // inlet-horizontal side
             {
                // dpdn = (pinlet - pressure(i,j))/(dy)
-               flux         = mobility * (-pressure(i,j))/(grid->dy) * grid->dx;
+               flux         = m_perm * (-pressure(i,j))/(grid->dy) * grid->dx;
                result(i,j) += flux;
             }
             else // outlet-horizontal side
             {
                // dpdn = (pressure(i,j-1) - poutlet)/(dy)
-               flux           = mobility * pressure(i,j-1)/(grid->dy) * grid->dx;
+               flux           = m_perm * pressure(i,j-1)/(grid->dy) * grid->dx;
                result(i,j-1) -= flux;
             }
          }
