@@ -28,16 +28,22 @@ vector<double> ReservoirProblem::num_flux
    double m_water_left = mobility_water (s_left, c_left);
    double m_oil_left   = mobility_oil (s_left, c_left);
    double m_total_left = m_water_left + m_oil_left;
+   double perm_left    = permeability (grid.xc(ileft,jleft), 
+                                       grid.yc(ileft,jleft));
 
    double m_water_right = mobility_water (s_right, c_right);
    double m_oil_right   = mobility_oil (s_right, c_right);
    double m_total_right = m_water_right + m_oil_right;
+   double perm_right   = permeability (grid.xc(iright,jright), 
+                                       grid.yc(iright,jright));
 
-   double m_total  = harmonic_average (m_total_left, m_total_right);
+   double m_perm   = harmonic_average (m_total_left  * perm_left, 
+                                       m_total_right * perm_right);
+
    // we assume dx=dy, so dont divide by length since it is accounted
    // for in flux computation: dont multiply flux by face area
    double dpdn     = (p_right - p_left);
-   double velocity = - m_total * dpdn;
+   double velocity = - m_perm * dpdn;
 
    max_velocity = max ( max_velocity, fabs(velocity)/grid.dx );
 
