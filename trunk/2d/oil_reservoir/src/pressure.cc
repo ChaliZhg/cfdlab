@@ -17,6 +17,7 @@ PressureProblem::PressureProblem (Grid* grid_in)
 // compute rhs (b) of pressure equation A*p=b
 Matrix PressureProblem::compute_rhs (const Matrix& saturation,
                                      const Matrix& concentration,
+                                     const Matrix& permeability,
                                      const Matrix& pressure)
 {
    unsigned int i, j;
@@ -37,11 +38,11 @@ Matrix PressureProblem::compute_rhs (const Matrix& saturation,
          for(j=grid->jbeg[n]; j<grid->jend[n]; ++j)
          {
             mobility_left = mobility_total (saturation(i-1,j), concentration(i-1,j));
-            perm_left = permeability (grid->xc(i-1,j), grid->yc(i-1,j));
+            perm_left = permeability (i-1,j);
             mobility_right = mobility_total (saturation(i,j), concentration(i,j));
-            perm_right = permeability (grid->xc(i,j), grid->yc(i,j));
-            m_perm = harmonic_average (mobility_left*perm_left, 
-                                       mobility_right*perm_right);
+            perm_right = permeability (i,j);
+            m_perm = harmonic_average (mobility_left  * perm_left, 
+                                       mobility_right * perm_right);
 
             if (grid->ibeg[n] == 1) // inlet-vertical side
             {
@@ -64,9 +65,9 @@ Matrix PressureProblem::compute_rhs (const Matrix& saturation,
          for(i=grid->ibeg[n]; i<grid->iend[n]; ++i)
          {
             mobility_left = mobility_total (saturation(i,j), concentration(i,j));
-            perm_left = permeability (grid->xc(i,j), grid->yc(i,j));
+            perm_left = permeability (i,j);
             mobility_right = mobility_total (saturation(i,j-1), concentration(i,j-1));
-            perm_right = permeability (grid->xc(i,j-1), grid->yc(i,j-1));
+            perm_right = permeability (i,j-1);
             m_perm = harmonic_average (mobility_left  * perm_left, 
                                        mobility_right * perm_right);
 
@@ -93,6 +94,7 @@ Matrix PressureProblem::compute_rhs (const Matrix& saturation,
 // compute matrix vector product A*b in pressure equation A*p = b
 Matrix PressureProblem::A_times_pressure (const Matrix& saturation,
                                           const Matrix& concentration,
+                                          const Matrix& permeability,
                                           const Matrix& pressure)
 {
    unsigned int i, j;
@@ -108,9 +110,9 @@ Matrix PressureProblem::A_times_pressure (const Matrix& saturation,
       for(j=1; j<=grid->ny-1; ++j)
       {
          mobility_left = mobility_total (saturation(i-1,j), concentration(i-1,j));
-         perm_left = permeability (grid->xc(i-1,j), grid->yc(i-1,j));
+         perm_left = permeability (i-1,j);
          mobility_right = mobility_total (saturation(i,j), concentration(i,j));
-         perm_right = permeability (grid->xc(i,j), grid->yc(i,j));
+         perm_right = permeability (i,j);
          m_perm = harmonic_average (mobility_left  * perm_left, 
                                     mobility_right * perm_right);
 
@@ -126,9 +128,9 @@ Matrix PressureProblem::A_times_pressure (const Matrix& saturation,
       for(i=1; i<=grid->nx-1; ++i)
       {
          mobility_left = mobility_total (saturation(i,j), concentration(i,j));
-         perm_left = permeability (grid->xc(i,j), grid->yc(i,j));
+         perm_left = permeability (i,j);
          mobility_right = mobility_total (saturation(i,j-1), concentration(i,j-1));
-         perm_right = permeability (grid->xc(i,j-1), grid->yc(i,j-1));
+         perm_right = permeability (i,j-1);
          m_perm = harmonic_average (mobility_left  * perm_left, 
                                     mobility_right * perm_right);
 
@@ -148,9 +150,9 @@ Matrix PressureProblem::A_times_pressure (const Matrix& saturation,
          for(j=grid->jbeg[n]; j<grid->jend[n]; ++j)
          {
             mobility_left = mobility_total (saturation(i-1,j), concentration(i-1,j));
-            perm_left = permeability (grid->xc(i-1,j), grid->yc(i-1,j));
+            perm_left = permeability (i-1,j);
             mobility_right = mobility_total (saturation(i,j), concentration(i,j));
-            perm_right = permeability (grid->xc(i,j), grid->yc(i,j));
+            perm_right = permeability (i,j);
             m_perm = harmonic_average (mobility_left  * perm_left, 
                                        mobility_right * perm_right);
 
@@ -175,9 +177,9 @@ Matrix PressureProblem::A_times_pressure (const Matrix& saturation,
          for(i=grid->ibeg[n]; i<grid->iend[n]; ++i)
          {
             mobility_left = mobility_total (saturation(i,j), concentration(i,j));
-            perm_left = permeability (grid->xc(i,j), grid->yc(i,j));
+            perm_left = permeability (i,j);
             mobility_right = mobility_total (saturation(i,j-1), concentration(i,j-1));
-            perm_right = permeability (grid->xc(i,j-1), grid->yc(i,j-1));
+            perm_right = permeability (i,j-1);
             m_perm = harmonic_average (mobility_left  * perm_left, 
                                        mobility_right * perm_right);
 
@@ -207,12 +209,13 @@ Matrix PressureProblem::A_times_pressure (const Matrix& saturation,
 // Compute residual for pressure problem, r = b - A*p
 Matrix PressureProblem::residual (const Matrix& saturation, 
                                   const Matrix& concentration,
+                                  const Matrix& permeability,
                                   const Matrix& pressure)
 {
    Matrix r(grid->nx+1, grid->ny+1);
 
-   r = compute_rhs (saturation, concentration, pressure)
-     - A_times_pressure(saturation, concentration, pressure);
+   r = compute_rhs (saturation, concentration, permeability, pressure)
+     - A_times_pressure(saturation, concentration, permeability, pressure);
 
    return r;
 }
@@ -220,6 +223,7 @@ Matrix PressureProblem::residual (const Matrix& saturation,
 // Solve pressure equation by CG method
 void PressureProblem::run (const Matrix& saturation, 
                            const Matrix& concentration,
+                           const Matrix& permeability,
                                  Matrix& pressure)
 {
    const unsigned int max_iter = 5000;
@@ -232,7 +236,7 @@ void PressureProblem::run (const Matrix& saturation,
    Matrix v (grid->nx + 1, grid->ny + 1);
 
    // initial residual
-   r = residual (saturation, concentration, pressure);
+   r = residual (saturation, concentration, permeability, pressure);
 
    // initial direction
    d = r;
@@ -249,7 +253,7 @@ void PressureProblem::run (const Matrix& saturation,
          d   += r;
       }
 
-      v = A_times_pressure (saturation, concentration, d);
+      v = A_times_pressure (saturation, concentration, permeability, d);
       omega = r2[iter] / d.dot(v);
 
       // update pressure: p = p + omega * d

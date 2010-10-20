@@ -23,6 +23,7 @@ class ReservoirProblem
       Matrix  saturation;
       Matrix  concentration;
       Matrix  pressure;
+      Matrix  permeability;
 
       void make_grid ();
       void initialize ();

@@ -17,6 +17,7 @@ class PressureProblem
       ~PressureProblem () {};
       void run (const Matrix& saturation, 
                 const Matrix& concentration,
+                const Matrix& permeability,
                       Matrix& pressure);
 
    private:
@@ -24,12 +25,15 @@ class PressureProblem
 
       Matrix compute_rhs (const Matrix& saturation,
                           const Matrix& concentration,
+                          const Matrix& permeability,
                           const Matrix& pressure);
       Matrix A_times_pressure (const Matrix& saturation,
                                const Matrix& concentration,
+                               const Matrix& permeability,
                                const Matrix& pressure);
       Matrix residual (const Matrix& saturation,
                        const Matrix& concentration,
+                       const Matrix& permeability,
                        const Matrix& pressure);
 };
 
