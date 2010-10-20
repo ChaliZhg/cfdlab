@@ -28,14 +28,12 @@ vector<double> ReservoirProblem::num_flux
    double m_water_left = mobility_water (s_left, c_left);
    double m_oil_left   = mobility_oil (s_left, c_left);
    double m_total_left = m_water_left + m_oil_left;
-   double perm_left    = permeability (grid.xc(ileft,jleft), 
-                                       grid.yc(ileft,jleft));
+   double perm_left    = permeability (ileft, jleft);
 
    double m_water_right = mobility_water (s_right, c_right);
    double m_oil_right   = mobility_oil (s_right, c_right);
    double m_total_right = m_water_right + m_oil_right;
-   double perm_right   = permeability (grid.xc(iright,jright), 
-                                       grid.yc(iright,jright));
+   double perm_right   = permeability (iright, jright);
 
    double m_perm   = harmonic_average (m_total_left  * perm_left, 
                                        m_total_right * perm_right);
@@ -157,7 +155,14 @@ void ReservoirProblem::initialize ()
    saturation.allocate    (grid.nx+1, grid.ny+1);
    concentration.allocate (grid.nx+1, grid.ny+1);
    pressure.allocate      (grid.nx+1, grid.ny+1);
+   permeability.allocate  (grid.nx+1, grid.ny+1);
 
+   // rock permeability
+   for(unsigned int i=0; i<grid.nx+1; ++i)
+      for(unsigned int j=0; j<grid.ny+1; ++j)
+         permeability (i,j) = rock_permeability (grid.xc(i,j), grid.yc(i,j));
+
+   // initialize only real cells, not for ghost cells
    for(unsigned int i=1; i<=grid.nx-1; ++i)
       for(unsigned int j=1; j<=grid.ny-1; ++j)
       {
@@ -415,7 +420,8 @@ void ReservoirProblem::solve ()
    while (iter < max_iter)
    {
       // solve for pressure
-      pressure_problem.run (saturation, concentration, pressure);
+      pressure_problem.run (saturation, concentration, 
+                            permeability, pressure);
 
       // compute residual
       residual (s_residual, c_residual);
@@ -448,6 +454,7 @@ void ReservoirProblem::solve ()
 }
 
 // save solution to file
+// only interior cells are written, ghost cells are not written
 void ReservoirProblem::output (const unsigned int iter)
 {
 
@@ -496,6 +503,16 @@ void ReservoirProblem::output (const unsigned int iter)
    for(j=1; j<grid.ny; ++j)
       for(i=1; i<grid.nx; ++i)
          vtk << fixed << concentration (i,j) << endl;
+
+   // write permeability
+   if (iter==0)
+   {
+      vtk << "SCALARS permeability float 1" << endl;
+      vtk << "LOOKUP_TABLE default" << endl;
+      for(j=1; j<grid.ny; ++j)
+         for(i=1; i<grid.nx; ++i)
+            vtk << fixed << permeability (i,j) << endl;
+   }
 
    vtk.close ();
 
