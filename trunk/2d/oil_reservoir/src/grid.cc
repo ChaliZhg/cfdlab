@@ -1,5 +1,5 @@
 #include <iostream>
-#include <assert.h>
+#include <cassert>
 #include <vector>
 #include "grid.h"
 
@@ -11,8 +11,16 @@ Grid::Grid(unsigned int nx_, unsigned int ny_)
    nx (nx_),
    ny (ny_),
    x  (nx_+2, ny_+2),
-   y  (nx_+2, ny_+2)
+   y  (nx_+2, ny_+2),
+   xc (nx_+1, ny_+1),
+   yc (nx_+1, ny_+1)
 {
+   ibeg.resize (n_boundary);
+   iend.resize (n_boundary);
+   jbeg.resize (n_boundary);
+   jend.resize (n_boundary);
+   boundary_condition.resize (n_boundary);
+   b_type.resize (n_boundary);
 
    n_cells = (nx+1) * (ny+1);
 
