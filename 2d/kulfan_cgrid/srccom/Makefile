@@ -23,8 +23,8 @@ AR = ar cru
 #
 LD = $(F77)
 FC = $(F77)
-FFLAGS = -O3  -c
-LDFLAGS = -O3 -o
+FFLAGS =  -c
+LDFLAGS = -o
 
 #### Mac OS X - f2c
 #

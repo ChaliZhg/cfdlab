@@ -25,8 +25,8 @@ LIB = ../srccom/libgrid.a
 LD = $(F77)
 FC = $(F77)
 #FFLAGS = -O3 -ff77 -fpedantic -Wunused -malign-double -c
-FFLAGS = -O3 -c
-LDFLAGS = -O3 -o
+FFLAGS = -c
+LDFLAGS = -o
 
 #### Mac OS X - f2c
 #

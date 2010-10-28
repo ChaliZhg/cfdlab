@@ -1,6 +1,7 @@
 NVCC = nvcc
 CFLAGS =
 NVCFLAGS = -deviceemu
+NVCFLAGS =
 LIBS = -lm
 
 TARGETS = vecAdd hyp hyp_global

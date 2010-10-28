@@ -12,8 +12,7 @@ class Grid
    public:
 
       Grid () { nx = ny = n_cells = 0; };
-      Grid (unsigned int, unsigned int);
-      ~Grid ();
+      ~Grid () {};
 
       unsigned int nx, ny;
       Matrix x, y;   // grid vertices
