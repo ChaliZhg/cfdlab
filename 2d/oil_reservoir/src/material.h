@@ -57,7 +57,7 @@ inline
 double rock_permeability (const double x, const double y)
 {
    //return 1.0;
-   return 1.0 + 0.5 * cos(4.0*M_PI*x) * cos(4.0*M_PI*y);
+   return 1.0 + 0.5 * cos(4.0*M_PI*(x+0.2)) * cos(4.0*M_PI*y);
 }
 
 #endif
