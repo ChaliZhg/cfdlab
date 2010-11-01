@@ -4,9 +4,6 @@
 #include "matrix.h"
 #include "grid.h"
 
-// numerical flux functions
-double c_num_flux ();
-
 // Class for reservoir problem
 class ReservoirProblem
 {

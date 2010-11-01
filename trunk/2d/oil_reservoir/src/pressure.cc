@@ -91,7 +91,7 @@ Matrix PressureProblem::compute_rhs (const Matrix& saturation,
 
 }
 
-// compute matrix vector product A*b in pressure equation A*p = b
+// compute matrix vector product A*p in pressure equation A*p = b
 Matrix PressureProblem::A_times_pressure (const Matrix& saturation,
                                           const Matrix& concentration,
                                           const Matrix& permeability,
