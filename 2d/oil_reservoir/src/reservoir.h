@@ -26,14 +26,14 @@ class ReservoirProblem
       void initialize ();
       void residual (Matrix&, Matrix&);
       void solve ();
-      void output (const unsigned int);
+      void output (const unsigned int) const;
 
       std::vector<double> num_flux 
          (const unsigned int, const unsigned int,
           const unsigned int, const unsigned int);
       void updateConcentration (Matrix&);
       void updateGhostCells ();
-      void findMinMax ();
+      void findMinMax () const;
 
 };
 
