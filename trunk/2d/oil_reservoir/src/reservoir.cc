@@ -380,7 +380,7 @@ void ReservoirProblem::updateGhostCells ()
 }
 
 // Find min and max values of solution
-void ReservoirProblem::findMinMax ()
+void ReservoirProblem::findMinMax () const
 {
    double s_min = 1.0e20;
    double s_max =-1.0e20;
@@ -455,7 +455,7 @@ void ReservoirProblem::solve ()
 
 // save solution to file
 // only interior cells are written, ghost cells are not written
-void ReservoirProblem::output (const unsigned int iter)
+void ReservoirProblem::output (const unsigned int iter) const
 {
 
    unsigned int i, j;
