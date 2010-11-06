@@ -1,5 +1,21 @@
-CXX    = g++
-CFLAGS = -O2 -Wall
+# Possible compilers: g++, icpc
+CXX    = icpc
+
+#
+# DONT CHANGE ANYTHING BELOW
+# UNLESS YOU KNOW WHAT YOU 
+# ARE DOING !!!
+#
+
+# GNU compiler
+ifeq ($(CXX),g++)
+	CFLAGS = -O3 -Wall
+endif
+
+# Intel compiler
+ifeq ($(CXX),icpc)
+	CFLAGS = -fast
+endif
 
 HDR = $(wildcard *.h)
 SRC = $(wildcard *.cc)

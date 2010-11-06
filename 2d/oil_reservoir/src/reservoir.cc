@@ -7,10 +7,59 @@
 #include "reservoir.h"
 #include "material.h"
 
+#define SIGN(a) (((a)<0) ? -1:1)
+
 using namespace std;
 
-// numerical flux function for saturation
-vector<double> ReservoirProblem::num_flux 
+double minmod (const double ul, const double u0, const double ur)
+{
+   double result;
+
+   double db = u0 - ul;         // backward difference
+   double df = ur - u0;         // forward difference
+   double dc = 0.5 * (ur - ul); // central difference
+
+   if (db*dc > 0.0 && dc*df > 0.0)
+   {
+      result = min( min(fabs(db), fabs(dc)), fabs(df) );
+      result *= SIGN(db);
+   }
+   else
+      result = 0.0;
+
+   return result;
+}
+
+// Find left state at interface between (il,jl) and (ir,jr)
+// (ill,jll) is to the left of (il,jl)
+vector<double> ReservoirProblem::reconstruct
+       (
+       const unsigned int ill,
+       const unsigned int jll,
+       const unsigned int il,
+       const unsigned int jl,
+       const unsigned int ir,
+       const unsigned int jr
+       ) const
+{
+   vector<double> state(2);
+   double ds;
+
+   // saturation
+   ds = minmod (saturation(ill,jll), 
+                saturation(il,jl), 
+                saturation(ir,jr));
+   state[0] = saturation (il,jl) + 0.5 * ds;
+
+   // concentration
+   state[1] = 0.0;
+
+   return state;
+}
+
+// computes total darcy velocity at interface b/w
+// (ileft,jleft) and (iright,jright)
+double ReservoirProblem::darcy_velocity
        (
        const unsigned int ileft,
        const unsigned int jleft,
@@ -25,14 +74,10 @@ vector<double> ReservoirProblem::num_flux
    double c_right = concentration (iright, jright);
    double p_right = pressure      (iright, jright);
 
-   double m_water_left = mobility_water (s_left, c_left);
-   double m_oil_left   = mobility_oil (s_left, c_left);
-   double m_total_left = m_water_left + m_oil_left;
+   double m_total_left = mobility_total (s_left, c_left);
    double perm_left    = permeability (ileft, jleft);
 
-   double m_water_right = mobility_water (s_right, c_right);
-   double m_oil_right   = mobility_oil (s_right, c_right);
-   double m_total_right = m_water_right + m_oil_right;
+   double m_total_right = mobility_total (s_right, c_right);
    double perm_right   = permeability (iright, jright);
 
    double m_perm   = harmonic_average (m_total_left  * perm_left, 
@@ -44,6 +89,30 @@ vector<double> ReservoirProblem::num_flux
    double velocity = - m_perm * dpdn;
 
    max_velocity = max ( max_velocity, fabs(velocity)/grid.dx );
+   
+   return velocity;
+}
+
+// numerical flux function for saturation
+vector<double> num_flux
+       (
+       const double velocity,
+       const vector<double> state_left,
+       const vector<double> state_right
+       )
+{
+   double s_left  = state_left[0];
+   double c_left  = state_left[1];
+   double s_right = state_right[0];
+   double c_right = state_right[1];
+
+   double m_water_left = mobility_water (s_left, c_left);
+   double m_oil_left   = mobility_oil (s_left, c_left);
+   double m_total_left = m_water_left + m_oil_left;
+
+   double m_water_right = mobility_water (s_right, c_right);
+   double m_oil_right   = mobility_oil (s_right, c_right);
+   double m_total_right = m_water_right + m_oil_right;
 
    vector<double> flux(2);
 
@@ -189,14 +258,17 @@ void ReservoirProblem::initialize ()
    cfl        = 0.5;
    final_time = 0.1;
    max_iter   = 2200;
-   dt         = 0.01;
+   nrk        = 3;
+   ark[0] = 0.0; ark[1] = 3.0/4.0; ark[2] = 1.0/3.0;
+   for (unsigned int i=0; i<3; ++i) brk[i] = 1.0 - ark[i];
 }
 
 // residual for saturation/concentration equation
 void ReservoirProblem::residual (Matrix& s_residual, Matrix& c_residual)
 {
    unsigned int i, j;
-   vector<double> flux(2);
+   double velocity;
+   vector<double> state_left(2), state_right(2), flux(2);
 
    s_residual = 0.0;
    c_residual = 0.0;
@@ -207,7 +279,10 @@ void ReservoirProblem::residual (Matrix& s_residual, Matrix& c_residual)
    for(i=2; i<=grid.nx-1; ++i)
       for(j=1; j<=grid.ny-1; ++j)
       {
-         flux                = num_flux (i-1, j, i, j);
+         state_left  = reconstruct (i-2, j, i-1, j, i, j);
+         state_right = reconstruct (i+1, j, i, j, i-1, j);
+         velocity    = darcy_velocity (i-1, j, i, j);
+         flux        = num_flux (velocity, state_left, state_right);
 
          s_residual (i-1,j) += flux[0];
          s_residual (i,  j) -= flux[0];
@@ -220,7 +295,10 @@ void ReservoirProblem::residual (Matrix& s_residual, Matrix& c_residual)
    for(j=2; j<=grid.ny-1; ++j)
       for(i=1; i<=grid.nx-1; ++i)
       {
-         flux                = num_flux (i, j, i, j-1);
+         state_left  = reconstruct (i, j+1, i, j, i, j-1);
+         state_right = reconstruct (i, j-2, i, j-1, i, j);
+         velocity    = darcy_velocity (i, j, i, j-1);
+         flux        = num_flux (velocity, state_left, state_right);
 
          s_residual (i,j)   += flux[0];
          s_residual (i,j-1) -= flux[0];
@@ -240,13 +318,19 @@ void ReservoirProblem::residual (Matrix& s_residual, Matrix& c_residual)
 
             if (grid.ibeg[n] == 1) // inlet-vertical side
             {
-               flux             = num_flux (i-1, j, i, j);
+               state_left  = reconstruct (i-1, j, i-1, j, i, j);
+               state_right = reconstruct (i+1, j, i, j, i-1, j);
+               velocity    = darcy_velocity (i-1, j, i, j);
+               flux        = num_flux (velocity, state_left, state_right);
                s_residual(i,j) -= flux[0];
                c_residual(i,j) -= flux[1];
             }
             else // outlet-vertical side
             {
-               flux               = num_flux (i-1, j, i, j);
+               state_left  = reconstruct (i-2, j, i-1, j, i, j);
+               state_right = reconstruct (i, j, i, j, i-1, j);
+               velocity    = darcy_velocity (i-1, j, i, j);
+               flux        = num_flux (velocity, state_left, state_right);
                s_residual(i-1,j) += flux[0];
                c_residual(i-1,j) += flux[1];
             }
@@ -261,13 +345,19 @@ void ReservoirProblem::residual (Matrix& s_residual, Matrix& c_residual)
 
             if(grid.jbeg[n] == 1) // inlet-horizontal side
             {
-               flux             = num_flux (i, j, i, j-1);
+               state_left  = reconstruct (i, j+1, i, j, i, j-1);
+               state_right = reconstruct (i, j-1, i, j-1, i, j);
+               velocity    = darcy_velocity (i, j, i, j-1);
+               flux        = num_flux (velocity, state_left, state_right);
                s_residual(i,j) += flux[0];
                c_residual(i,j) += flux[1];
             }
             else // outlet-horizontal side
             {
-               flux               = num_flux (i, j, i, j-1);
+               state_left  = reconstruct (i, j, i, j, i, j-1);
+               state_right = reconstruct (i, j-2, i, j-1, i, j);
+               velocity    = darcy_velocity (i, j, i, j-1);
+               flux        = num_flux (velocity, state_left, state_right);
                s_residual(i,j-1) -= flux[0];
                c_residual(i,j-1) -= flux[1];
             }
@@ -416,27 +506,36 @@ void ReservoirProblem::solve ()
    Matrix s_residual (grid.nx+1, grid.ny+1);
    Matrix c_residual (grid.nx+1, grid.ny+1);
    Matrix sc         (grid.nx+1, grid.ny+1);
+   Matrix s_old      (grid.nx+1, grid.ny+1);
+   Matrix sc_old     (grid.nx+1, grid.ny+1);
 
    while (iter < max_iter)
    {
+      s_old = saturation;
+      sc_old= saturation * concentration;
+
       // solve for pressure
       pressure_problem.run (saturation, concentration, 
                             permeability, pressure);
 
-      // compute residual
-      residual (s_residual, c_residual);
+      for (unsigned int irk=0; irk<nrk; ++irk)
+      {
+         // compute residual
+         residual (s_residual, c_residual);
       
-      // new value of s*c
-      sc = saturation * concentration - c_residual;
+         // new value of s*c
+         sc = sc_old * ark[irk] + 
+              (saturation * concentration - c_residual) * brk[irk];
 
-      // update saturation
-      saturation    -= s_residual;
+         // update saturation
+         saturation  = s_old * ark[irk] + (saturation - s_residual) * brk[irk];
 
-      // update concentration
-      updateConcentration (sc);
+         // update concentration
+         updateConcentration (sc);
 
-      // update solution in ghost cells
-      updateGhostCells ();
+         // update solution in ghost cells
+         updateGhostCells ();
+      }
 
       // find solution range: to check for stability
       findMinMax ();
