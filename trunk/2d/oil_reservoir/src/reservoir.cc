@@ -52,7 +52,16 @@ vector<double> ReservoirProblem::reconstruct
    state[0] = saturation (il,jl) + 0.5 * ds;
 
    // concentration
-   state[1] = 0.0;
+   // We reconstruct b = s*c
+   double bll = saturation(ill,jll) * concentration(ill,jll);
+   double bl  = saturation(il ,jl ) * concentration(il ,jl );
+   double br  = saturation(ir ,jr ) * concentration(ir ,jr );
+   double db  = minmod (bll, bl, br);
+   state[1]   = (bl + 0.5 * db);
+   if (state[0] > SZERO)
+      state[1] /= state[0];
+   else
+      state[1] = 0.0;
 
    return state;
 }
@@ -89,6 +98,7 @@ double ReservoirProblem::darcy_velocity
    double velocity = - m_perm * dpdn;
 
    max_velocity = max ( max_velocity, fabs(velocity)/grid.dx );
+   min_velocity = min ( min_velocity, fabs(velocity)/grid.dx );
    
    return velocity;
 }
@@ -130,13 +140,17 @@ vector<double> num_flux
    return flux;
 }
 
-// Read some input and make the grid
-void ReservoirProblem::make_grid ()
+// Read some input from file
+void ReservoirProblem::read_input ()
 {
-   cout << "Making grid for reservoir problem ..." << endl;
+   cout << "Reading input from file data.in ..." << endl;
 
    ifstream inp;
    inp.open ("data.in");
+
+   inp >> max_iter;
+   inp >> cfl;
+   inp >> cinlet;
 
    inp >> grid.nx >> grid.ny;
    inp >> grid.n_boundary;
@@ -162,6 +176,19 @@ void ReservoirProblem::make_grid ()
    }
 
    inp.close ();
+
+   cout << "Max no. of time steps  = " << max_iter << endl;
+   cout << "CFL number             = " << cfl << endl;
+   cout << "nx x ny                = " << grid.nx << " x " << grid.ny << endl;
+   cout << "Number of boundaries   = " << grid.n_boundary << endl;
+   cout << "Number of cells        = " << grid.n_cells << endl;
+   cout << "Number of actual cells = " << (grid.nx-1)*(grid.ny-1) << endl;
+
+}
+
+void ReservoirProblem::make_grid ()
+{
+   cout << "Making grid for reservoir problem ..." << endl;
 
    // set location of boundary
    for(unsigned int n=0; n<grid.n_boundary; ++n)
@@ -211,11 +238,6 @@ void ReservoirProblem::make_grid ()
                                   grid.y(i+1,j+1) + grid.y(i,j+1) );
       }
 
-   cout << "nx x ny                = " << grid.nx << " x " << grid.ny << endl;
-   cout << "Number of boundaries   = " << grid.n_boundary << endl;
-   cout << "Number of cells        = " << grid.n_cells << endl;
-   cout << "Number of actual cells = " << (grid.nx-1)*(grid.ny-1) << endl;
-
 }
 
 // allocate memory and set initial condition
@@ -240,7 +262,7 @@ void ReservoirProblem::initialize ()
          if(dist <= 0.25 * 0.25)
          {
             saturation    (i,j) = 1.0;
-            concentration (i,j) = 0.0;
+            concentration (i,j) = cinlet;
          }
          else
          {
@@ -255,9 +277,7 @@ void ReservoirProblem::initialize ()
    updateGhostCells ();
    output (0);
 
-   cfl        = 0.5;
    final_time = 0.1;
-   max_iter   = 2200;
    nrk        = 3;
    ark[0] = 0.0; ark[1] = 3.0/4.0; ark[2] = 1.0/3.0;
    for (unsigned int i=0; i<3; ++i) brk[i] = 1.0 - ark[i];
@@ -273,6 +293,7 @@ void ReservoirProblem::residual (Matrix& s_residual, Matrix& c_residual)
    s_residual = 0.0;
    c_residual = 0.0;
 
+   min_velocity = 1.0e20;
    max_velocity = 0.0;
 
    // interior vertical faces
@@ -377,15 +398,10 @@ void ReservoirProblem::updateConcentration (Matrix& sc)
    for (unsigned int i=1; i<grid.nx; ++i)
       for (unsigned int j=1; j<grid.ny; ++j)
       {
-         if (sc (i,j) < 1.0e-13)
-            concentration (i,j) = 0.0;
-         else if (saturation (i,j) > 0.0)
+         if (saturation (i,j) > SZERO)
             concentration (i,j) = sc (i,j) / saturation (i,j);
          else
-         {
-            printf("updateConcentration: Error !!!\n");
-            exit(0);
-         }
+            concentration (i,j) = 0.0;
       }
 }
 
@@ -434,7 +450,7 @@ void ReservoirProblem::updateGhostCells ()
             if (grid.ibeg[n] == 1) // inlet-vertical side
             {
                saturation    (i-1,j) = 1.0;
-               concentration (i-1,j) = 0.0;
+               concentration (i-1,j) = cinlet;
                pressure      (i-1,j) = pinlet;
             }
             else // outlet-vertical side
@@ -455,7 +471,7 @@ void ReservoirProblem::updateGhostCells ()
             if(grid.jbeg[n] == 1) // inlet-horizontal side
             {
                saturation    (i,j-1) = 1.0;
-               concentration (i,j-1) = 0.0;
+               concentration (i,j-1) = cinlet;
                pressure      (i,j-1) = pinlet;
             }
             else // outlet-horizontal side
@@ -493,6 +509,7 @@ void ReservoirProblem::findMinMax () const
    cout << "Saturation    = " << s_min << " " << s_max << endl;
    cout << "Concentration = " << c_min << " " << c_max << endl;
    cout << "Pressure      = " << p_min << " " << p_max << endl;
+   cout << "Min velocity  = " << min_velocity << endl;
    cout << "Max velocity  = " << max_velocity << endl;
    cout << "dt            = " << dt << endl;
 }
@@ -620,6 +637,7 @@ void ReservoirProblem::output (const unsigned int iter) const
 // solve the whole problem
 void ReservoirProblem::run ()
 {
+   read_input ();
    make_grid ();
    initialize ();
    solve ();

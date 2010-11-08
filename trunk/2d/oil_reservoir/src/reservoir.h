@@ -4,6 +4,9 @@
 #include "matrix.h"
 #include "grid.h"
 
+#define SZERO 0.001
+
+
 // Class for reservoir problem
 class ReservoirProblem
 {
@@ -17,13 +20,16 @@ class ReservoirProblem
       unsigned int nrk;
       double  ark[3], brk[3];
       double  cfl, final_time, dt;
+      double  min_velocity;
       double  max_velocity;
+      double  cinlet;
       Grid    grid;
       Matrix  saturation;
       Matrix  concentration;
       Matrix  pressure;
       Matrix  permeability;
 
+      void read_input ();
       void make_grid ();
       void initialize ();
       void residual (Matrix&, Matrix&);
