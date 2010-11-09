@@ -1,5 +1,6 @@
 Input file data.in:
 
+order (1 or 2)
 max_iter
 cfl
 cinlet

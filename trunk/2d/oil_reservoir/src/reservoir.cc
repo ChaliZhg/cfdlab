@@ -21,7 +21,7 @@ double minmod (const double ul, const double u0, const double ur)
 
    if (db*dc > 0.0 && dc*df > 0.0)
    {
-      result = min( min(fabs(db), fabs(dc)), fabs(df) );
+      result = min( min(fabs(2.0*db), fabs(dc)), fabs(2.0*df) );
       result *= SIGN(db);
    }
    else
@@ -33,6 +33,42 @@ double minmod (const double ul, const double u0, const double ur)
 // Find left state at interface between (il,jl) and (ir,jr)
 // (ill,jll) is to the left of (il,jl)
 vector<double> ReservoirProblem::reconstruct
+       (
+       const unsigned int ill,
+       const unsigned int jll,
+       const unsigned int il,
+       const unsigned int jl,
+       const unsigned int ir,
+       const unsigned int jr
+       ) const
+{
+   if (order==1)
+      return reconstruct1(ill, jll, il, jl, ir, jr);
+   else
+      return reconstruct2(ill, jll, il, jl, ir, jr);
+}
+
+// First order reconstruction
+vector<double> ReservoirProblem::reconstruct1
+       (
+       const unsigned int ill,
+       const unsigned int jll,
+       const unsigned int il,
+       const unsigned int jl,
+       const unsigned int ir,
+       const unsigned int jr
+       ) const
+{
+   vector<double> state(2);
+
+   state[0] = saturation (il,jl);
+   state[1] = concentration (il, jl); 
+
+   return state;
+}
+
+// Second order reconstruction
+vector<double> ReservoirProblem::reconstruct2
        (
        const unsigned int ill,
        const unsigned int jll,
@@ -148,9 +184,10 @@ void ReservoirProblem::read_input ()
    ifstream inp;
    inp.open ("data.in");
 
-   inp >> max_iter;
-   inp >> cfl;
-   inp >> cinlet;
+   inp >> order;      assert(order == 1 || order == 2);
+   inp >> max_iter;   assert(max_iter > 0);
+   inp >> cfl;        assert(cfl > 0.0 && cfl <= 1.0);
+   inp >> cinlet;     assert(cinlet >= 0.0);
 
    inp >> grid.nx >> grid.ny;
    inp >> grid.n_boundary;
@@ -177,6 +214,7 @@ void ReservoirProblem::read_input ()
 
    inp.close ();
 
+   cout << "Scheme order           = " << order << endl;
    cout << "Max no. of time steps  = " << max_iter << endl;
    cout << "CFL number             = " << cfl << endl;
    cout << "nx x ny                = " << grid.nx << " x " << grid.ny << endl;
@@ -278,7 +316,12 @@ void ReservoirProblem::initialize ()
    output (0);
 
    final_time = 0.1;
-   nrk        = 3;
+
+   // RK scheme parameters
+   if( order==1 )
+      nrk = 1;
+   else
+      nrk = 3;
    ark[0] = 0.0; ark[1] = 3.0/4.0; ark[2] = 1.0/3.0;
    for (unsigned int i=0; i<3; ++i) brk[i] = 1.0 - ark[i];
 }

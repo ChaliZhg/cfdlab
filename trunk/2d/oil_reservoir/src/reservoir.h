@@ -18,6 +18,7 @@ class ReservoirProblem
    private:
       unsigned int max_iter;
       unsigned int nrk;
+      unsigned int order;
       double  ark[3], brk[3];
       double  cfl, final_time, dt;
       double  min_velocity;
@@ -37,6 +38,26 @@ class ReservoirProblem
       void output (const unsigned int) const;
 
       std::vector<double> reconstruct
+       (
+       const unsigned int ill,
+       const unsigned int jll,
+       const unsigned int il,
+       const unsigned int jl,
+       const unsigned int ir,
+       const unsigned int jr
+       ) const;
+
+      std::vector<double> reconstruct1
+       (
+       const unsigned int ill,
+       const unsigned int jll,
+       const unsigned int il,
+       const unsigned int jl,
+       const unsigned int ir,
+       const unsigned int jr
+       ) const;
+
+      std::vector<double> reconstruct2
        (
        const unsigned int ill,
        const unsigned int jll,
