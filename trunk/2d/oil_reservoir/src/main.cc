@@ -1,6 +1,8 @@
 #include <iostream>
 #include "reservoir.h"
 
+double gravity;
+
 using namespace std;
 
 int main ()

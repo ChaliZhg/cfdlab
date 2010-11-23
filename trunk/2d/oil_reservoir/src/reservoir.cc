@@ -59,10 +59,11 @@ vector<double> ReservoirProblem::reconstruct1
        const unsigned int jr
        ) const
 {
-   vector<double> state(2);
+   vector<double> state(3);
 
    state[0] = saturation (il,jl);
    state[1] = concentration (il, jl); 
+   state[2] = permeability (il, jl); 
 
    return state;
 }
@@ -78,8 +79,8 @@ vector<double> ReservoirProblem::reconstruct2
        const unsigned int jr
        ) const
 {
-   vector<double> state(2);
-   double ds;
+   vector<double> state(3);
+   double ds, dp;
 
    // saturation
    ds = minmod (saturation(ill,jll), 
@@ -99,6 +100,12 @@ vector<double> ReservoirProblem::reconstruct2
    else
       state[1] = 0.0;
 
+   // permeability
+   dp = minmod (permeability(ill,jll), 
+                permeability(il,jl), 
+                permeability(ir,jr));
+   state[2] = permeability (il, jl) + 0.5 * dp;
+
    return state;
 }
 
@@ -109,7 +116,8 @@ double ReservoirProblem::darcy_velocity
        const unsigned int ileft,
        const unsigned int jleft,
        const unsigned int iright,
-       const unsigned int jright
+       const unsigned int jright,
+       const double g
        )
 {
    double s_left  = saturation    (ileft,  jleft);
@@ -119,19 +127,36 @@ double ReservoirProblem::darcy_velocity
    double c_right = concentration (iright, jright);
    double p_right = pressure      (iright, jright);
 
-   double m_total_left = mobility_total (s_left, c_left);
+   double m_water_left = mobility_water (s_left, c_left);
+   double m_oil_left   = mobility_oil (s_left, c_left);
+   double m_total_left = m_water_left + m_oil_left;
    double perm_left    = permeability (ileft, jleft);
+   double m_perm_left  = m_total_left * perm_left;
 
-   double m_total_right = mobility_total (s_right, c_right);
-   double perm_right   = permeability (iright, jright);
+   double m_water_right = mobility_water (s_right, c_right);
+   double m_oil_right   = mobility_oil (s_right, c_right);
+   double m_total_right = m_water_right + m_oil_right;
+   double perm_right    = permeability (iright, jright);
+   double m_perm_right  = m_total_right * perm_right;
 
-   double m_perm   = harmonic_average (m_total_left  * perm_left, 
-                                       m_total_right * perm_right);
+   double m_perm   = harmonic_average (m_perm_left, m_perm_right);
 
    // we assume dx=dy, so dont divide by length since it is accounted
    // for in flux computation: dont multiply flux by face area
    double dpdn     = (p_right - p_left);
    double velocity = - m_perm * dpdn;
+
+   // Add gravity effect
+   if(g > 0.0)
+   {
+      double theta_left  = (m_water_left * density_water + 
+                            m_oil_left   * density_oil) * gravity * perm_left;
+      double theta_right = (m_water_right * density_water + 
+                            m_oil_right   * density_oil) * gravity * perm_right;
+      double theta = 0.5 * m_perm * ( theta_left/m_perm_left + theta_right/m_perm_right);
+
+      velocity -= theta * grid.dx;
+   }
 
    max_velocity = max ( max_velocity, fabs(velocity)/grid.dx );
    min_velocity = min ( min_velocity, fabs(velocity)/grid.dx );
@@ -139,12 +164,40 @@ double ReservoirProblem::darcy_velocity
    return velocity;
 }
 
+// Find location of minimum for the flux
+// This should be called only with g > 0
+double argmin_flux(const double concentration,
+                   const double permeability,
+                   const double velocity)
+{
+   double r = viscosity_oil / viscosity_water (concentration);
+   double z = velocity * viscosity_oil / 
+      ((density_water - density_oil) * gravity * permeability);
+   double alpha = 27.0 * (-r + r * r - z - 2.0 * r * z - r * r * z);
+   double beta  = 2916.0 * r * r * r + alpha * alpha;
+
+   double gamma = pow( alpha + sqrt(beta), 1.0/3.0);
+   double fact  = pow( 32.0, 1.0/3.0);
+
+   double sstar = (1.0 - fact * r / gamma + gamma / fact) / (1.0 + r);
+
+   double s_min;
+
+   if(sstar <= 1.0 && sstar >= 0.0)
+      s_min = sstar;
+   else
+      s_min = (velocity > 0.0) ? 0.0 : 1.0;
+
+   return s_min;
+}
+
 // numerical flux function for saturation
 vector<double> num_flux
        (
        const double velocity,
        const vector<double> state_left,
-       const vector<double> state_right
+       const vector<double> state_right,
+       const double g
        )
 {
    double s_left  = state_left[0];
@@ -152,25 +205,60 @@ vector<double> num_flux
    double s_right = state_right[0];
    double c_right = state_right[1];
 
-   double m_water_left = mobility_water (s_left, c_left);
-   double m_oil_left   = mobility_oil (s_left, c_left);
-   double m_total_left = m_water_left + m_oil_left;
-
-   double m_water_right = mobility_water (s_right, c_right);
-   double m_oil_right   = mobility_oil (s_right, c_right);
-   double m_total_right = m_water_right + m_oil_right;
-
    vector<double> flux(2);
 
-   if (velocity > 0)
+   if(g > 0.0)
    {
-      flux[0] = velocity * m_water_left / m_total_left;
-      flux[1] = c_left * flux[0];
+      double perm_left = state_left[2];
+      double s_min_left = argmin_flux(c_left, perm_left, velocity);
+
+      double perm_right = state_right[2];
+      double s_min_right = argmin_flux(c_right, perm_right, velocity);
+
+      s_left  = max( s_left, s_min_left);
+      s_right = min( s_right, s_min_right);
+
+      double m_water_left = mobility_water (s_left, c_left);
+      double m_oil_left   = mobility_oil (s_left, c_left);
+      double m_total_left = m_water_left + m_oil_left;
+
+      double m_water_right = mobility_water (s_right, c_right);
+      double m_oil_right   = mobility_oil (s_right, c_right);
+      double m_total_right = m_water_right + m_oil_right;
+
+      double v_left  = velocity 
+         - (density_water - density_oil) * gravity * m_oil_left * perm_left;
+      double v_right = velocity 
+         - (density_water - density_oil) * gravity * m_oil_right * perm_right;
+      double f_left  = v_left  * m_water_left / m_total_left;
+      double f_right = v_right * m_water_right / m_total_right;
+      flux[0]        = max( f_left, f_right );
+
+      if(flux[0] > 0.0)
+         flux[1] = c_left  * flux[0];
+      else
+         flux[1] = c_right * flux[0];
    }
    else
    {
-      flux[0] = velocity * m_water_right / m_total_right;
-      flux[1] = c_right * flux[0];
+      double m_water_left = mobility_water (s_left, c_left);
+      double m_oil_left   = mobility_oil (s_left, c_left);
+      double m_total_left = m_water_left + m_oil_left;
+
+      double m_water_right = mobility_water (s_right, c_right);
+      double m_oil_right   = mobility_oil (s_right, c_right);
+      double m_total_right = m_water_right + m_oil_right;
+
+      if (velocity > 0)
+      {
+         flux[0] = velocity * m_water_left / m_total_left;
+         flux[1] = c_left * flux[0];
+      }
+      else
+      {
+         flux[0] = velocity * m_water_right / m_total_right;
+         flux[1] = c_right * flux[0];
+      }
    }
 
    return flux;
@@ -188,6 +276,7 @@ void ReservoirProblem::read_input ()
    inp >> max_iter;   assert(max_iter > 0);
    inp >> cfl;        assert(cfl > 0.0 && cfl <= 1.0);
    inp >> cinlet;     assert(cinlet >= 0.0);
+   inp >> gravity;    assert(gravity >= 0.0);
 
    inp >> grid.nx >> grid.ny;
    inp >> grid.n_boundary;
@@ -217,6 +306,8 @@ void ReservoirProblem::read_input ()
    cout << "Scheme order           = " << order << endl;
    cout << "Max no. of time steps  = " << max_iter << endl;
    cout << "CFL number             = " << cfl << endl;
+   cout << "Inlet polymer concentr = " << cinlet << endl;
+   cout << "Gravity                = " << gravity << endl;
    cout << "nx x ny                = " << grid.nx << " x " << grid.ny << endl;
    cout << "Number of boundaries   = " << grid.n_boundary << endl;
    cout << "Number of cells        = " << grid.n_cells << endl;
@@ -331,7 +422,7 @@ void ReservoirProblem::residual (Matrix& s_residual, Matrix& c_residual)
 {
    unsigned int i, j;
    double velocity;
-   vector<double> state_left(2), state_right(2), flux(2);
+   vector<double> state_left(3), state_right(3), flux(2);
 
    s_residual = 0.0;
    c_residual = 0.0;
@@ -345,8 +436,8 @@ void ReservoirProblem::residual (Matrix& s_residual, Matrix& c_residual)
       {
          state_left  = reconstruct (i-2, j, i-1, j, i, j);
          state_right = reconstruct (i+1, j, i, j, i-1, j);
-         velocity    = darcy_velocity (i-1, j, i, j);
-         flux        = num_flux (velocity, state_left, state_right);
+         velocity    = darcy_velocity (i-1, j, i, j, 0.0);
+         flux        = num_flux (velocity, state_left, state_right, 0.0);
 
          s_residual (i-1,j) += flux[0];
          s_residual (i,  j) -= flux[0];
@@ -361,8 +452,8 @@ void ReservoirProblem::residual (Matrix& s_residual, Matrix& c_residual)
       {
          state_left  = reconstruct (i, j+1, i, j, i, j-1);
          state_right = reconstruct (i, j-2, i, j-1, i, j);
-         velocity    = darcy_velocity (i, j, i, j-1);
-         flux        = num_flux (velocity, state_left, state_right);
+         velocity    = darcy_velocity (i, j, i, j-1, gravity);
+         flux        = num_flux (velocity, state_left, state_right, gravity);
 
          s_residual (i,j)   += flux[0];
          s_residual (i,j-1) -= flux[0];
@@ -384,8 +475,8 @@ void ReservoirProblem::residual (Matrix& s_residual, Matrix& c_residual)
             {
                state_left  = reconstruct (i-1, j, i-1, j, i, j);
                state_right = reconstruct (i+1, j, i, j, i-1, j);
-               velocity    = darcy_velocity (i-1, j, i, j);
-               flux        = num_flux (velocity, state_left, state_right);
+               velocity    = darcy_velocity (i-1, j, i, j, 0.0);
+               flux        = num_flux (velocity, state_left, state_right, 0.0);
                s_residual(i,j) -= flux[0];
                c_residual(i,j) -= flux[1];
             }
@@ -393,8 +484,8 @@ void ReservoirProblem::residual (Matrix& s_residual, Matrix& c_residual)
             {
                state_left  = reconstruct (i-2, j, i-1, j, i, j);
                state_right = reconstruct (i, j, i, j, i-1, j);
-               velocity    = darcy_velocity (i-1, j, i, j);
-               flux        = num_flux (velocity, state_left, state_right);
+               velocity    = darcy_velocity (i-1, j, i, j, 0.0);
+               flux        = num_flux (velocity, state_left, state_right, 0.0);
                s_residual(i-1,j) += flux[0];
                c_residual(i-1,j) += flux[1];
             }
@@ -411,8 +502,8 @@ void ReservoirProblem::residual (Matrix& s_residual, Matrix& c_residual)
             {
                state_left  = reconstruct (i, j+1, i, j, i, j-1);
                state_right = reconstruct (i, j-1, i, j-1, i, j);
-               velocity    = darcy_velocity (i, j, i, j-1);
-               flux        = num_flux (velocity, state_left, state_right);
+               velocity    = darcy_velocity (i, j, i, j-1, gravity);
+               flux        = num_flux (velocity, state_left, state_right, gravity);
                s_residual(i,j) += flux[0];
                c_residual(i,j) += flux[1];
             }
@@ -420,8 +511,8 @@ void ReservoirProblem::residual (Matrix& s_residual, Matrix& c_residual)
             {
                state_left  = reconstruct (i, j, i, j, i, j-1);
                state_right = reconstruct (i, j-2, i, j-1, i, j);
-               velocity    = darcy_velocity (i, j, i, j-1);
-               flux        = num_flux (velocity, state_left, state_right);
+               velocity    = darcy_velocity (i, j, i, j-1, gravity);
+               flux        = num_flux (velocity, state_left, state_right, gravity);
                s_residual(i,j-1) -= flux[0];
                c_residual(i,j-1) -= flux[1];
             }

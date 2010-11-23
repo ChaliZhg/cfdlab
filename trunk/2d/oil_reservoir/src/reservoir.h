@@ -69,7 +69,8 @@ class ReservoirProblem
 
       double darcy_velocity
          (const unsigned int, const unsigned int,
-          const unsigned int, const unsigned int);
+          const unsigned int, const unsigned int,
+          const double);
 
       void updateConcentration (Matrix&);
       void updateGhostCells ();
@@ -83,7 +84,8 @@ std::vector<double> num_flux
        (
        const double velocity,
        const std::vector<double> state_left,
-       const std::vector<double> state_right
+       const std::vector<double> state_right,
+       const double g
        );
 
 #endif

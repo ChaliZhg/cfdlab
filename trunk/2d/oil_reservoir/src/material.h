@@ -6,6 +6,9 @@
 #define harmonic_average(a,b)   (2.0*(a)*(b)/((a)+(b)))
 
 const double viscosity_oil = 10.0;
+const double density_water = 1.0;
+const double density_oil   = 1.0;
+extern double gravity;
 
 // viscosity of water
 double viscosity_water (const double concentration);
