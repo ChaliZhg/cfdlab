@@ -7,7 +7,7 @@
 
 const double viscosity_oil = 10.0;
 const double density_water = 1.0;
-const double density_oil   = 1.0;
+const double density_oil   = 0.9;
 extern double gravity;
 
 // viscosity of water
