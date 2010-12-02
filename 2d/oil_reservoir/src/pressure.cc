@@ -57,8 +57,8 @@ Matrix PressureProblem::compute_rhs (const Matrix& saturation,
          theta  = 0.5 * m_perm * ( theta_left/m_perm_left + theta_right/m_perm_right );
          flux   = theta * grid->dx;
 
-         result(i-1,j) += flux;
-         result(i,j)   -= flux;
+         result(i,j)   += flux;
+         result(i,j-1) -= flux;
       }
 
    // inlet/outlet boundaries
@@ -103,7 +103,7 @@ Matrix PressureProblem::compute_rhs (const Matrix& saturation,
             perm_left = permeability (i,j);
             m_perm_left = mobility_left * perm_left;
             theta_left = (mobility_water_left * density_water +
-                        mobility_oil_left   * density_oil) * gravity * perm_left;
+                          mobility_oil_left   * density_oil) * gravity * perm_left;
 
             mobility_water_right = mobility_water (saturation(i,j-1), concentration(i,j-1));
             mobility_oil_right = mobility_oil (saturation(i,j-1), concentration(i,j-1));
