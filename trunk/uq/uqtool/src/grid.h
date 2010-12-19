@@ -13,12 +13,14 @@ class Sample
    public:
       Sample (const unsigned int n_var,
               const unsigned int n_cell,
+              const unsigned int n_moment,
               const unsigned int counter);
       ~Sample () {};
       void clear ();
       void read ();
 
       double x[dim];
+      double* J;
       unsigned int n_var, n_cell;
       double* primal;
       double* adjoint;

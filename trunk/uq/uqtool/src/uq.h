@@ -20,6 +20,7 @@ class UQProblem
       void run_simulations ();
       void compute_moments ();
       void refine_grid ();
+      void output (const unsigned int iter) const;
 
       PDFData<dim> pdf_data;
    
