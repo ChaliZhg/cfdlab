@@ -72,6 +72,14 @@ void UQProblem<dim>::run_simulations ()
          sprintf(command, "./runsolver.sh %s", sample[i].directory);
          system (command);
          
+         // Read objective functions
+         ifstream fi;
+         sprintf(filename, "%s/obj.dat", sample[i].directory);
+         fi.open (filename);
+         for(unsigned int j=0; j<n_moment; ++j)
+            fi >> sample[i].J[j];
+         fi.close ();
+         
          sample[i].status = OLD;
       }
 }

@@ -12,6 +12,7 @@ using namespace std;
 template <int dim>
 Sample<dim>::Sample(const unsigned int n_var,
                     const unsigned int n_cell,
+                    const unsigned int n_moment,
                     const unsigned int counter)
    :
    n_var  (n_var),
@@ -19,6 +20,8 @@ Sample<dim>::Sample(const unsigned int n_var,
 {
    status = NEW;
    load   = false;
+   
+   J = new double [n_moment];
    
    // Set directory for sample: S000 to S999
    if(counter <= 9)

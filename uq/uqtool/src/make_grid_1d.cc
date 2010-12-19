@@ -26,7 +26,7 @@ void UQProblem<1>::make_grid ()
    double dx = (pdf_data.x_max[0] - pdf_data.x_min[0])/(n_sample-1);
    for(unsigned int i=0; i<n_sample; ++i)
    {
-      Sample<1> new_sample (n_var, n_cell, i);
+      Sample<1> new_sample (n_var, n_cell, n_moment, i);
       new_sample.x[0] = pdf_data.x_min[0] + i * dx;
       sample.push_back (new_sample);
    }
