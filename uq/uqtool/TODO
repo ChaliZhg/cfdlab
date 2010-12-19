@@ -1,0 +1,52 @@
+-------
+TODO
+-------
+
+* Refinement of stochastic grid
+
+* For n_moment > 1, e.g., Cl and Cd, there will be more than one adjoint. 
+
+* Implement variance computation for each functional
+Currently only mean is implemented.
+
+-------
+Need following interfaces to simulation code:
+-------
+
+x[] = random vars
+U   = primal (coarse grid H)
+V   = adjoint (coarse grid H)
+R   = primal residual
+R*  = adjoint residual
+
+Mode 1: Given x, find
+U, J(U,x), V (need to iterate until convergence)
+Result is stored in sample directory, no need to read into uqtool.
+
+Mode 2: Given x, U, V, find
+J_h(U_h,x), R_h(U_h,x), R*_h(U_h,V_h,x) (just evaluation, should not iterate)
+
+Codes required:
+
+primal.exe
+x -> primal.exe -> U, J, R
+
+adjoint.exe
+x, U -> adjoint.exe -> V, R*
+
+reconstruct.exe
+U -> reconstruct.exe -> U_h
+
+dot.exe (gives remaining error on each cell of H-grid)
+a=U/U_h, b=V/V_h, c=dU/dU_h, d=dV/dV_h -> dot.exe -> [d.R(a) + c.R*(a,b)]_H
+If input is on h-grid, output must be on H-grid since this is required for adaptation of H-grid.
+
+NOTE: Stochastic interpolation is done on H-grid (coarse)
+      evaluator (Mode 2) reads fine grid values
+
+      Two grid (H and h) case requires more work !!!
+
+-------
+Active element iterator
+-------
+When a stochastic element is refined, the parent element is not removed, but remains in the element list. However it should become inactive. Need an iterator which loops over only active elements while doing quadrature.
