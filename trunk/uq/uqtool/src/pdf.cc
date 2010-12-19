@@ -1,0 +1,45 @@
+/*
+ *  pdf.cc
+ *  uqtool
+ *
+ *  Created by Praveen Chandrashekar on 15/12/10.
+ *  Copyright 2010 TIFR-CAM, Bangalore. All rights reserved.
+ *
+ */
+
+#include <iostream>
+#include <cstdlib>
+#include "pdf.h"
+
+using namespace std;
+
+// Computes probability of dim independent random variables
+template <int dim>
+double PDFData<dim>::get_pdf (const double* x) const
+{
+   double pdf = 1.0, p;
+   
+   for(unsigned int i=0; i<dim; ++i)
+   {
+      switch (type[i])
+      {
+         // Uniform random variable
+         case (int)uniform:
+            if(x[i]>=x_min[i] && x[i]<=x_max[i])
+               p = 1.0;
+            else
+               p = 0.0;
+            break;
+            
+         default:
+            cout << "Unknown PDF !!!" << endl;
+            abort ();
+      }
+      pdf *= p;
+   }
+   
+   return pdf;
+}
+
+// To avoid linker error
+template class PDFData<1>;
