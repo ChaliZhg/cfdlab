@@ -105,7 +105,7 @@ void UQProblem<dim>::compute_moments ()
    JREvaluator<dim> evaluator (n_moment);
    
    // Compute moments for newly created elements
-   for(unsigned int i=0; i<grid.n_element; ++i)
+   for(unsigned int i=0; i<grid.element.size(); ++i)
       if(grid.element[i].status == NEW)
       {
          for(unsigned int m=0; m<n_moment; ++m)
@@ -151,7 +151,7 @@ void UQProblem<dim>::compute_moments ()
    for(unsigned int i=0; i<n_moment; ++i)
    {
       moment[i] = adj_cor[i] = RE[i] = 0.0;
-      for(unsigned int j=0; j<grid.n_element; ++j)
+      for(unsigned int j=0; j<grid.element.size(); ++j)
          if (grid.element[j].active)
          {
             moment[i]  += grid.element[j].moment[i];
@@ -174,12 +174,12 @@ void UQProblem<dim>::flag_elements ()
       
       // Loop over stochastic elements
       for(unsigned int j=1; j<grid.element.size(); ++j)
-         if(grid.element[j].active)
-            if(fabs(grid.element[j].RE[i]) > max_error)
-            {
-               imax = j;
-               max_error = fabs(grid.element[j].RE[i]);
-            }
+         if(grid.element[j].active &&
+            fabs(grid.element[j].RE[i]) > max_error)
+         {
+            imax = j;
+            max_error = fabs(grid.element[j].RE[i]);
+         }
       
       grid.element[imax].refine_flag = true;
    }
@@ -206,8 +206,10 @@ void UQProblem<dim>::run ()
       ++iter;
 
       cout << "Iteration = " << iter << endl;
-      cout << "No. of samples = " << sample.size() << endl;
-      cout << "No. of cells   = " << n_cell << endl;
+      cout << "No. of stochastic samples = " << sample.size() << endl;
+      cout << "No. of stochastic elements = " << grid.element.size()
+           << endl;
+      cout << "No. of physical cells   = " << n_cell << endl;
    }
 
 }
