@@ -99,9 +99,11 @@ Element<dim>::Element (const unsigned int order,
    
    status  = NEW;
    active  = true;
+   refine_flag = false;
    parent  = this;
    moment  = new double [n_moment];
    adj_cor = new double [n_moment];
+   RE      = new double [n_moment];
 
    if(dim == 1)
    {

@@ -29,8 +29,7 @@ JREvaluator<dim>::JREvaluator (const unsigned int n_moment)
 {
    J       = new double [n_moment];
    VdotR   = new double [n_moment];
-   dVdotR  = new double [n_moment];
-   dUdotAR = new double [n_moment];
+   RE      = new double [n_moment];
 }
 
 // Destructor
@@ -39,8 +38,7 @@ JREvaluator<dim>::~JREvaluator ()
 {
    delete [] J;
    delete [] VdotR;
-   delete [] dVdotR;
-   delete [] dUdotAR;
+   delete [] RE;
 }
 
 template <int dim>
@@ -97,8 +95,35 @@ void JREvaluator<dim>::execute (const double* x,
    // Read objective functions
    fi.open ("EVAL/obj.dat");
    for(unsigned int i=0; i<n_moment; ++i)
-      fi >> J[i] >> VdotR[i] >> dVdotR[i] >> dUdotAR[i];
+      fi >> J[i];
    fi.close ();
+   
+   double* VdotR_array = new double [n_cell];
+   double* RE_array    = new double [n_cell];
+
+   for(unsigned int i=0; i<n_moment; ++i)
+   {
+      fi.open ("EVAL/VdotR.dat");
+      for(unsigned int j=0; j<n_cell; ++j)
+         fi >> VdotR_array[j];
+      fi.close ();
+      
+      fi.open ("EVAL/RE.dat");
+      for(unsigned int j=0; j<n_cell; ++j)
+         fi >> RE_array[j];
+      fi.close ();
+      
+      VdotR[i] = 0.0;
+      RE[i]    = 0.0;
+      for(unsigned int j=0; j<n_cell; ++j)
+      {
+         VdotR[i] += VdotR_array[j];
+         RE[i]    += RE_array[j];
+      }
+   }
+   
+   delete [] VdotR_array;
+   delete [] RE_array;
    
 }
 

@@ -5,6 +5,9 @@
 #include "grid.h"
 #include "pdf.h"
 
+#define STOCHASTIC   1
+#define COMBINED     2
+
 // Main problem class
 template <int dim>
 class UQProblem
@@ -19,6 +22,7 @@ class UQProblem
       void make_grid ();
       void run_simulations ();
       void compute_moments ();
+      void flag_elements ();
       void refine_grid ();
       void output (const unsigned int iter) const;
 
@@ -27,6 +31,7 @@ class UQProblem
       unsigned int n_moment;
       double* moment;
       double* adj_cor;
+      double* RE;
 
       unsigned int n_sample;
       std::vector<typename Sample<dim>::Sample> sample;
@@ -36,6 +41,9 @@ class UQProblem
    
       unsigned int n_var; // no. of variables per cell
       unsigned int n_cell;// no. of cells
+   
+      int refine_type;    // STOCHASTIC or COMBINED
+      double* mesh_error; // Indicator for physical mesh
 };
 
 #endif
