@@ -59,10 +59,9 @@ template <int dim>
 class Grid
 {
    public:
-      Grid () { n_element = 0; };
+      Grid () {};
       ~Grid () {};
 
-      unsigned int n_element;
       std::vector<typename Element<dim>::Element> element;
 };
 

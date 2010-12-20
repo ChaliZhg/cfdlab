@@ -11,6 +11,7 @@
 
 // Refine the stochastic grid in 1-D
 // TBD We are assuming second order elements
+// * = new samples
 // old element:  0-----2-----1
 // new element:  0--*--2--*--1
 template <>

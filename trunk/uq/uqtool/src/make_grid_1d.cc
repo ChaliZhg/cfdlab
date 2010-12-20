@@ -32,8 +32,8 @@ void UQProblem<1>::make_grid ()
    }
    
    // Initial elements, all second order
-   grid.n_element = 2;
-   for(unsigned int i=0; i<grid.n_element; ++i)
+   unsigned int n_element = 2;
+   for(unsigned int i=0; i<n_element; ++i)
    {      
       Element<1> new_element(2, n_moment);
       grid.element.push_back (new_element);
