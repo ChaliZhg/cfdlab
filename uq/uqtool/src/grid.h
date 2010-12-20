@@ -2,6 +2,7 @@
 #define __GRID_H__
 
 #include <vector>
+#include <valarray>
 
 #define NEW    0
 #define OLD    1
@@ -50,7 +51,7 @@ class Element
       double* RE;            // element contribution to remaining error
       bool active;
       bool refine_flag;
-      double* mesh_error;
+      std::valarray<double> mesh_error;
 
 };
 
