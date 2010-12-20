@@ -33,7 +33,6 @@ class UQProblem
       double* adj_cor;
       double* RE;
 
-      unsigned int n_sample;
       std::vector<typename Sample<dim>::Sample> sample;
       unsigned int max_sample;
 

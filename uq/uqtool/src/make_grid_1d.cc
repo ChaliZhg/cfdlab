@@ -22,7 +22,7 @@ void UQProblem<1>::make_grid ()
    cout << "Creating stochastic grid in 1-D ... ";
    
    // Initial 5 samples uniformly distributed
-   n_sample = 5;
+   unsigned int n_sample = 5;
    double dx = (pdf_data.x_max[0] - pdf_data.x_min[0])/(n_sample-1);
    for(unsigned int i=0; i<n_sample; ++i)
    {

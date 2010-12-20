@@ -193,7 +193,7 @@ void UQProblem<dim>::run ()
 
    unsigned int iter = 0;
    
-   while (n_sample < max_sample)
+   while (sample.size() < max_sample)
    {
       if (iter > 0) 
       {
@@ -206,7 +206,7 @@ void UQProblem<dim>::run ()
       ++iter;
 
       cout << "Iteration = " << iter << endl;
-      cout << "No. of samples = " << n_sample << endl;
+      cout << "No. of samples = " << sample.size() << endl;
       cout << "No. of cells   = " << n_cell << endl;
    }
 
