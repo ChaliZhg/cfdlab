@@ -2,6 +2,7 @@
 #define __UQ_H__
 
 #include <vector>
+#include <valarray>
 #include "grid.h"
 #include "pdf.h"
 
@@ -42,7 +43,7 @@ class UQProblem
       unsigned int n_cell;// no. of cells
    
       int refine_type;    // STOCHASTIC or COMBINED
-      double* mesh_error; // Indicator for physical mesh
+      std::valarray<double> mesh_error; // Indicator for physical mesh
 };
 
 #endif

@@ -24,7 +24,7 @@ UQProblem<dim>::UQProblem ()
    RE      = new double [n_moment];
    
    if(refine_type == COMBINED)
-      mesh_error = new double [n_moment * n_cell];
+      mesh_error.resize (n_moment * n_cell);
 }
 
 // Destructor
@@ -35,7 +35,7 @@ UQProblem<dim>::~UQProblem ()
    delete [] adj_cor;
    
    if(refine_type == COMBINED)
-      delete [] mesh_error;
+      mesh_error.resize (0);
 }
 
 // Read options from file
@@ -102,12 +102,18 @@ void UQProblem<dim>::compute_moments ()
 {
    Quadrature<dim>  quadrature_formula;
    Interpolate<dim> interpolate_formula (n_var, n_cell);
-   JREvaluator<dim> evaluator (n_moment);
+   JREvaluator<dim> evaluator (n_moment, n_cell);
    
    // Compute moments for newly created elements
    for(unsigned int i=0; i<grid.element.size(); ++i)
       if(grid.element[i].status == NEW)
       {
+         if(refine_type == COMBINED)
+         {
+            grid.element[i].mesh_error.resize (n_moment * n_cell);
+            grid.element[i].mesh_error = 0.0;
+         }
+         
          for(unsigned int m=0; m<n_moment; ++m)
          {
             grid.element[i].moment[m]  = 0.0;
@@ -138,16 +144,26 @@ void UQProblem<dim>::compute_moments ()
                grid.element[i].adj_cor[m] += w * evaluator.VdotR[m];
                grid.element[i].RE[m]      += w * evaluator.RE[m];
             }
+            
+            if(refine_type == COMBINED)
+               grid.element[i].mesh_error += w * evaluator.RE_array;
+            
          }
          
          // Clear all samples belonging to this element from memory
          for(unsigned int d=0; d<grid.element[i].n_dof; ++d)
             grid.element[i].dof[d]->clear();
+         
+         if(refine_type == COMBINED)
+         {
+            // Save mesh_error into file TBD
+            grid.element[i].mesh_error.resize (0);
+         }
 
          grid.element[i].status = OLD;
       }
 
-   // Accumulate moment contribution from all active elements
+   // Accumulate moment contribution from all active elements   
    for(unsigned int i=0; i<n_moment; ++i)
    {
       moment[i] = adj_cor[i] = RE[i] = 0.0;
@@ -159,6 +175,21 @@ void UQProblem<dim>::compute_moments ()
             RE[i]      += grid.element[j].RE[i];
          }
    }
+   
+   // Accumulate physical cell error by summing over all
+   // stochastic elements
+   if(refine_type == COMBINED)
+   {
+      mesh_error = 0.0;
+      for(unsigned int i=0; i<grid.element.size(); ++i)
+         if (grid.element[i].active)
+         {
+            // TBD load element mesh_error from file
+            mesh_error += grid.element[i].mesh_error;
+            // TBD grid.element[j].mesh_error.resize(0);
+         }
+   }
+
 }
 
 // Find element with largest remaining error and flag it for

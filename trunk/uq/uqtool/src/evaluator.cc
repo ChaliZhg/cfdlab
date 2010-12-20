@@ -23,13 +23,16 @@ void write_sol (const char* filename,
 
 // Constructor
 template <int dim>
-JREvaluator<dim>::JREvaluator (const unsigned int n_moment)
+JREvaluator<dim>::JREvaluator (const unsigned int n_moment,
+                               const unsigned int n_cell)
    :
-   n_moment (n_moment)
+   n_moment (n_moment),
+   n_cell   (n_cell)
 {
-   J       = new double [n_moment];
-   VdotR   = new double [n_moment];
-   RE      = new double [n_moment];
+   J        = new double [n_moment];
+   VdotR    = new double [n_moment];
+   RE       = new double [n_moment];
+   RE_array.resize (n_moment * n_cell);
 }
 
 // Destructor
@@ -39,6 +42,7 @@ JREvaluator<dim>::~JREvaluator ()
    delete [] J;
    delete [] VdotR;
    delete [] RE;
+   RE_array.resize (0);
 }
 
 template <int dim>
@@ -46,9 +50,9 @@ void JREvaluator<dim>::execute (const double* x,
                                 const Interpolate<dim>& interpolate_formula)
 {
    const unsigned int n_var  = interpolate_formula.n_var;
-   const unsigned int n_cell = interpolate_formula.n_cell;
    const unsigned int n      = n_var * n_cell;
-   
+   assert (n_cell == interpolate_formula.n_cell);
+
    char filename[64];
    ofstream fo;
    
@@ -99,8 +103,8 @@ void JREvaluator<dim>::execute (const double* x,
    fi.close ();
    
    double* VdotR_array = new double [n_cell];
-   double* RE_array    = new double [n_cell];
 
+   unsigned int c = 0;
    for(unsigned int i=0; i<n_moment; ++i)
    {
       fi.open ("EVAL/VdotR.dat");
@@ -110,7 +114,7 @@ void JREvaluator<dim>::execute (const double* x,
       
       fi.open ("EVAL/RE.dat");
       for(unsigned int j=0; j<n_cell; ++j)
-         fi >> RE_array[j];
+         fi >> RE_array[c++];
       fi.close ();
       
       VdotR[i] = 0.0;
@@ -122,9 +126,7 @@ void JREvaluator<dim>::execute (const double* x,
       }
    }
    
-   delete [] VdotR_array;
-   delete [] RE_array;
-   
+   delete [] VdotR_array;   
 }
 
 // To avoid linker error
