@@ -25,8 +25,7 @@ public:
    unsigned int n_moment;
    double* J;
    double* VdotR;
-   double* dVdotR;
-   double* dUdotAR;
+   double* RE;
 };
 
 #endif

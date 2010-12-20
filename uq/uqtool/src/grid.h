@@ -38,16 +38,19 @@ class Element
                const unsigned int n_moment);
       ~Element () {};
    
-      int order;                // order = linear (1) or quadratic (2)
-      unsigned int n_moment;
-      unsigned int n_dof;       // no. of dof for this element
+      int order;             // order = linear (1) or quadratic (2)
+      unsigned int n_moment; // no. of moments
+      unsigned int n_dof;    // no. of dof for this element
       // pointer to sample for each dof
       std::vector<typename Sample<dim>::Sample*> dof; 
-      int status;               // NEW or OLD.
-      Element* parent;          // parent element
-      double* moment;           // element contribution to moment
-      double* adj_cor;          // element contribution to adjoint correction
+      int status;            // NEW or OLD.
+      Element* parent;       // parent element
+      double* moment;        // element contribution to moment
+      double* adj_cor;       // element contribution to adjoint correction
+      double* RE;            // element contribution to remaining error
       bool active;
+      bool refine_flag;
+      double* mesh_error;
 
 };
 
