@@ -82,6 +82,7 @@ void JREvaluator<dim>::execute (const double* x,
    write_sol (filename, n_var, n_cell, dprimal);
    delete [] dprimal;
    
+   // TBD adjoint will be different for each moment
    // Write adjoint2 - adjoint1
    double* dadjoint = new double [n];
    for(unsigned int i=0; i<n; ++i)
@@ -102,31 +103,34 @@ void JREvaluator<dim>::execute (const double* x,
       fi >> J[i];
    fi.close ();
    
-   double* VdotR_array = new double [n_cell];
+   double VdotR_array;
 
    unsigned int c = 0;
    for(unsigned int i=0; i<n_moment; ++i)
-   {
-      fi.open ("EVAL/VdotR.dat");
-      for(unsigned int j=0; j<n_cell; ++j)
-         fi >> VdotR_array[j];
-      fi.close ();
-      
-      fi.open ("EVAL/RE.dat");
-      for(unsigned int j=0; j<n_cell; ++j)
-         fi >> RE_array[c++];
-      fi.close ();
-      
+   {      
       VdotR[i] = 0.0;
       RE[i]    = 0.0;
+      
+      // TBD Filename will be different for each moment
+      fi.open ("EVAL/VdotR.dat");
       for(unsigned int j=0; j<n_cell; ++j)
       {
-         VdotR[i] += VdotR_array[j];
-         RE[i]    += RE_array[j];
+         fi >> VdotR_array;
+         VdotR[i] += VdotR_array;
       }
+      fi.close ();
+      
+      // TBD Filename will be different for each moment
+      fi.open ("EVAL/RE.dat");
+      for(unsigned int j=0; j<n_cell; ++j)
+      {
+         fi >> RE_array[c];
+         RE[i] += RE_array[c];
+         ++c;
+      }
+      fi.close ();
    }
    
-   delete [] VdotR_array;   
 }
 
 // To avoid linker error
