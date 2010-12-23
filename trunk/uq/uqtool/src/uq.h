@@ -9,6 +9,9 @@
 #define STOCHASTIC   1
 #define COMBINED     2
 
+#define UNIFORM      1
+#define ADAPTIVE     2
+
 // Main problem class
 template <int dim>
 class UQProblem
@@ -43,7 +46,8 @@ class UQProblem
       unsigned int n_var; // no. of variables per cell
       unsigned int n_cell;// no. of cells
    
-      int refine_type;    // STOCHASTIC or COMBINED
+      int error_control;    // STOCHASTIC or COMBINED
+      int refine_type;      // UNIFORM or ADAPTIVE
       std::valarray<double> mesh_error; // Indicator for physical mesh
 };
 
