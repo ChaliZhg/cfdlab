@@ -122,6 +122,7 @@ Element<dim>::Element (const unsigned int order,
    {
       cout << "Element::init : dim = " << dim
            << " not implemented" << endl;
+      abort ();
    }
    
    dof.resize (n_dof);

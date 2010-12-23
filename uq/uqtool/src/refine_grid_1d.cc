@@ -24,10 +24,10 @@ void UQProblem<1>::refine_grid ()
    
    for(unsigned int i=0; i<n_element; ++i)
       if(grid.element[i].refine_flag)
-      {
+      {         
          // Refine this element into two
          cout << "Refining element = " << i << endl;
-         
+                  
          // Two new samples
          Sample<1> new_sample1 (n_var, n_cell, n_moment, sample.size());
          new_sample1.x[0] = (grid.element[i].dof[0]->x[0] + 
@@ -39,6 +39,8 @@ void UQProblem<1>::refine_grid ()
                              grid.element[i].dof[2]->x[0]) / 2.0;
          sample.push_back (new_sample2);
          
+         cout << "before = " << grid.element[i].dof[0]->idx << endl;
+
          // Two new elements
          Element<1> new_element1 (2, n_moment);
          new_element1.parent = &grid.element[i];
@@ -47,13 +49,15 @@ void UQProblem<1>::refine_grid ()
          new_element1.dof[2] = &sample[sample.size()-2];
          grid.element.push_back (new_element1);
          
+         cout << "after  = " << grid.element[i].dof[0]->idx << endl;
+
          Element<1> new_element2 (2, n_moment);
          new_element2.parent = &grid.element[i];
          new_element2.dof[0] = grid.element[i].dof[2];
          new_element2.dof[1] = grid.element[i].dof[1];
          new_element2.dof[2] = &sample[sample.size()-1];
          grid.element.push_back (new_element2);
-         
+
          grid.element[i].active = false;
          grid.element[i].refine_flag = false;
       }
