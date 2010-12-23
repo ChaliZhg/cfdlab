@@ -23,7 +23,7 @@ UQProblem<dim>::UQProblem ()
    adj_cor.resize (n_moment);
    RE.resize      (n_moment);
    
-   if(refine_type == COMBINED)
+   if(error_control == COMBINED)
       mesh_error.resize (n_moment * n_cell);
 }
 
@@ -45,9 +45,10 @@ void UQProblem<dim>::read_options ()
    fi.open ("uq.in");
    
    int dim_in;
-   char str[64];
+   string str;
    
    fi >> str >> dim_in;
+   assert (str == "dim");
    assert (dim == dim_in);
    
    string input;
@@ -70,23 +71,41 @@ void UQProblem<dim>::read_options ()
    }
    
    fi >> str >> n_moment;
+   assert (str == "n_moment");
    assert (n_moment >= 1);
    
    fi >> str >> n_var;
+   assert (str == "n_var");
    assert (n_var >= 1);
    
    fi >> str >> n_cell;
+   assert (str == "n_cell");
    assert (n_cell >= 1);
    
    fi >> str >> max_sample;
+   assert (str == "max_sample");
    assert (max_sample > 0);
+   
+   // Error control type
+   fi >> str >> input;
+   assert (str == "error");
+   if(input=="stochastic")
+      error_control = STOCHASTIC;
+   else if(input=="combined")
+      error_control = COMBINED;
+   else
+   {
+      cout << "Unknown error control type : " << input << endl;
+      abort ();
+   }
    
    // Refinement type
    fi >> str >> input;
-   if(input=="stochastic")
-      refine_type = STOCHASTIC;
-   else if(input=="combined")
-      refine_type = COMBINED;
+   assert (str == "refine");
+   if(input=="uniform")
+      refine_type = UNIFORM;
+   else if(input=="adaptive")
+      refine_type = ADAPTIVE;
    else
    {
       cout << "Unknown refinement type : " << input << endl;
@@ -153,7 +172,7 @@ void UQProblem<dim>::compute_moments ()
       {
          cout << "Computing mean for element = " << i << endl;
          
-         if(refine_type == COMBINED)
+         if(error_control == COMBINED)
          {
             grid.element[i].mesh_error.resize (n_moment * n_cell);
             grid.element[i].mesh_error = 0.0;
@@ -184,7 +203,7 @@ void UQProblem<dim>::compute_moments ()
             grid.element[i].adj_cor += w * evaluator.VdotR;
             grid.element[i].RE      += w * evaluator.RE;
             
-            if(refine_type == COMBINED)
+            if(error_control == COMBINED)
                grid.element[i].mesh_error += w * evaluator.RE_array;
             
          }
@@ -193,7 +212,7 @@ void UQProblem<dim>::compute_moments ()
          for(unsigned int d=0; d<grid.element[i].n_dof; ++d)
             grid.element[i].dof[d]->clear();
          
-         if(refine_type == COMBINED)
+         if(error_control == COMBINED)
          {
             // Save mesh_error into file TBD
             abort ();
@@ -215,7 +234,7 @@ void UQProblem<dim>::compute_moments ()
    
    // Accumulate physical cell error by summing over all
    // stochastic elements
-   if(refine_type == COMBINED)
+   if(error_control == COMBINED)
    {
       mesh_error = 0.0;
       for(unsigned int i=0; i<grid.element.size(); ++i)
@@ -235,21 +254,32 @@ void UQProblem<dim>::compute_moments ()
 template <int dim>
 void UQProblem<dim>::flag_elements ()
 {
-   for(unsigned int i=0; i<n_moment; ++i)
+   // Uniform refinement: flag all active elements
+   if(refine_type == UNIFORM)
    {
-      unsigned int imax = 0;
-      double max_error = -1.0;
-      
-      // Loop over stochastic elements
       for(unsigned int j=0; j<grid.element.size(); ++j)
-         if(grid.element[j].active &&
-            fabs(grid.element[j].RE[i]) > max_error)
-         {
-            imax = j;
-            max_error = fabs(grid.element[j].RE[i]);
-         }
-      
-      grid.element[imax].refine_flag = true;
+         if(grid.element[j].active)
+            grid.element[j].refine_flag = true;
+   }
+   else
+   {  // Adaptive refinement
+      for(unsigned int i=0; i<n_moment; ++i)
+      {
+         unsigned int imax = 0;
+         double max_error = -1.0;
+         
+         // Find stochastic element with largest |RE|
+         // Only check active elements
+         for(unsigned int j=0; j<grid.element.size(); ++j)
+            if(grid.element[j].active &&
+               fabs(grid.element[j].RE[i]) > max_error)
+            {
+               imax = j;
+               max_error = fabs(grid.element[j].RE[i]);
+            }
+         
+         grid.element[imax].refine_flag = true;
+      }
    }
 }
 
@@ -269,8 +299,8 @@ void UQProblem<dim>::log_result (ofstream& fo)
    fo << sample.size() << " " << grid.element.size() << " ";
    for(unsigned int i=0; i<n_moment; ++i)
    {
-      fo << moment[i] << " " << adj_cor[i] << " "
-         << moment[i] + adj_cor[i] << " " << RE[i] << " ";
+      fo << moment[i] << " " << fabs(adj_cor[i]) << " "
+         << moment[i] + adj_cor[i] << " " << fabs(RE[i]) << " ";
       fo << endl;
    }
 }
