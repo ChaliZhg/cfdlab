@@ -1,0 +1,46 @@
+#!/usr/bin/python
+# Program to process design variables written out by optool
+# Example: dvprepro design.dat solver.in
+# design.dat has two columns, {variable_name}  variable_value
+# solver.in is specific to the particular solver
+
+import sys
+
+if len(sys.argv) != 3:
+   sys.exit("Must provide two file names")
+
+desfile = sys.argv[1];
+solfile = sys.argv[2];
+
+xname  = []; # name of variable
+xvalue = []; # value of variable
+
+# Read design variable names and values given by optool
+fin = open(desfile, "r")
+for line in fin.xreadlines():
+   col1,col2 = line.split();
+   col1 = col1.replace(" ","");   # remove whitespace
+   col1 = col1.replace("\n","");  # remove newline character
+   col2 = col2.replace(" ","");   # remove whitespace
+   col2 = col2.replace("\n","");  # remove newline character
+   xname.append(col1);
+   xvalue.append(col2);
+fin.close()
+
+# Now search and replace
+# Read solver template file
+nvar = len(xname);
+out  = [];
+fin  = open(solfile, "r")
+for line in fin.xreadlines():
+   for j in range(0,nvar):
+      line = line.replace(xname[j],xvalue[j]);
+   out.append(line);
+fin.close();
+
+# Now write back into file: overwrites solfile
+nlines = len(out);
+fout = open(solfile, "w");
+for j in range(0,nlines):
+   fout.write(out[j])
+fout.close()
