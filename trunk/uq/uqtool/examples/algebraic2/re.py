@@ -25,6 +25,6 @@ re = (dv * R) + (du * AR)
 
 # Write primal solution to file
 fout = open("RE.dat", "w")
-fout.write(str(re))
+fout.write("%.15e" % re)
 fout.write("\n")
 fout.close()
