@@ -115,6 +115,8 @@ void UQProblem<dim>::run_simulations ()
          sprintf(filename, "%s/random.dat", sample[i].directory);
          ofstream ff;
          ff.open (filename);
+         ff.precision (15);
+         ff.setf (ios::scientific);
          for(unsigned int j=0; j<dim; ++j)
             ff << "{" << pdf_data.x_name[j] << "}  " <<
                   sample[i].x[j] << endl;
@@ -163,10 +165,7 @@ void UQProblem<dim>::compute_moments ()
          
          // Read all samples belonging to this element from file
          for(unsigned int d=0; d<grid.element[i].n_dof; ++d)
-         {
-            //cout << grid.element[i].dof[d]->idx << endl;
             grid.element[i].dof[d]->read();
-         }
          
          // Perform quadrature
          quadrature_formula.reinit(grid.element[i]);
@@ -239,10 +238,10 @@ void UQProblem<dim>::flag_elements ()
    for(unsigned int i=0; i<n_moment; ++i)
    {
       unsigned int imax = 0;
-      double max_error = fabs(grid.element[0].RE[i]);
+      double max_error = -1.0;
       
       // Loop over stochastic elements
-      for(unsigned int j=1; j<grid.element.size(); ++j)
+      for(unsigned int j=0; j<grid.element.size(); ++j)
          if(grid.element[j].active &&
             fabs(grid.element[j].RE[i]) > max_error)
          {
@@ -254,10 +253,35 @@ void UQProblem<dim>::flag_elements ()
    }
 }
 
+// Print messages to screen
+// Write moments etc. to file
+template <int dim>
+void UQProblem<dim>::log_result (ofstream& fo)
+{
+   cout << "No. of stochastic samples  = " << sample.size() << endl;
+   cout << "No. of stochastic elements = " << grid.element.size()
+        << endl;
+   cout << "No. of physical cells      = " << n_cell << endl;  
+   
+   fo.precision(15);
+   fo.setf (ios::scientific);
+   
+   fo << sample.size() << " " << grid.element.size() << " ";
+   for(unsigned int i=0; i<n_moment; ++i)
+   {
+      fo << moment[i] << " " << adj_cor[i] << " "
+         << moment[i] + adj_cor[i] << " " << RE[i] << " ";
+      fo << endl;
+   }
+}
+
 // This is where it all begins
 template <int dim>
 void UQProblem<dim>::run ()
 {
+   ofstream fo;
+   fo.open ("uq.dat");
+   
    make_grid ();
 
    unsigned int iter = 0;
@@ -276,17 +300,17 @@ void UQProblem<dim>::run ()
       run_simulations ();
       compute_moments ();
 
-      cout << "No. of stochastic samples  = " << sample.size() << endl;
-      cout << "No. of stochastic elements = " << grid.element.size()
-           << endl;
-      cout << "No. of physical cells      = " << n_cell << endl;      
-      
+      log_result (fo);   
       output (iter);
       ++iter;
 
    }
+   
+   fo.close ();
 
 }
+
+
 
 // To avoid linker errors
 template class UQProblem<1>;

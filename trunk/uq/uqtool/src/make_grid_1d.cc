@@ -41,14 +41,16 @@ void UQProblem<1>::make_grid ()
    
    // Map element dof to samples
    // First element
-   grid.element[0].dof[0] = &sample[0]; // left vertex
-   grid.element[0].dof[1] = &sample[2]; // right vertex
-   grid.element[0].dof[2] = &sample[1]; // middle
+   grid.element[0].idof[0] = 0; // left vertex
+   grid.element[0].idof[1] = 2; // right vertex
+   grid.element[0].idof[2] = 1; // middle
    
    // Second element
-   grid.element[1].dof[0] = &sample[2]; // left vertex
-   grid.element[1].dof[1] = &sample[4]; // right vertex
-   grid.element[1].dof[2] = &sample[3]; // middle
+   grid.element[1].idof[0] = 2; // left vertex
+   grid.element[1].idof[1] = 4; // right vertex
+   grid.element[1].idof[2] = 3; // middle
+   
+   grid.reinit_dof (sample);
    
    cout << "Done\n";
 }
