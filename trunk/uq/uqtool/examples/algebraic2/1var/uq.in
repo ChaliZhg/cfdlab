@@ -1,0 +1,8 @@
+dim         1
+x2          0.0  1.0  uniform
+
+n_fun       1
+n_var       1
+n_cell      1
+max_sample  25
+refine      stochastic
