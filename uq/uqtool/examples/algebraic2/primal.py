@@ -15,7 +15,7 @@ if mode == "1":
    u = x1 + math.sqrt(x1**2 + math.exp(-50*(x2-0.5)**2))
    # Write primal solution to file
    fout = open("primal.dat", "w")
-   fout.write(str(u))
+   fout.write("%.15e" % u)
    fout.write("\n")
    fout.close()
 elif mode == "2":
@@ -27,7 +27,7 @@ elif mode == "2":
    R = 0.5*u**2 - x1*u - 0.5*math.exp(-50*(x2-0.5)**2)
    # Write primal residual to file
    fout = open("p_residual.dat", "w")
-   fout.write(str(R))
+   fout.write("%.15e" % R)
    fout.write("\n")
    fout.close()
    # Read adjoint from file
@@ -38,7 +38,7 @@ elif mode == "2":
    VdotR = v * R
    # Write adjoint correcion to file
    fout = open("VdotR.dat", "w")
-   fout.write(str(VdotR))
+   fout.write("%.15e" % VdotR)
    fout.write("\n")
    fout.close()
 
@@ -47,6 +47,6 @@ J = u**2
 
 # Write function to file
 fout = open("obj.dat", "w")
-fout.write(str(J))
+fout.write("%.15e" % J)
 fout.write("\n")
 fout.close()

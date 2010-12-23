@@ -19,7 +19,7 @@ if mode == "1":
    v = 2*u/(x1 - u)
    # Write adjoint solution to file
    fout = open("adjoint.dat", "w")
-   fout.write(str(v))
+   fout.write("%.15e" % v)
    fout.write("\n")
    fout.close()
 elif mode == "2":
@@ -35,6 +35,6 @@ elif mode == "2":
    AR = 2*u + v*(u - x1)
    # Write adjoint residual to file
    fout = open("a_residual.dat", "w")
-   fout.write(str(AR))
+   fout.write("%.15e" % AR)
    fout.write("\n")
    fout.close()
