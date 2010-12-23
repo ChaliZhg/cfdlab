@@ -21,8 +21,9 @@ class Sample
       void read ();
 
       double x[dim];
-      double* J;
+      std::valarray<double> J;
       unsigned int n_var, n_cell;
+      unsigned int idx;
       double* primal;
       double* adjoint;
       char    directory[64]; // Dir in which simulation is run
@@ -46,9 +47,9 @@ class Element
       std::vector<typename Sample<dim>::Sample*> dof; 
       int status;            // NEW or OLD.
       Element* parent;       // parent element
-      double* moment;        // element contribution to moment
-      double* adj_cor;       // element contribution to adjoint correction
-      double* RE;            // element contribution to remaining error
+      std::valarray<double> moment;  // element contribution to moment
+      std::valarray<double> adj_cor; // element contribution to adj correction
+      std::valarray<double> RE;      // element contribution to remaining error
       bool active;
       bool refine_flag;
       std::valarray<double> mesh_error;

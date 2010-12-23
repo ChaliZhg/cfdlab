@@ -10,12 +10,17 @@
 #ifndef __PDF_H__
 #define __PDF_H__
 
+#include <vector>
+#include <string>
+
 enum PDFType { uniform, normal };
 
 template <int dim>
 class PDFData
 {
    public:
+      PDFData () : x_name(dim) {};
+      std::vector<std::string> x_name;
       double x_min[dim];
       double x_max[dim];
       PDFType type[dim];

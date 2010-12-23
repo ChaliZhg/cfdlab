@@ -41,7 +41,7 @@ Interpolate<dim>::~Interpolate ()
    delete [] primal1;
    delete [] adjoint1;
    delete [] primal2;
-   delete [] adjoint2;
+   delete [] adjoint2;    
 }
 
 // Setup interpolation on given element
