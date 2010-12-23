@@ -55,8 +55,8 @@ void Quadrature<1>::reinit (const Element<1>& element)
    // Convert q_point from [-1,+1] to actual element interval
    for(unsigned int i=0; i<n_point; ++i)
    {
-      q_point[i][0] = 
-         2.0 * (q_point[i][0] - element.dof[0]->x[0]) / length - 1.0;
+      q_point[i][0] = element.dof[0]->x[0] + 
+                      0.5 * length * ( q_point[i][0] + 1.0 );
       weight[i] *= length / 2.0;
    }
 }

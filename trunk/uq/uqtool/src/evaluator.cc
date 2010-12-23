@@ -23,15 +23,17 @@ void write_sol (const char* filename,
 
 // Constructor
 template <int dim>
-JREvaluator<dim>::JREvaluator (const unsigned int n_moment,
+JREvaluator<dim>::JREvaluator (const vector<string> x_name,
+                               const unsigned int n_moment,
                                const unsigned int n_cell)
    :
+   x_name   (x_name),
    n_moment (n_moment),
    n_cell   (n_cell)
 {
-   J        = new double [n_moment];
-   VdotR    = new double [n_moment];
-   RE       = new double [n_moment];
+   J.resize        (n_moment);
+   VdotR.resize    (n_moment);
+   RE.resize       (n_moment);
    RE_array.resize (n_moment * n_cell);
 }
 
@@ -39,10 +41,6 @@ JREvaluator<dim>::JREvaluator (const unsigned int n_moment,
 template <int dim>
 JREvaluator<dim>::~JREvaluator ()
 {
-   delete [] J;
-   delete [] VdotR;
-   delete [] RE;
-   RE_array.resize (0);
 }
 
 template <int dim>
@@ -56,13 +54,13 @@ void JREvaluator<dim>::execute (const double* x,
    char filename[64];
    ofstream fo;
    
-   system ("mkdir -f EVAL");
+   system ("mkdir -p EVAL");
    
    // Write random variables
    sprintf(filename, "EVAL/random.dat");
    fo.open (filename);
    for(unsigned int i=0; i<dim; ++i)
-         fo << x[i] << endl;
+         fo << "{" << x_name[i] << "}  " << x[i] << endl;
    fo.close ();
    
    // Write primal solution
@@ -93,7 +91,7 @@ void JREvaluator<dim>::execute (const double* x,
    delete [] dadjoint;
    
    // Run external simulator: DO NOT ITERATE
-   system ("./runsolver.sh EVAL");
+   system ("./runsolver.sh 2 EVAL");
    
    ifstream fi;
    
@@ -113,6 +111,7 @@ void JREvaluator<dim>::execute (const double* x,
       
       // TBD Filename will be different for each moment
       fi.open ("EVAL/VdotR.dat");
+      assert (fi.is_open());
       for(unsigned int j=0; j<n_cell; ++j)
       {
          fi >> VdotR_array;
@@ -122,6 +121,7 @@ void JREvaluator<dim>::execute (const double* x,
       
       // TBD Filename will be different for each moment
       fi.open ("EVAL/RE.dat");
+      assert (fi.is_open());
       for(unsigned int j=0; j<n_cell; ++j)
       {
          fi >> RE_array[c];

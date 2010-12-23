@@ -16,12 +16,13 @@ Sample<dim>::Sample(const unsigned int n_var,
                     const unsigned int counter)
    :
    n_var  (n_var),
-   n_cell (n_cell)
+   n_cell (n_cell),
+   idx    (counter)
 {
    status = NEW;
    load   = false;
    
-   J = new double [n_moment];
+   J.resize (n_moment);
    
    // Set directory for sample: S000 to S999
    if(counter <= 9)
@@ -51,10 +52,11 @@ void Sample<dim>::read ()
    char filename[128];   
    ifstream ff;
    unsigned int c;
-
+   
    // Read primal solution
    sprintf(filename, "%s/primal.dat", directory);
    ff.open (filename);
+   assert (ff.is_open());
    c = 0;
    for(unsigned int i=0; i<n_cell; ++i)
       for(unsigned int j=0; j<n_var; ++j)
@@ -64,6 +66,7 @@ void Sample<dim>::read ()
    // Read adjoint solution
    sprintf(filename, "%s/adjoint.dat", directory);
    ff.open (filename);
+   assert (ff.is_open());
    c = 0;
    for(unsigned int i=0; i<n_cell; ++i)
       for(unsigned int j=0; j<n_var; ++j)
@@ -78,7 +81,7 @@ template <int dim>
 void Sample<dim>::clear ()
 {
    // Make sure solution is in memory before clearing it
-   assert (load = true);
+   assert (load == true);
    
    delete [] primal;
    delete [] adjoint;
@@ -97,13 +100,13 @@ Element<dim>::Element (const unsigned int order,
    assert (order == 1 || order == 2);
    assert (n_moment > 0);
    
-   status  = NEW;
-   active  = true;
+   status      = NEW;
+   active      = true;
    refine_flag = false;
-   parent  = this;
-   moment  = new double [n_moment];
-   adj_cor = new double [n_moment];
-   RE      = new double [n_moment];
+   parent      = this;
+   moment.resize  (n_moment);
+   adj_cor.resize (n_moment);
+   RE.resize      (n_moment);
 
    if(dim == 1)
    {

@@ -7,7 +7,10 @@
  *
  */
 
+#include <iostream>
 #include "uq.h"
+
+using namespace std;
 
 // Refine the stochastic grid in 1-D
 // TBD We are assuming second order elements
@@ -17,10 +20,13 @@
 template <>
 void UQProblem<1>::refine_grid ()
 {
-   for(unsigned int i=0; i<grid.element.size(); ++i)
+   unsigned int n_element = grid.element.size();
+   
+   for(unsigned int i=0; i<n_element; ++i)
       if(grid.element[i].refine_flag)
       {
          // Refine this element into two
+         cout << "Refining element = " << i << endl;
          
          // Two new samples
          Sample<1> new_sample1 (n_var, n_cell, n_moment, sample.size());
@@ -40,7 +46,7 @@ void UQProblem<1>::refine_grid ()
          new_element1.dof[1] = grid.element[i].dof[2];
          new_element1.dof[2] = &sample[sample.size()-2];
          grid.element.push_back (new_element1);
-
+         
          Element<1> new_element2 (2, n_moment);
          new_element2.parent = &grid.element[i];
          new_element2.dof[0] = grid.element[i].dof[2];

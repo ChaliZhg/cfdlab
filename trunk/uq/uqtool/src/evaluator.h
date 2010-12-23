@@ -17,18 +17,19 @@ template <int dim>
 class JREvaluator
 {
 public:
-   JREvaluator (const unsigned int n_moment,
+   JREvaluator (const std::vector<std::string> x_name,
+                const unsigned int n_moment,
                 const unsigned int n_cell);
    ~JREvaluator ();
    void execute (const double* x,
                  const Interpolate<dim>& interpolate_formula);
 
-   
+   std::vector<std::string> x_name;
    unsigned int n_moment;
    unsigned int n_cell;
-   double* J;
-   double* VdotR;
-   double* RE;
+   std::valarray<double> J;
+   std::valarray<double> VdotR;
+   std::valarray<double> RE;
    std::valarray<double> RE_array;
 };
 

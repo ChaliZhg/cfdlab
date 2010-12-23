@@ -30,9 +30,9 @@ class UQProblem
       PDFData<dim> pdf_data;
    
       unsigned int n_moment;
-      double* moment;
-      double* adj_cor;
-      double* RE;
+      std::valarray<double> moment;
+      std::valarray<double> adj_cor;
+      std::valarray<double> RE;
 
       std::vector<typename Sample<dim>::Sample> sample;
       unsigned int max_sample;

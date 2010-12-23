@@ -10,6 +10,7 @@ CXX    = g++
 # GNU compiler
 ifeq ($(CXX),g++)
 	CFLAGS = -O3 -Wall
+	CFLAGS =
 endif
 
 # Intel compiler
