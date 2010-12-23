@@ -103,7 +103,6 @@ Element<dim>::Element (const unsigned int order,
    status      = NEW;
    active      = true;
    refine_flag = false;
-   parent      = this;
    moment.resize  (n_moment);
    adj_cor.resize (n_moment);
    RE.resize      (n_moment);
@@ -125,7 +124,22 @@ Element<dim>::Element (const unsigned int order,
       abort ();
    }
    
+   idof.resize(n_dof);
    dof.resize (n_dof);
+}
+
+// Set pointer from element.dof to sample
+// This must be done every time sample is modified by push_back,
+// usually after grid refinement
+template <int dim>
+void Grid<dim>::reinit_dof (vector<typename Sample<dim>::Sample>& sample)
+{
+   for(unsigned int i=0; i<element.size(); ++i)
+      for(unsigned int j=0; j<element[i].n_dof; ++j)
+      {
+         unsigned int idx = element[i].idof[j];
+         element[i].dof[j] = &sample[idx];
+      }
 }
 
 // To avoid linker errors

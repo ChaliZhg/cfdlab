@@ -27,38 +27,36 @@ void UQProblem<1>::refine_grid ()
       {         
          // Refine this element into two
          cout << "Refining element = " << i << endl;
-                  
+               
+         unsigned int s0 = grid.element[i].idof[0];
+         unsigned int s1 = grid.element[i].idof[1];
+         unsigned int s2 = grid.element[i].idof[2];
+         
          // Two new samples
          Sample<1> new_sample1 (n_var, n_cell, n_moment, sample.size());
-         new_sample1.x[0] = (grid.element[i].dof[0]->x[0] + 
-                             grid.element[i].dof[2]->x[0]) / 2.0;
+         new_sample1.x[0] = (sample[s0].x[0] + sample[s2].x[0]) / 2.0;
          sample.push_back (new_sample1);
 
          Sample<1> new_sample2 (n_var, n_cell, n_moment, sample.size());
-         new_sample2.x[0] = (grid.element[i].dof[1]->x[0] + 
-                             grid.element[i].dof[2]->x[0]) / 2.0;
+         new_sample2.x[0] = (sample[s1].x[0] + sample[s2].x[0]) / 2.0;
          sample.push_back (new_sample2);
          
-         cout << "before = " << grid.element[i].dof[0]->idx << endl;
-
          // Two new elements
          Element<1> new_element1 (2, n_moment);
-         new_element1.parent = &grid.element[i];
-         new_element1.dof[0] = grid.element[i].dof[0];
-         new_element1.dof[1] = grid.element[i].dof[2];
-         new_element1.dof[2] = &sample[sample.size()-2];
+         new_element1.idof[0] = s0;
+         new_element1.idof[1] = s2;
+         new_element1.idof[2] = sample.size() - 2;
          grid.element.push_back (new_element1);
          
-         cout << "after  = " << grid.element[i].dof[0]->idx << endl;
-
          Element<1> new_element2 (2, n_moment);
-         new_element2.parent = &grid.element[i];
-         new_element2.dof[0] = grid.element[i].dof[2];
-         new_element2.dof[1] = grid.element[i].dof[1];
-         new_element2.dof[2] = &sample[sample.size()-1];
+         new_element2.idof[0] = s2;
+         new_element2.idof[1] = s1;
+         new_element2.idof[2] = sample.size() - 1;
          grid.element.push_back (new_element2);
 
          grid.element[i].active = false;
          grid.element[i].refine_flag = false;
       }
+   
+   grid.reinit_dof (sample);
 }

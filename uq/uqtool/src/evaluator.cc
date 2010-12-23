@@ -59,6 +59,8 @@ void JREvaluator<dim>::execute (const double* x,
    // Write random variables
    sprintf(filename, "EVAL/random.dat");
    fo.open (filename);
+   fo.precision (15);
+   fo.setf (ios::scientific);
    for(unsigned int i=0; i<dim; ++i)
          fo << "{" << x_name[i] << "}  " << x[i] << endl;
    fo.close ();

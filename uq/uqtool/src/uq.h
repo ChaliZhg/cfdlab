@@ -25,6 +25,7 @@ class UQProblem
       void compute_moments ();
       void flag_elements ();
       void refine_grid ();
+      void log_result (std::ofstream& fo);
       void output (const unsigned int iter) const;
 
       PDFData<dim> pdf_data;

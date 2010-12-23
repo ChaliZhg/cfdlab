@@ -23,6 +23,7 @@ void UQProblem<1>::output (const unsigned int iter) const
    sprintf(filename, "uq_%d.plt", iter);
    ofstream fo;
    fo.open (filename);
+   fo.precision (15);
    
    for(unsigned int i=0; i<sample.size(); ++i)
    {

@@ -45,8 +45,8 @@ class Element
       unsigned int n_dof;    // no. of dof for this element
       // pointer to sample for each dof
       std::vector<typename Sample<dim>::Sample*> dof; 
+      std::vector<unsigned int> idof;
       int status;            // NEW or OLD.
-      Element* parent;       // parent element
       std::valarray<double> moment;  // element contribution to moment
       std::valarray<double> adj_cor; // element contribution to adj correction
       std::valarray<double> RE;      // element contribution to remaining error
@@ -63,6 +63,7 @@ class Grid
    public:
       Grid () {};
       ~Grid () {};
+      void reinit_dof (std::vector<typename Sample<dim>::Sample>& sample);
 
       std::vector<typename Element<dim>::Element> element;
 };

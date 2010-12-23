@@ -19,6 +19,8 @@ void write_sol (const char* filename,
 {
    ofstream fo;
    fo.open (filename);
+   fo.precision (15);
+   fo.setf (ios::scientific);
    
    unsigned int c = 0;
    for(unsigned int i=0; i<n_cell; ++i)
