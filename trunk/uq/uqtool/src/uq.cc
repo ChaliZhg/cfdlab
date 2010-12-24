@@ -122,12 +122,12 @@ void UQProblem<dim>::run_simulations ()
          
          // Create directory if it does not exist
          char command[128];
-         sprintf(command, "mkdir %s", sample[i].directory);
+         sprintf(command, "mkdir RESULT/%s", sample[i].directory);
          system (command);
 
          // Print random variables to file
          char filename[64];
-         sprintf(filename, "%s/random.dat", sample[i].directory);
+         sprintf(filename, "RESULT/%s/random.dat", sample[i].directory);
          ofstream ff;
          ff.open (filename);
          ff.precision (15);
@@ -139,12 +139,12 @@ void UQProblem<dim>::run_simulations ()
          
          // Run external code inside the sample directory
          // TBD Check that simulation was successful
-         sprintf(command, "./runsolver.sh 1 %s", sample[i].directory);
+         sprintf(command, "./runsolver.sh 1 RESULT/%s", sample[i].directory);
          system (command);
          
          // Read objective functions
          ifstream fi;
-         sprintf(filename, "%s/obj.dat", sample[i].directory);
+         sprintf(filename, "RESULT/%s/obj.dat", sample[i].directory);
          fi.open (filename);
          for(unsigned int j=0; j<n_moment; ++j)
             fi >> sample[i].J[j];
@@ -283,7 +283,7 @@ void UQProblem<dim>::refine_physical ()
    for(unsigned int i=0; i<n_moment; ++i)
    {
       char filename[64];
-      sprintf(filename, "error%d.dat", i);
+      sprintf(filename, "RESULT/error%d.dat", i);
       ofstream fo;
       fo.open (filename);
       fo.precision (15);
@@ -342,7 +342,7 @@ template <int dim>
 void UQProblem<dim>::run ()
 {
    ofstream fo;
-   fo.open ("uq.dat");
+   fo.open ("RESULT/uq.dat");
    
    make_grid ();
 
