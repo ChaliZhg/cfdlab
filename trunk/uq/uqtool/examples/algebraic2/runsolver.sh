@@ -7,8 +7,9 @@ RE=$UQTOOL_HOME/examples/algebraic2/re.py
 
 mode=$1
 dir=$2
+tpl=$3
 
-cp -r template_dir/* $dir
+cp -r $tpl/* $dir
 cd $dir
 
 $DVPREPRO random.dat solver.in
