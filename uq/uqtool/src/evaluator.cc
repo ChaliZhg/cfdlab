@@ -25,7 +25,8 @@ void write_sol (const char* filename,
 template <int dim>
 JREvaluator<dim>::JREvaluator (const vector<string> x_name,
                                const unsigned int n_moment,
-                               const unsigned int n_cell)
+                               const unsigned int n_cell,
+                               char* template_dir_)
    :
    x_name   (x_name),
    n_moment (n_moment),
@@ -35,6 +36,8 @@ JREvaluator<dim>::JREvaluator (const vector<string> x_name,
    VdotR.resize    (n_moment);
    RE.resize       (n_moment);
    RE_array.resize (n_moment * n_cell);
+   
+   sprintf(template_dir, "%s", template_dir_);
 }
 
 // Destructor
@@ -93,7 +96,9 @@ void JREvaluator<dim>::execute (const double* x,
    delete [] dadjoint;
    
    // Run external simulator: DO NOT ITERATE
-   system ("./runsolver.sh 2 RESULT/EVAL");
+   char command[256];
+   sprintf (command, "./runsolver.sh 2 RESULT/EVAL RESULT/%s", template_dir);
+   system (command);
    
    ifstream fi;
    

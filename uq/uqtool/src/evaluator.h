@@ -19,7 +19,8 @@ class JREvaluator
 public:
    JREvaluator (const std::vector<std::string> x_name,
                 const unsigned int n_moment,
-                const unsigned int n_cell);
+                const unsigned int n_cell,
+                char* template_dir_);
    ~JREvaluator ();
    void execute (const double* x,
                  const Interpolate<dim>& interpolate_formula);
@@ -27,6 +28,7 @@ public:
    std::vector<std::string> x_name;
    unsigned int n_moment;
    unsigned int n_cell;
+   char template_dir[64];
    std::valarray<double> J;
    std::valarray<double> VdotR;
    std::valarray<double> RE;

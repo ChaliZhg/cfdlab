@@ -22,6 +22,11 @@ UQProblem<dim>::UQProblem ()
    moment.resize  (n_moment);
    adj_cor.resize (n_moment);
    RE.resize      (n_moment);
+   
+   sprintf(template_dir, "template_dir_0");
+   char command[128];
+   sprintf(command, "cp -r template_dir RESULT/%s", template_dir);
+   system (command);
 }
 
 // Destructor
@@ -121,7 +126,7 @@ void UQProblem<dim>::run_simulations ()
          cout << "Creating new sample " << sample[i].directory << endl;
          
          // Create directory if it does not exist
-         char command[128];
+         char command[256];
          sprintf(command, "mkdir RESULT/%s", sample[i].directory);
          system (command);
 
@@ -139,7 +144,8 @@ void UQProblem<dim>::run_simulations ()
          
          // Run external code inside the sample directory
          // TBD Check that simulation was successful
-         sprintf(command, "./runsolver.sh 1 RESULT/%s", sample[i].directory);
+         sprintf(command, "./runsolver.sh 1 RESULT/%s RESULT/%s", 
+                 sample[i].directory, template_dir);
          system (command);
          
          // Read objective functions
@@ -160,7 +166,8 @@ void UQProblem<dim>::compute_moments ()
 {
    Quadrature<dim>  quadrature_formula;
    Interpolate<dim> interpolate_formula (n_var, n_cell);
-   JREvaluator<dim> evaluator (pdf_data.x_name, n_moment, n_cell);
+   JREvaluator<dim> evaluator (pdf_data.x_name, n_moment, n_cell,
+                               template_dir);
    
    // Compute moments for newly created elements
    for(unsigned int i=0; i<grid.element.size(); ++i)
@@ -275,15 +282,24 @@ void UQProblem<dim>::flag_elements ()
 
 // Refine physical grid
 template <int dim>
-void UQProblem<dim>::refine_physical ()
-{
+void UQProblem<dim>::refine_physical (const unsigned int iter)
+{   
+   // Create name for new_template_dir
+   char new_template_dir[64];
+   sprintf(new_template_dir, "template_dir_%d", iter+1);
+   
+   // Copy contents of latest template_dir into new_template_dir
+   char command[128];
+   sprintf(command, "cp -r RESULT/%s RESULT/%s", template_dir, 
+           new_template_dir);
+   
    // Save mesh_error into file
    // Separate file is created for each moment
    unsigned int c = 0;
    for(unsigned int i=0; i<n_moment; ++i)
    {
       char filename[64];
-      sprintf(filename, "RESULT/error%d.dat", i);
+      sprintf(filename, "RESULT/%s/error%d.dat", new_template_dir, i);
       ofstream fo;
       fo.open (filename);
       fo.precision (15);
@@ -295,8 +311,18 @@ void UQProblem<dim>::refine_physical ()
       fo.close ();
    }
    
-   // TBD Call external grid refinement program
-   // TBD Read new number of cells: n_cell
+   // Call external grid refinement program
+   sprintf (command, "./adapt.sh RESULT/%s", new_template_dir);
+   system (command);
+   
+   // Read new number of cells: n_cell
+   char filename[64];
+   ifstream fi;
+   sprintf(filename, "RESULT/%s/n_cell.dat", new_template_dir);
+   fi.open (filename);
+   assert (fi.is_open());
+   fi >> n_cell;
+   fi.close ();
    
    // All samples must be re-run on new grid
    for(unsigned int i=0; i<sample.size(); ++i)
@@ -313,6 +339,9 @@ void UQProblem<dim>::refine_physical ()
          grid.element[i].n_cell = n_cell;
          grid.element[i].status = NEW;
       }
+   
+   // Update template dir
+   sprintf(template_dir, "%s", new_template_dir);
 }
 
 // Print messages to screen
@@ -359,7 +388,7 @@ void UQProblem<dim>::run ()
          flag_elements ();
          refine_grid ();
          if(error_control == COMBINED)
-            refine_physical ();
+            refine_physical (iter);
       }
       run_simulations ();
       compute_moments ();
