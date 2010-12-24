@@ -22,9 +22,6 @@ UQProblem<dim>::UQProblem ()
    moment.resize  (n_moment);
    adj_cor.resize (n_moment);
    RE.resize      (n_moment);
-   
-   if(error_control == COMBINED)
-      mesh_error.resize (n_moment * n_cell);
 }
 
 // Destructor
@@ -34,7 +31,6 @@ UQProblem<dim>::~UQProblem ()
 }
 
 // Read options from file
-// TBD For now, we set it here itself
 template <int dim>
 void UQProblem<dim>::read_options ()
 {   
@@ -173,10 +169,7 @@ void UQProblem<dim>::compute_moments ()
          cout << "Computing mean for element = " << i << endl;
          
          if(error_control == COMBINED)
-         {
-            grid.element[i].mesh_error.resize (n_moment * n_cell);
-            grid.element[i].mesh_error = 0.0;
-         }
+            grid.element[i].mesh_error.resize (n_moment * n_cell, 0.0);
          
          grid.element[i].moment  = 0.0;
          grid.element[i].adj_cor = 0.0;
@@ -211,13 +204,10 @@ void UQProblem<dim>::compute_moments ()
          // Clear all samples belonging to this element from memory
          for(unsigned int d=0; d<grid.element[i].n_dof; ++d)
             grid.element[i].dof[d]->clear();
-         
+                     
+         // Save mesh_error into file TBD
          if(error_control == COMBINED)
-         {
-            // Save mesh_error into file TBD
-            abort ();
-            grid.element[i].mesh_error.resize (0);
-         }
+            grid.element[i].save_mesh_error ();
 
          grid.element[i].status = OLD;
       }
@@ -236,14 +226,14 @@ void UQProblem<dim>::compute_moments ()
    // stochastic elements
    if(error_control == COMBINED)
    {
-      mesh_error = 0.0;
+      mesh_error.resize (n_moment * n_cell, 0.0);
       for(unsigned int i=0; i<grid.element.size(); ++i)
          if (grid.element[i].active)
          {
-            // TBD load element mesh_error from file
-            abort ();
+            // Load element mesh_error from file
+            grid.element[i].load_mesh_error ();
             mesh_error += grid.element[i].mesh_error;
-            // TBD grid.element[j].mesh_error.resize(0);
+            grid.element[i].mesh_error.resize(0);
          }
    }
 
@@ -281,6 +271,48 @@ void UQProblem<dim>::flag_elements ()
          grid.element[imax].refine_flag = true;
       }
    }
+}
+
+// Refine physical grid
+template <int dim>
+void UQProblem<dim>::refine_physical ()
+{
+   // Save mesh_error into file
+   // Separate file is created for each moment
+   unsigned int c = 0;
+   for(unsigned int i=0; i<n_moment; ++i)
+   {
+      char filename[64];
+      sprintf(filename, "error%d.dat", i);
+      ofstream fo;
+      fo.open (filename);
+      fo.precision (15);
+      fo.setf (ios::scientific);
+      
+      for(unsigned int j=0; j<n_cell; ++j)
+         fo << mesh_error[c++] << endl;
+      
+      fo.close ();
+   }
+   
+   // TBD Call external grid refinement program
+   // TBD Read new number of cells: n_cell
+   
+   // All samples must be re-run on new grid
+   for(unsigned int i=0; i<sample.size(); ++i)
+   {
+      sample[i].n_cell = n_cell;
+      sample[i].status = NEW;
+   }
+   
+   // Moment contribution from all active stochastic elements 
+   // must be re-computed
+   for(unsigned int i=0; i<grid.element.size(); ++i)
+      if(grid.element[i].active)
+      {
+         grid.element[i].n_cell = n_cell;
+         grid.element[i].status = NEW;
+      }
 }
 
 // Print messages to screen
@@ -326,6 +358,8 @@ void UQProblem<dim>::run ()
       {
          flag_elements ();
          refine_grid ();
+         if(error_control == COMBINED)
+            refine_physical ();
       }
       run_simulations ();
       compute_moments ();

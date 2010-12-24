@@ -37,11 +37,16 @@ class Element
 {
    public:
       Element (const unsigned int order,
-               const unsigned int n_moment);
+               const unsigned int n_moment,
+               const unsigned int n_cell,
+               const unsigned int counter);
       ~Element () {};
+      void save_mesh_error ();
+      void load_mesh_error ();
    
       int order;             // order = linear (1) or quadratic (2)
       unsigned int n_moment; // no. of moments
+      unsigned int n_cell;   // no. of physical cells
       unsigned int n_dof;    // no. of dof for this element
       // pointer to sample for each dof
       std::vector<typename Sample<dim>::Sample*> dof; 
@@ -53,6 +58,7 @@ class Element
       bool active;
       bool refine_flag;
       std::valarray<double> mesh_error;
+      char directory[64];
 
 };
 

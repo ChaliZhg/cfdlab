@@ -42,13 +42,13 @@ void UQProblem<1>::refine_grid ()
          sample.push_back (new_sample2);
          
          // Two new elements
-         Element<1> new_element1 (2, n_moment);
+         Element<1> new_element1 (2, n_moment, n_cell, grid.element.size());
          new_element1.idof[0] = s0;
          new_element1.idof[1] = s2;
          new_element1.idof[2] = sample.size() - 2;
          grid.element.push_back (new_element1);
          
-         Element<1> new_element2 (2, n_moment);
+         Element<1> new_element2 (2, n_moment, n_cell, grid.element.size());
          new_element2.idof[0] = s2;
          new_element2.idof[1] = s1;
          new_element2.idof[2] = sample.size() - 1;
