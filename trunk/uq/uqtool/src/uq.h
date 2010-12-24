@@ -28,7 +28,7 @@ class UQProblem
       void compute_moments ();
       void flag_elements ();
       void refine_grid ();
-      void refine_physical ();
+      void refine_physical (const unsigned int iter);
       void log_result (std::ofstream& fo);
       void output (const unsigned int iter) const;
 
@@ -50,6 +50,7 @@ class UQProblem
       int error_control;    // STOCHASTIC or COMBINED
       int refine_type;      // UNIFORM or ADAPTIVE
       std::valarray<double> mesh_error; // Indicator for physical mesh
+      char template_dir[64];
 };
 
 #endif
