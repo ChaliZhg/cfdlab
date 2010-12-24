@@ -20,7 +20,7 @@ void UQProblem<1>::output (const unsigned int iter) const
 {
    char filename[64];
    
-   sprintf(filename, "grid_%d.dat", iter);
+   sprintf(filename, "RESULT/grid_%d.dat", iter);
    ofstream fo;
    fo.open (filename);
    fo.precision (15);

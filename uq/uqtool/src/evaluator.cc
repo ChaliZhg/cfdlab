@@ -54,10 +54,10 @@ void JREvaluator<dim>::execute (const double* x,
    char filename[64];
    ofstream fo;
    
-   system ("mkdir -p EVAL");
+   system ("mkdir -p RESULT/EVAL");
    
    // Write random variables
-   sprintf(filename, "EVAL/random.dat");
+   sprintf(filename, "RESULT/EVAL/random.dat");
    fo.open (filename);
    fo.precision (15);
    fo.setf (ios::scientific);
@@ -66,11 +66,11 @@ void JREvaluator<dim>::execute (const double* x,
    fo.close ();
    
    // Write primal solution
-   sprintf(filename, "EVAL/primal.dat");
+   sprintf(filename, "RESULT/EVAL/primal.dat");
    write_sol (filename, n_var, n_cell, interpolate_formula.primal);
 
    // Write adjoint solution
-   sprintf(filename, "EVAL/adjoint.dat");
+   sprintf(filename, "RESULT/EVAL/adjoint.dat");
    write_sol (filename, n_var, n_cell, interpolate_formula.adjoint);
    
    // Write primal2 - primal1
@@ -78,7 +78,7 @@ void JREvaluator<dim>::execute (const double* x,
    for(unsigned int i=0; i<n; ++i)
       dprimal[i] = interpolate_formula.primal2[i] -
                    interpolate_formula.primal1[i];
-   sprintf(filename, "EVAL/dprimal.dat");
+   sprintf(filename, "RESULT/EVAL/dprimal.dat");
    write_sol (filename, n_var, n_cell, dprimal);
    delete [] dprimal;
    
@@ -88,17 +88,17 @@ void JREvaluator<dim>::execute (const double* x,
    for(unsigned int i=0; i<n; ++i)
       dadjoint[i] = interpolate_formula.adjoint2[i] -
                     interpolate_formula.adjoint1[i];
-   sprintf(filename, "EVAL/dadjoint.dat");
+   sprintf(filename, "RESULT/EVAL/dadjoint.dat");
    write_sol (filename, n_var, n_cell, dadjoint);
    delete [] dadjoint;
    
    // Run external simulator: DO NOT ITERATE
-   system ("./runsolver.sh 2 EVAL");
+   system ("./runsolver.sh 2 RESULT/EVAL");
    
    ifstream fi;
    
    // Read objective functions
-   fi.open ("EVAL/obj.dat");
+   fi.open ("RESULT/EVAL/obj.dat");
    for(unsigned int i=0; i<n_moment; ++i)
       fi >> J[i];
    fi.close ();
@@ -112,7 +112,7 @@ void JREvaluator<dim>::execute (const double* x,
       RE[i]    = 0.0;
       
       // TBD Filename will be different for each moment
-      fi.open ("EVAL/VdotR.dat");
+      fi.open ("RESULT/EVAL/VdotR.dat");
       assert (fi.is_open());
       for(unsigned int j=0; j<n_cell; ++j)
       {
@@ -122,7 +122,7 @@ void JREvaluator<dim>::execute (const double* x,
       fi.close ();
       
       // TBD Filename will be different for each moment
-      fi.open ("EVAL/RE.dat");
+      fi.open ("RESULT/EVAL/RE.dat");
       assert (fi.is_open());
       for(unsigned int j=0; j<n_cell; ++j)
       {

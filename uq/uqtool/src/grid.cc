@@ -54,7 +54,7 @@ void Sample<dim>::read ()
    unsigned int c;
    
    // Read primal solution
-   sprintf(filename, "%s/primal.dat", directory);
+   sprintf(filename, "RESULT/%s/primal.dat", directory);
    ff.open (filename);
    assert (ff.is_open());
    c = 0;
@@ -64,7 +64,7 @@ void Sample<dim>::read ()
    ff.close ();
    
    // Read adjoint solution
-   sprintf(filename, "%s/adjoint.dat", directory);
+   sprintf(filename, "RESULT/%s/adjoint.dat", directory);
    ff.open (filename);
    assert (ff.is_open());
    c = 0;
@@ -153,7 +153,7 @@ void Element<dim>::save_mesh_error ()
    for(unsigned int i=0; i<n_moment; ++i)
    {
       char filename[64];
-      sprintf(filename, "%s/error%d.dat", directory, i);
+      sprintf(filename, "RESULT/%s/error%d.dat", directory, i);
       ofstream fo;
       fo.open (filename);
       fo.precision (15);
@@ -179,7 +179,7 @@ void Element<dim>::load_mesh_error ()
    for(unsigned int i=0; i<n_moment; ++i)
    {
       char filename[64];
-      sprintf(filename, "%s/error%d.dat", directory, i);
+      sprintf(filename, "RESULT/%s/error%d.dat", directory, i);
       ifstream fi;
       fi.open (filename);
       assert (fi.is_open());
