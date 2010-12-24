@@ -28,6 +28,7 @@ class UQProblem
       void compute_moments ();
       void flag_elements ();
       void refine_grid ();
+      void refine_physical ();
       void log_result (std::ofstream& fo);
       void output (const unsigned int iter) const;
 

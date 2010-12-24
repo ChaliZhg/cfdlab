@@ -48,7 +48,7 @@ void Sample<dim>::read ()
    primal  = new double [n_var * n_cell];
    adjoint = new double [n_var * n_cell];
    
-   // Read from file TBD
+   // Read from file
    char filename[128];   
    ifstream ff;
    unsigned int c;
@@ -92,10 +92,13 @@ void Sample<dim>::clear ()
 // Element constructor
 template <int dim>
 Element<dim>::Element (const unsigned int order,
-                       const unsigned int n_moment)
+                       const unsigned int n_moment,
+                       const unsigned int n_cell,
+                       const unsigned int counter)
    :
    order    (order),
-   n_moment (n_moment)
+   n_moment (n_moment),
+   n_cell   (n_cell)
 {
    assert (order == 1 || order == 2);
    assert (n_moment > 0);
@@ -126,6 +129,66 @@ Element<dim>::Element (const unsigned int order,
    
    idof.resize(n_dof);
    dof.resize (n_dof);
+   
+   // Set directory for element: E000 to E999
+   if(counter <= 9)
+      sprintf(directory, "E00%d", counter);
+   else if(counter <= 99)
+      sprintf(directory, "E0%d", counter);
+   else if(counter <= 999)
+      sprintf(directory, "E%d", counter);
+   else
+   {
+      cout << "Element: exceeding 1000 !!!" << endl;
+      abort ();
+   }
+}
+
+// Save mesh_error into files
+template <int dim>
+void Element<dim>::save_mesh_error ()
+{
+   unsigned int c = 0;
+   
+   for(unsigned int i=0; i<n_moment; ++i)
+   {
+      char filename[64];
+      sprintf(filename, "%s/error%d.dat", directory, i);
+      ofstream fo;
+      fo.open (filename);
+      fo.precision (15);
+      fo.setf (ios::scientific);
+      
+      for(unsigned int j=0; j<n_cell; ++j)
+         fo << mesh_error[c++] << endl;
+      
+      fo.close ();
+   }
+   
+   mesh_error.resize (0);
+}
+
+// Read element mesh_error from files
+template <int dim>
+void Element<dim>::load_mesh_error ()
+{
+   mesh_error.resize (n_moment * n_cell);
+   
+   unsigned int c = 0;
+   
+   for(unsigned int i=0; i<n_moment; ++i)
+   {
+      char filename[64];
+      sprintf(filename, "%s/error%d.dat", directory, i);
+      ifstream fi;
+      fi.open (filename);
+      assert (fi.is_open());
+      
+      for(unsigned int j=0; j<n_cell; ++j)
+         fi >> mesh_error[c++];
+      
+      fi.close ();
+   }
 }
 
 // Set pointer from element.dof to sample

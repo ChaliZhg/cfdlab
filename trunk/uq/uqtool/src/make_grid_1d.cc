@@ -35,7 +35,7 @@ void UQProblem<1>::make_grid ()
    unsigned int n_element = 2;
    for(unsigned int i=0; i<n_element; ++i)
    {      
-      Element<1> new_element(2, n_moment);
+      Element<1> new_element(2, n_moment, n_cell, i);
       grid.element.push_back (new_element);
    }
    
