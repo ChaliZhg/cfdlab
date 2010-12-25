@@ -90,7 +90,9 @@ c     initialize conditions
       call costfun(nc, qexact, cost,dx)
       print*,'Exact (Analytical)'
 
-      ExactCost= 0.0
+      ExactCost= 5.0*(xi_1*(45.0+2.0*xi_1**4) + 45.0*xi_1*cos(2*xi_1) +
+     1           15.0*(-3.0 + xi_1**2)*sin(2.0*xi_1))
+      ExactCost = ExactCost/(6.0*xi_1**5)
  
       print*,'Cost= ',ExactCost
 
