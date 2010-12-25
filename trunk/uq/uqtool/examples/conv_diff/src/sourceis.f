@@ -6,14 +6,15 @@ c     residual source term
       real :: q, res,xc,dx,a
 
       integer :: i
-      real :: s,x
+      real :: x,u,ux,uxx,s
 
       x=xc
-        s = -2.0*a*(1.0-2.0*x)*cos(a*x) + 2.0*sin(a*x) + 
-     1      a**2 * (1.0-x)*x*sin(a*x) + 
-     2      (1.0-x)*x*sin(a*x)*(a*(1.0-x)*x*cos(a*x) +
-     3      (1.0-x)*sin(a*x) - x*sin(a*x))
-        s = 10.0*s
+        u = 10.0*x*(1.0-x)*sin(a*x)
+        ux = 10.0*a*(1.0-x)*x*cos(a*x) + 10.0*(1.0-x)*sin(a*x) -
+     1       10.0*x*sin(a*x)
+        uxx= -20.0*(a*x*cos(a*x) + sin(a*x)) +
+     1        10.0*(1.0-x)*(2.0*a*cos(a*x) - a**2*x*sin(a*x))
+        s  = u*ux - uxx
 
       res= -s*dx
 
