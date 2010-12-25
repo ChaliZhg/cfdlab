@@ -1,0 +1,5 @@
+1            ! mode: 1=iterate, 2=evaluate residual
+50           ! nc
+10.0         ! xi_1
+0.25	       ! CFL
+50000	       ! niter
