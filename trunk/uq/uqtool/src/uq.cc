@@ -361,7 +361,8 @@ void UQProblem<dim>::log_result (ofstream& fj, ofstream& fe)
    fe.setf (ios::scientific);
    
    fj << sample.size() << " " << grid.element.size() << " ";
-   fe << 1.0/pow(double(sample.size()), dim) << " ";
+   fe << sample.size() << " " 
+      << 1.0/pow(double(sample.size()), 1.0/dim) << " ";
 
    for(unsigned int i=0; i<n_moment; ++i)
    {
@@ -371,8 +372,8 @@ void UQProblem<dim>::log_result (ofstream& fj, ofstream& fe)
          << fabs(RE[i]) << " ";
    }      
    
-   fj << endl;
-   fe << endl;
+   fj << endl; fj.flush ();
+   fe << endl; fe.flush ();
 
 }
 
