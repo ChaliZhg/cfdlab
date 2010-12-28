@@ -347,31 +347,42 @@ void UQProblem<dim>::refine_physical (const unsigned int iter)
 // Print messages to screen
 // Write moments etc. to file
 template <int dim>
-void UQProblem<dim>::log_result (ofstream& fo)
+void UQProblem<dim>::log_result (ofstream& fj, ofstream& fe)
 {
    cout << "No. of stochastic samples  = " << sample.size() << endl;
    cout << "No. of stochastic elements = " << grid.element.size()
         << endl;
    cout << "No. of physical cells      = " << n_cell << endl;  
    
-   fo.precision(15);
-   fo.setf (ios::scientific);
+   fj.precision(15);
+   fj.setf (ios::scientific);
    
-   fo << sample.size() << " " << grid.element.size() << " ";
+   fe.precision(15);
+   fe.setf (ios::scientific);
+   
+   fj << sample.size() << " " << grid.element.size() << " ";
+   fe << 1.0/pow(double(sample.size()), dim) << " ";
+
    for(unsigned int i=0; i<n_moment; ++i)
    {
-      fo << moment[i] << " " << fabs(adj_cor[i]) << " "
-         << moment[i] + adj_cor[i] << " " << fabs(RE[i]) << " ";
-      fo << endl;
-   }
+      fj << moment[i] << " "
+         << moment[i] + adj_cor[i] << " ";
+      fe << fabs(adj_cor[i]) << " "
+         << fabs(RE[i]) << " ";
+   }      
+   
+   fj << endl;
+   fe << endl;
+
 }
 
 // This is where it all begins
 template <int dim>
 void UQProblem<dim>::run ()
 {
-   ofstream fo;
-   fo.open ("RESULT/uq.dat");
+   ofstream fj, fe;
+   fj.open ("RESULT/J.dat");
+   fe.open ("RESULT/error.dat");
    
    make_grid ();
 
@@ -393,13 +404,14 @@ void UQProblem<dim>::run ()
       run_simulations ();
       compute_moments ();
 
-      log_result (fo);   
+      log_result (fj, fe);   
       output (iter);
       ++iter;
 
    }
    
-   fo.close ();
+   fj.close ();
+   fe.close ();
 
 }
 

@@ -29,7 +29,7 @@ class UQProblem
       void flag_elements ();
       void refine_grid ();
       void refine_physical (const unsigned int iter);
-      void log_result (std::ofstream& fo);
+      void log_result (std::ofstream& fj, std::ofstream& fe);
       void output (const unsigned int iter) const;
 
       PDFData<dim> pdf_data;
