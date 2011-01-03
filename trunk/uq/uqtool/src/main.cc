@@ -6,7 +6,7 @@ using namespace std;
 
 int main ()
 {
-   // Delete old sample directories S000-S999
+   // Delete old RESULT directory
    system("rm -rf RESULT && mkdir RESULT");
    
    // Define UQ problem
