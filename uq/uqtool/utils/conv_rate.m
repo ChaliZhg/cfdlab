@@ -8,7 +8,7 @@ else
    istart = iskip + 1;
 end
 
-data = load('error.dat');
+data = load('RESULT/error.dat');
 
 [ns,nf] = size(data);
 nf = nf - 2;
