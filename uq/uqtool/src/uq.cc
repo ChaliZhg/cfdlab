@@ -12,6 +12,8 @@
 using namespace std;
 
 // Constructor
+// Read options from file uq.in
+// Copy initial template directory
 template <int dim>
 UQProblem<dim>::UQProblem ()
 {
@@ -23,6 +25,7 @@ UQProblem<dim>::UQProblem ()
    adj_cor.resize (n_moment);
    RE.resize      (n_moment);
    
+   // Copy initial template directory
    sprintf(template_dir, "template_dir_0");
    char command[128];
    sprintf(command, "cp -r template_dir RESULT/%s", template_dir);
@@ -35,7 +38,7 @@ UQProblem<dim>::~UQProblem ()
 {
 }
 
-// Read options from file
+// Read options from file uq.in
 template <int dim>
 void UQProblem<dim>::read_options ()
 {   
@@ -44,6 +47,7 @@ void UQProblem<dim>::read_options ()
    
    ifstream fi;
    fi.open ("uq.in");
+   assert (fi.is_open());
    
    int dim_in;
    string str;
@@ -175,6 +179,7 @@ void UQProblem<dim>::compute_moments ()
       {
          cout << "Computing mean for element = " << i << endl;
          
+         // Allocate memory for mesh error indicator and set to zero
          if(error_control == COMBINED)
             grid.element[i].mesh_error.resize (n_moment * n_cell, 0.0);
          
@@ -212,7 +217,7 @@ void UQProblem<dim>::compute_moments ()
          for(unsigned int d=0; d<grid.element[i].n_dof; ++d)
             grid.element[i].dof[d]->clear();
                      
-         // Save mesh_error into file TBD
+         // Save mesh_error into file
          if(error_control == COMBINED)
             grid.element[i].save_mesh_error ();
 
