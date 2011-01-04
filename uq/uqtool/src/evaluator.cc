@@ -104,6 +104,7 @@ void JREvaluator<dim>::execute (const double* x,
    
    // Read objective functions
    fi.open ("RESULT/EVAL/obj.dat");
+   assert (fi.is_open());
    for(unsigned int i=0; i<n_moment; ++i)
       fi >> J[i];
    fi.close ();

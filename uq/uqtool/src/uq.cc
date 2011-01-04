@@ -156,6 +156,7 @@ void UQProblem<dim>::run_simulations ()
          ifstream fi;
          sprintf(filename, "RESULT/%s/obj.dat", sample[i].directory);
          fi.open (filename);
+         assert (fi.is_open());
          for(unsigned int j=0; j<n_moment; ++j)
             fi >> sample[i].J[j];
          fi.close ();
