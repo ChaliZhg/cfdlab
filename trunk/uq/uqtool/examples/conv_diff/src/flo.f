@@ -68,7 +68,7 @@ c     initialize conditions
             alpha=1./float(5-stage)
             q(1:nc) = qold(1:nc) - alpha*(dt/dx)*res(1:nc)
          enddo
-         if(mod(iter,1000).eq.0) print*,iter,residue
+         if(mod(iter,1).eq.0) print*,iter,residue
       enddo
 
       open(11, file='flo.dat')
