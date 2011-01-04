@@ -3,7 +3,7 @@ c     residual source term
       implicit none
       include 'param.h'
       integer :: nc
-      real :: q(nc), res(nc),xc(nc),dx,a
+      real :: q(nc), res(nc),xc(nc),dx(nc),a
 
       integer :: i
       real :: x,u,ux,uxx,s
@@ -17,7 +17,7 @@ c     residual source term
      1        10.0*(1.0-x)*(2.0*a*cos(a*x) - a**2*x*sin(a*x))
         s  = u*ux - uxx
 
-        res(i)=res(i)-s*dx
+        res(i)=res(i)-s*dx(i)
 
 
       enddo

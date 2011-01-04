@@ -1,38 +1,42 @@
       program main
       implicit none
       include 'param.h'
-      real, allocatable :: q(:),xc(:)
+      real, allocatable :: q(:),xc(:),xv(:),dx(:)
       real, allocatable :: res(:)
       real, allocatable :: qb(:),qb1(:)
       real, allocatable :: resb(:), resbold(:)
       integer nc
       integer i, niter,iter, stage, mode
-      real :: dx, dt, maxspeed, CFL , alpha
-      real :: xi_1
+      real :: dt, maxspeed, CFL , alpha
+      real :: xi_1, tol_conv
       real :: cost, costb1,costb,residue
       real :: q1,res1,resb1,dSdxi_1
 
-c     MUST BE AN EVEN NUMBER
-
-      call read_input(mode, nc, xi_1, CFL, niter)
+      call read_input(mode, xi_1, CFL, niter, tol_conv)
 
       call bc()
 
-      allocate( q(nc),xc(nc) )
+
+c     Set up mesh
+
+      open(10, file='grid.dat', status='old')
+      read(10,*) nc
+      allocate( q(nc),xc(nc),xv(nc+1),dx(nc) )
       allocate( res(nc) )
       allocate( qb(nc) , qb1(nc))
       allocate( resb(nc), resbold(nc) )
-
-      dx = 1.d0/nc
-      maxspeed = 2.25
-      dt = min(CFL*dx/maxspeed,CFL*dx*dx)
-
-      print*,'dx =', dx
-      print*,'maxspeed =', maxspeed
-      print*,'dt =', dt
-
       do i=1,nc
-         xc(i)=(float(i)-0.5d0)*dx
+         read(10,*) xc(i)
+      enddo
+      close(10)
+
+      xv(1)=0.d0
+      do i=2,nc
+         xv(i)=0.5d0*(xc(i)+xc(i-1))
+      enddo
+      xv(nc+1)=1.d0
+      do i=1,nc
+         dx(i)=xv(i+1)-xv(i)
       enddo
 
       if(mode.eq.2)then
@@ -47,7 +51,7 @@ c     MUST BE AN EVEN NUMBER
          costb = 1.0
          qb    = 0.0
          call costfun_bq(nc, q, qb, cost, costb, dx)
-         call residu_bq(nc, q, qb, res, resb, dx)
+         call residu_bq(nc, q, qb, res, resb, xc, xv, dx)
          print*,'Saving adjoint residual ...'
          open(10, file='a_residual.dat')
          write(10,'(e24.14)') (qb(i), i=1,nc)
@@ -77,19 +81,26 @@ c     initialize conditions
       enddo
       close(10)
 
+          dt=1.e20
+          do i=1,nc
+          dt       = min(min(CFL*dx(i)/1.5,CFL*dx(i)*dx(i)),dt)
+          enddo
+
+
       do iter=1,niter
          resbold(1:nc)=resb(1:nc)
          do stage=1,4
          qb(1:nc)=qb1(1:nc)
-         call residu_bq(nc, q, qb, res, resb, dx)
+         call residu_bq(nc, q, qb, res, resb, xc, xv, dx)
          alpha=1./float(5-stage)
-         resb(1:nc) = resbold(1:nc) - alpha*(dt/dx)*qb(1:nc)
+         resb(1:nc) = resbold(1:nc) - alpha*(dt/dx(1:nc))*qb(1:nc)
          residue=0.d0
          do i=1,nc
          residue=residue+abs(qb(i))
          enddo
          enddo
-         if(mod(iter,1000).eq.0) print*,iter,residue
+         if(mod(iter,5000).eq.0) print*,iter,residue
+         if(abs(residue)<tol_conv) exit
       enddo
 
 
@@ -99,7 +110,7 @@ c     initialize conditions
       do i=1,nc
          dSdxi_1=0.d0
          resb1=1.d0
-         CALL SOURCEIS_BA(q1,res1,resb1,xc(i),dx,xi_1,dSdxi_1)
+         CALL SOURCEIS_BA(q1,res1,resb1,xc(i),dx(i),xi_1,dSdxi_1)
          costb1=costb1+dSdxi_1*resb(i)
       enddo
 
@@ -117,7 +128,7 @@ c     initialize conditions
       close(11)
       close(12)
 
- 1000  format(3(X,E12.6))
+ 1000  format(3(1X,E12.6))
 
       deallocate( q )
       deallocate( res )
