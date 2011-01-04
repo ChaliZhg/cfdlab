@@ -2,29 +2,35 @@
 c ========== Program to solve u u_x = u_xx + S(x) =================
       implicit none
       include 'param.h'
-      real, allocatable :: q(:),xc(:),qexact(:),qold(:)
-      real, allocatable :: res(:),temp(:)
+      real, allocatable :: q(:),xc(:),qexact(:),qold(:),xv(:)
+      real, allocatable :: res(:),dx(:)
       integer nc
       integer i, niter, iter,stage, mode
-      real :: dx, dt, maxspeed, CFL, factor, xi_1
+      real :: dt, maxspeed, CFL, factor, xi_1,tol_conv
       real :: frac,cost,exactcost,residue,alpha
 
-c     MUST BE AN EVEN NUMBER
-
-      call read_input(mode, nc, xi_1, CFL, niter)
+      call read_input(mode, xi_1, CFL, niter,tol_conv)
 
       call bc()
 
+c     Set up mesh
+      open(10, file='grid.dat', status='old')
+      read(10,*) nc
       allocate( q(nc) ,qexact(nc), qold(nc))
-      allocate( res(nc) )
-      allocate( xc(nc),temp(nc) )
-
-      dx = 1./float(nc)
-      maxspeed = 2.5
-      dt       = min(CFL*dx/maxspeed,CFL*dx*dx)
-
+      allocate( res(nc))
+      allocate( xv(nc+1),xc(nc),dx(nc))
       do i=1,nc
-         xc(i)=(float(i)-0.5d0)*dx
+         read(10,*) xc(i)
+      enddo
+      close(10)
+
+      xv(1)=0.d0
+      do i=2,nc
+         xv(i)=0.5d0*(xc(i)+xc(i-1))
+      enddo
+      xv(nc+1)=1.d0
+      do i=1,nc
+         dx(i)=xv(i+1)-xv(i)
       enddo
 
 c     Read primal solution, evaluate residual, save to file
@@ -34,7 +40,7 @@ c     Read primal solution, evaluate residual, save to file
          read(10,*) (q(i),i=1,nc)
          close(10)
          res = 0.0
-         call residu(nc, q, res, dx)
+         call residu(nc, q, res, xc, xv, dx)
          call source(nc, q, res, xc, dx, xi_1)
          print*,'Saving primal residual ...'
          open(10, file='p_residual.dat')
@@ -55,20 +61,28 @@ c     initialize conditions
       enddo
       close(10)
 
+
       do iter=1,niter
          qold(1:nc)=q(1:nc)
+          dt=1.e20
+          do i=1,nc
+          dt       = min(min(CFL*dx(i)/1.5,CFL*dx(i)*dx(i)),dt)
+          enddo
          do stage=1,4
             res = 0.0
-            call residu(nc, q, res, dx)
+            call residu(nc, q, res, xc, xv, dx)
             call source(nc, q, res, xc, dx, xi_1)
             residue = 0.d0
             do i=1,nc
                residue=residue+abs(res(i))
             enddo
             alpha=1./float(5-stage)
-            q(1:nc) = qold(1:nc) - alpha*(dt/dx)*res(1:nc)
+            do i=1,nc
+            q(i) = qold(i) - alpha*(dt/dx(i))*res(i)
+            enddo
          enddo
          if(mod(iter,1).eq.0) print*,iter,residue
+         if(abs(residue).lt.tol_conv) exit
       enddo
 
       open(11, file='flo.dat')
@@ -96,7 +110,7 @@ c     initialize conditions
  
       print*,'Cost= ',ExactCost
 
- 1000  format(4(X,E12.6))
+ 1000  format(4(1X,E12.6))
 
       deallocate( q )
       deallocate( res )

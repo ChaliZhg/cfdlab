@@ -1,15 +1,18 @@
 c     Finite volume residual
-      subroutine residu(nc, q, res, dx)
+      subroutine residu(nc, q, res, xc, xv, dx)
       implicit none
       include 'param.h'
       integer :: nc
-      real :: q(nc), res(nc), dx
+      real    :: q(nc), res(nc), xc(nc), xv(nc+1), dx(nc)
 
       integer :: i, sndOrder
       real :: f,qleft,qright,sl,sr,viscflux
       real :: minmod
+      real :: grads(nc)
 
       sndOrder=1
+
+      call calc_grad(nc,xc,xv,q,grads)
 
       ! Left flux of first cell 
       qleft = ql 
@@ -18,75 +21,28 @@ c     Finite volume residual
       call RoeFlux(qleft, qright, f)
       res(1) = res(1) - f
 
-      viscflux = -8.d0*ql+9.d0*q(1)-q(2)
-      res(1) = res(1) + viscflux/dx
+      viscflux = (q(1)-ql)/(xc(1)-xv(1))
+      res(1) = res(1) + viscflux
 
-      ! Right flux of first cell 
-
-      qleft = q(1)
-      qright =q(2)
-
-      if(sndOrder) then
-          sl=2.0*(q(1)-ql)
-          sr=q(2)-q(1)
-          qleft =qleft+0.5*minmod(sl,sr)
-          sl=q(2)-q(1)
-          sr=q(3)-q(2)
-          qright=qright-0.5*minmod(sl,sr)
-      endif
-
-      call RoeFlux(qleft, qright, f)
-      res(1) = res(1) + f
-      res(2) = res(2) - f
-
-      viscflux = q(2)-q(1)
-      res(1) = res(1) - viscflux/dx
-      res(2) = res(2) + viscflux/dx
       ! All cells
 
-      do i=3,nc-1
+      do i=2,nc
         qleft = q(i-1)
         qright =q(i)
 
-      if(sndOrder) then
-          sl=q(i-1)-q(i-2)
-          sr=q(i)-q(i-1)
-          qleft =qleft +0.5*minmod(sl,sr)
-          sl=q(i)-q(i-1)
-          sr=q(i+1)-q(i)
-          qright=qright-0.5*minmod(sl,sr)
+      if(sndOrder.eq.1) then
+          qleft =qleft +0.5d0*dx(i-1)*grads(i-1)
+          qright=qright-0.5d0*dx(i)*grads(i)
       endif
 
       call RoeFlux(qleft, qright, f)
       res(i-1) = res(i-1) + f
       res(i)   = res(i)   - f
 
-      viscflux = q(i)-q(i-1)
-      res(i-1) = res(i-1) - viscflux/dx
-      res(i  ) = res(i  ) + viscflux/dx
+      viscflux = 0.5d0*(grads(i-1)+grads(i))
+      res(i-1) = res(i-1) - viscflux
+      res(i  ) = res(i  ) + viscflux
       enddo
-
-      ! left flux of last cell 
-
-        qleft = q(nc-1)
-        qright =q(nc)
-
-      if(sndOrder) then
-          sl=q(nc-1)-q(nc-2)
-          sr=q(nc)-q(nc-1)
-          qleft =qleft +0.5*minmod(sl,sr)
-          sl=q(nc)-q(nc-1)
-          sr=2.d0*(qr-q(nc))
-          qright=qright-0.5*minmod(sl,sr)
-      endif
-
-      call RoeFlux(qleft, qright, f)
-      res(nc-1) = res(nc-1) + f
-      res(nc)   = res(nc)   - f
-
-      viscflux = q(nc)-q(nc-1)
-      res(nc-1) = res(nc-1) - viscflux/dx
-      res(nc)   = res(nc)   + viscflux/dx
 
       ! right flux of last cell 
 
@@ -96,8 +52,8 @@ c     Finite volume residual
       call RoeFlux(qleft, qright, f)
       res(nc) = res(nc) + f
 
-      viscflux =  8.d0*qr-9.d0*q(nc)+q(nc-1)
-      res(nc) = res(nc) - viscflux/dx
+      viscflux =  (qr-q(nc))/(xv(nc+1)-xc(nc))
+      res(nc) = res(nc) - viscflux
 
       return
       end
@@ -143,4 +99,44 @@ c     Roe flux function
          endif
       endif
 
+      end
+
+      subroutine calc_grad(nc,xc,xv,q,grads)
+      implicit none
+      include 'param.h'
+      integer nc
+      real :: xc(*), xv(*), q(*), grads(*)
+
+      integer i
+
+      call calc_grad_lsq(ql,q(1),q(2),xv(1),xc(1),xc(2),grads(1))
+      !grads(1) =(q(1)-ql)/(xc(1)-xv(1))
+      do i=2,nc-1
+      call calc_grad_lsq(q(i-1),q(i),q(i+1),xc(i-1),xc(i),xc(i+1),
+     1                   grads(i))
+      enddo
+      call calc_grad_lsq(q(nc-1),q(nc),qr,xc(nc-1),xc(nc),xv(nc+1),
+     1                   grads(nc))
+      !grads(nc) =(qr-q(nc))/(xv(nc+1)-xc(nc))
+
+      end
+
+      subroutine calc_grad_lsq(qm,q,qp,xm,x,xp,grads)
+      implicit none
+      real :: qm,q,qp,xm,x,xp,grads
+      real :: w1,w2,epsil,du1,du2,dx1,dx2
+
+      epsil = 1.e-12
+
+      du1=q-qm
+      du2=qp-q
+      dx1=x-xm
+      dx2=xp-x
+
+      w1=1.d0
+      w2=1.d0
+
+      grads = (w1*dx1*du1+w2*dx2*du2)/(w1*dx1*dx1+w2*dx2*dx2)
+
+      return
       end

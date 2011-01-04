@@ -5,13 +5,17 @@ FFLAGS = -r8
 
 TPN =  ${TAPENADE_HOME}/bin/tapenade -r8
 
-TARGETS=flo adj
+TARGETS=grid flo adj
 
 FLO = flo.o bc.o residu.o source.o costfun.o read_input.o
 
-ADJ = adj.o bc.o sourceis_ba.o costfun_bq.o residu_bq.o adStack.o adBuffer.o residu.o read_input.o
+ADJ = adj.o bc.o sourceis_ba.o costfun_bq.o residu_bq.o adStack.o adBuffer.o \
+	  	residu.o read_input.o
 
 all: $(TARGETS)
+
+grid: grid.f
+	$(FC) $(FFLAGS) -o grid grid.f
 
 flo: ${FLO}
 	$(FC) -o flo ${FLO}
@@ -61,4 +65,4 @@ clean:
 	rm -f *.o $(TARGETS)
 
 allclean:
-	rm -f *.o *_ba.f *_bq.f *.msg *~ $(TARGETS)
+	rm -f *.dat *.o *_ba.f *_bq.f *_bq.h *.msg *~ $(TARGETS)
