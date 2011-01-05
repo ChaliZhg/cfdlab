@@ -46,6 +46,10 @@ c     Read primal solution, evaluate residual, save to file
          open(10, file='p_residual.dat')
          write(10,'(e24.14)') (res(i), i=1,nc)
          close(10)
+         call costfun(nc, q, cost,dx)
+         open(10,file='obj.dat')
+         write(10,'(e24.14)') cost
+         close(10)
          stop
       endif
 
@@ -100,6 +104,9 @@ c     initialize conditions
 
       print*,'Computed'
       call costfun(nc, q, cost,dx)
+      open(10,file='obj.dat')
+      write(10,'(e24.14)') cost
+      close(10)
       print*,'Exact (Numerical)'
       call costfun(nc, qexact, cost,dx)
       print*,'Exact (Analytical)'

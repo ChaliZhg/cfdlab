@@ -1,0 +1,19 @@
+-------------------------------------------------------------------------------
+Compiling
+-------------------------------------------------------------------------------
+Add
+
+export UQTOOL_HOME=$HOME/Applications/cfdlab/uq/uqtool
+
+to your bashrc/profile file.
+
+To compile:
+
+cd $UQTOOL_HOME/src
+make
+
+-------------------------------------------------------------------------------
+Examples
+-------------------------------------------------------------------------------
+
+Examples are in $UQTOOL_HOME/examples directory

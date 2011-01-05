@@ -5,7 +5,7 @@ FFLAGS = -r8
 
 TPN =  ${TAPENADE_HOME}/bin/tapenade -r8
 
-TARGETS=grid flo adj
+TARGETS=grid flo adj ccre
 
 FLO = flo.o bc.o residu.o source.o costfun.o read_input.o
 
@@ -22,6 +22,9 @@ flo: ${FLO}
 
 adj: ${ADJ}
 	$(FC) -o adj ${ADJ}
+
+ccre: ccre.f
+	$(FC) $(FFLAGS) -o ccre ccre.f
 
 residu_bq.f: residu.f
 	$(TPN) -b -head residu \
