@@ -1,7 +1,7 @@
 c     Make uniform grid
       program grid
       implicit none
-      real, allocatable :: xc(:)
+      real, allocatable :: xv(:)
       real    dx
       integer nc
       integer i
@@ -9,7 +9,7 @@ c     Make uniform grid
       write(*,*) 'Number of cells'
       read(*,*) nc
 
-      allocate( xc(nc) )
+      allocate( xv(nc+1) )
 
 c     Set up mesh
 
@@ -18,13 +18,13 @@ c     Set up mesh
       write(*,*)'Writing into grid.dat ...'
       open(10, file='grid.dat')
       write(10,*) nc
-      do i=1,nc
-         xc(i)=(float(i)-0.5d0)*dx
-         write(10,'(e24.14)') xc(i)
+      do i=1,nc+1
+         xv(i)=(i-1)*dx
+         write(10,'(e24.14)') xv(i)
       enddo
       close(10)
 
-      deallocate(xc)
+      deallocate(xv)
 
       stop
       end
