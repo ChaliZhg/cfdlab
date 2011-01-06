@@ -5,12 +5,14 @@ FFLAGS = -r8
 
 TPN =  ${TAPENADE_HOME}/bin/tapenade -r8
 
-TARGETS=grid flo adj ccre
+TARGETS=grid flo adj ccre reconstruct
 
-FLO = flo.o bc.o residu.o source.o costfun.o read_input.o
+FLO = flo.o bc.o residu.o source.o costfun.o read_input.o calc_grad.o
 
 ADJ = adj.o bc.o sourceis_ba.o costfun_bq.o residu_bq.o adStack.o adBuffer.o \
-	  	residu.o read_input.o
+	  	residu.o read_input.o calc_grad.o
+
+REC = reconstruct.f calc_grad.f
 
 all: $(TARGETS)
 
@@ -26,12 +28,15 @@ adj: ${ADJ}
 ccre: ccre.f
 	$(FC) $(FFLAGS) -o ccre ccre.f
 
-residu_bq.f: residu.f
+reconstruct: ${REC}
+	$(FC) $(FFLAGS) -o reconstruct ${REC}
+
+residu_bq.f: residu.f calc_grad.f
 	$(TPN) -b -head residu \
 		    -vars "q res" \
 	       -outvars "q res" \
 			 -difffuncname "_bq" \
-			 -o residu $<
+			 -o residu residu.f calc_grad.f
 
 residu_bq.o: residu_bq.f
 	$(FC) -c $(FFLAGS) $<

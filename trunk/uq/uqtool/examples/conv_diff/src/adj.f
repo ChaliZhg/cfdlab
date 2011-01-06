@@ -25,18 +25,14 @@ c     Set up mesh
       allocate( res(nc) )
       allocate( qb(nc) , qb1(nc))
       allocate( resb(nc), resbold(nc) )
-      do i=1,nc
-         read(10,*) xc(i)
+      do i=1,nc+1
+         read(10,*) xv(i)
       enddo
       close(10)
 
-      xv(1)=0.d0
-      do i=2,nc
-         xv(i)=0.5d0*(xc(i)+xc(i-1))
-      enddo
-      xv(nc+1)=1.d0
       do i=1,nc
-         dx(i)=xv(i+1)-xv(i)
+         xc(i) = 0.5*(xv(i) + xv(i+1))
+         dx(i) = xv(i+1) - xv(i)
       enddo
 
       if(mode.eq.2)then
