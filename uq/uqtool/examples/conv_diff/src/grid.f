@@ -24,6 +24,14 @@ c     Set up mesh
       enddo
       close(10)
 
+c     Writing cell_map.dat
+      open(10, file='cell_map.dat')
+      write(10,*) nc, nc
+      do i=1,nc
+         write(10,*) i
+      enddo
+      close(10)
+
       deallocate(xv)
 
       stop

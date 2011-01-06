@@ -27,5 +27,5 @@ $ADJOINT > adj.log
 
 if [ $mode -eq 2 ];
 then
-   $RE
+   $RE > ccre.log
 fi
