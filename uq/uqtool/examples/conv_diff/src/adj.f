@@ -95,9 +95,10 @@ c     initialize conditions
          residue=residue+abs(qb(i))
          enddo
          enddo
-         if(mod(iter,5000).eq.0) print*,iter,residue
+c        if(mod(iter,5000).eq.0) print*,iter,residue
          if(abs(residue)<tol_conv) exit
       enddo
+      print*,iter,residue
 
 
       q1=0.d0

@@ -131,7 +131,7 @@ void UQProblem<dim>::run_simulations ()
          
          // Create directory if it does not exist
          char command[256];
-         sprintf(command, "mkdir RESULT/%s", sample[i].directory);
+         sprintf(command, "mkdir -p RESULT/%s", sample[i].directory);
          system (command);
 
          // Print random variables to file
@@ -292,12 +292,13 @@ void UQProblem<dim>::refine_physical (const unsigned int iter)
 {   
    // Create name for new_template_dir
    char new_template_dir[64];
-   sprintf(new_template_dir, "template_dir_%d", iter+1);
+   sprintf(new_template_dir, "template_dir_%d", iter);
    
    // Copy contents of latest template_dir into new_template_dir
    char command[128];
    sprintf(command, "cp -r RESULT/%s RESULT/%s", template_dir, 
            new_template_dir);
+   system (command);
    
    // Save mesh_error into file
    // Separate file is created for each moment
@@ -323,28 +324,40 @@ void UQProblem<dim>::refine_physical (const unsigned int iter)
    
    // Read new number of cells: n_cell
    char filename[64];
+   unsigned int n_cell_old, n_cell_new;
    ifstream fi;
-   sprintf(filename, "RESULT/%s/n_cell.dat", new_template_dir);
+   sprintf(filename, "RESULT/%s/cell_map.dat", new_template_dir);
    fi.open (filename);
    assert (fi.is_open());
-   fi >> n_cell;
+   fi >> n_cell_old >> n_cell_new;
    fi.close ();
    
-   // All samples must be re-run on new grid
-   for(unsigned int i=0; i<sample.size(); ++i)
-   {
-      sample[i].n_cell = n_cell;
-      sample[i].status = NEW;
-   }
+   // Just a check
+   assert (n_cell_old == n_cell_old);
    
-   // Moment contribution from all active stochastic elements 
-   // must be re-computed
-   for(unsigned int i=0; i<grid.element.size(); ++i)
-      if(grid.element[i].active)
+   // If grid has been adapted, set sample status to re-run
+   if(n_cell != n_cell_new)
+   {
+      cout << "Physical mesh has been adapted\n";
+      
+      n_cell = n_cell_new;
+      
+      // All samples must be re-run on new grid
+      for(unsigned int i=0; i<sample.size(); ++i)
       {
-         grid.element[i].n_cell = n_cell;
-         grid.element[i].status = NEW;
+         sample[i].n_cell = n_cell;
+         sample[i].status = NEW;
       }
+      
+      // Moment contribution from all active stochastic elements 
+      // must be re-computed
+      for(unsigned int i=0; i<grid.element.size(); ++i)
+         if(grid.element[i].active)
+         {
+            grid.element[i].n_cell = n_cell;
+            grid.element[i].status = NEW;
+         }
+   }
    
    // Update template dir
    sprintf(template_dir, "%s", new_template_dir);
@@ -395,7 +408,7 @@ void UQProblem<dim>::run ()
 
    unsigned int iter = 0;
    
-   while (sample.size() < max_sample)
+   while (sample.size() <= max_sample)
    {      
       cout << "------------------" << endl;
       cout << "Iteration = " << iter << endl;

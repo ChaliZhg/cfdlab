@@ -152,6 +152,12 @@ void Element<dim>::save_mesh_error ()
    
    for(unsigned int i=0; i<n_moment; ++i)
    {
+      // Create directory
+      char command[128];
+      sprintf(command, "mkdir -p RESULT/%s", directory);
+      system(command);
+      
+      // Write mesh error indicator
       char filename[64];
       sprintf(filename, "RESULT/%s/error%d.dat", directory, i);
       ofstream fo;
