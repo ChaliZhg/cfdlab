@@ -81,9 +81,10 @@ c     initialize conditions
             q(i) = qold(i) - alpha*(dt/dx(i))*res(i)
             enddo
          enddo
-         if(mod(iter,1).eq.0) print*,iter,residue
+c        if(mod(iter,1).eq.0) print*,iter,residue
          if(abs(residue).lt.tol_conv) exit
       enddo
+      print*,iter,residue
 
       open(11, file='flo.dat')
       open(12, file='exact.dat')

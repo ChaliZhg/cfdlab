@@ -5,14 +5,16 @@ FFLAGS = -r8
 
 TPN =  ${TAPENADE_HOME}/bin/tapenade -r8
 
-TARGETS=grid flo adj ccre reconstruct
+TARGETS=grid flo adj ccre reconstruct refine
 
 FLO = flo.o bc.o residu.o source.o costfun.o read_input.o calc_grad.o
 
 ADJ = adj.o bc.o sourceis_ba.o costfun_bq.o residu_bq.o adStack.o adBuffer.o \
 	  	residu.o read_input.o calc_grad.o
 
-REC = reconstruct.f calc_grad.f
+REC = reconstruct.o calc_grad.o
+
+REF = refine.f sort3.f
 
 all: $(TARGETS)
 
@@ -30,6 +32,9 @@ ccre: ccre.f
 
 reconstruct: ${REC}
 	$(FC) $(FFLAGS) -o reconstruct ${REC}
+
+refine: ${REF}
+	$(FC) $(FFLAGS) -o refine ${REF}
 
 residu_bq.f: residu.f calc_grad.f
 	$(TPN) -b -head residu \
