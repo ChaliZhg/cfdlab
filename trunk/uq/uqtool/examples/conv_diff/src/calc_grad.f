@@ -22,7 +22,9 @@
       implicit none
       real :: qm,q,qp,xm,x,xp,grads,qxp,qxm
       real :: w1,w2,epsil,du1,du2,dx1,dx2,xvm,xvp,qmax,qmin,phi
+      integer lim
 
+      lim = 0
       epsil = 1.e-12
 
       du1=q-qm
@@ -35,6 +37,7 @@
 
       grads = (w1*dx1*du1+w2*dx2*du2)/(w1*dx1*dx1+w2*dx2*dx2)
 
+      if(lim.eq.1) then
       xvm = 0.5*(x+xm)
       xvp = 0.5*(x+xp)
 
@@ -55,7 +58,8 @@
       if((qxm-q).lt.0.) phi = min(phi,(qmin-q)/(qxm-q))
 
 
-       !grads = grads*phi
+       grads = grads*phi
+      endif
 
       return
       end
