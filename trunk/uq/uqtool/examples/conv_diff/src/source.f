@@ -1,25 +1,24 @@
 c     residual source term
-      subroutine source(nc, q, res, xc,xv,a)
+      subroutine source(nc, q, res, xc,dx,a)
       implicit none
       include 'param.h'
       integer :: nc
-      real :: q(nc),res(nc),xc(nc),xv(nc+1),a
+      real :: q(nc), res(nc),xc(nc),dx(nc),a
 
       integer :: i
-      real :: x,u,ux,uxx,s,x1,x2
+      real :: x,u,ux,uxx,s
 
       do i=1,nc
         x=xc(i)
-        x1=xv(i)
-        x2=xv(i+1)
+        u = 10.0*x*(1.0-x)*sin(a*x)
+        ux = 10.0*a*(1.0-x)*x*cos(a*x) + 10.0*(1.0-x)*sin(a*x) -
+     1       10.0*x*sin(a*x)
+        uxx= -20.0*(a*x*cos(a*x) + sin(a*x)) +
+     1        10.0*(1.0-x)*(2.0*a*cos(a*x) - a**2*x*sin(a*x))
+        s  = u*ux - uxx
 
-        s  = 10*sin(a*x1) - 10*sin(a*x2) - 50*x1**2*sin(a*x1)**2 + 
-     <       100*x1**3*sin(a*x1)**2 - 50*x1**4*sin(a*x1)**2 
-     <       + 50*x2**2*sin(a*x2)**2 - 100*x2**3*sin(a*x2)**2 + 
-     <   50*x2**4*sin(a*x2)**2 - 20*x1*sin(a*x1) + 20*x2*sin(a*x2)
-     <    - 10*a*x1**2*cos(a*x1) + 10*a*x2**2*cos(a*x2) 
-     <    + 10*a*x1*cos(a*x1) - 10*a*x2*cos(a*x2)
-        res(i)=res(i)-s
+        res(i)=res(i)-s*dx(i)
+
 
       enddo
 

@@ -6,7 +6,7 @@ c     Finite volume residual
       real    :: q(nc), res(nc), xc(nc), xv(nc+1), dx(nc)
 
       integer :: i, sndOrder
-      real :: f,qleft,qright,sl,sr,viscflux,dx1,dx2
+      real :: f,qleft,qright,sl,sr,viscflux
       real :: minmod
       real :: grads(nc)
 
@@ -16,15 +16,13 @@ c     Finite volume residual
 
       ! Left flux of first cell 
       qleft = ql 
-      qright=q(1)+(xv(1)-xc(1))*grads(1)
-      !qright= ql
+      qright= ql
 
       call RoeFlux(qleft, qright, f)
       res(1) = res(1) - f
 
-      !viscflux = grads(1)
       viscflux = (q(1)-ql)/(xc(1)-xv(1))
-      res(1)   = res(1) + viscflux
+      res(1) = res(1) + viscflux
 
       ! All cells
 
@@ -33,17 +31,14 @@ c     Finite volume residual
         qright =q(i)
 
       if(sndOrder.eq.1) then
-	   qleft =qleft +(xv(i)-xc(i-1))*grads(i-1)
-           qright=qright+(xv(i)-xc(i))*grads(i)
+          qleft =qleft +0.5d0*dx(i-1)*grads(i-1)
+          qright=qright-0.5d0*dx(i)*grads(i)
       endif
 
       call RoeFlux(qleft, qright, f)
       res(i-1) = res(i-1) + f
       res(i)   = res(i)   - f
 
-      dx1 = xv(i)-xc(i-1)
-      dx2 = xc(i)-xv(i)
-      viscflux = (dx1*grads(i-1)+dx2*grads(i))/(dx1+dx2)
       viscflux = 0.5d0*(grads(i-1)+grads(i))
       res(i-1) = res(i-1) - viscflux
       res(i  ) = res(i  ) + viscflux
@@ -51,14 +46,12 @@ c     Finite volume residual
 
       ! right flux of last cell 
 
-      !qleft=qr
-      qleft  = q(nc)+(xv(nc+1)-xc(nc))*grads(nc)
+      qleft=qr
       qright = qr
 
       call RoeFlux(qleft, qright, f)
       res(nc) = res(nc) + f
 
-      !viscflux = grads(nc)
       viscflux =  (qr-q(nc))/(xv(nc+1)-xc(nc))
       res(nc) = res(nc) - viscflux
 
