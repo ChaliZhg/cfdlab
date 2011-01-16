@@ -31,15 +31,15 @@ c     Finite volume residual
         qright =q(i)
 
       if(sndOrder.eq.1) then
-          qleft =qleft +0.5d0*dx(i-1)*grads(i-1)
-          qright=qright-0.5d0*dx(i)*grads(i)
+          qleft =qleft +0.5*dx(i-1)*grads(i-1)
+          qright=qright-0.5*dx(i)*grads(i)
       endif
 
       call RoeFlux(qleft, qright, f)
       res(i-1) = res(i-1) + f
       res(i)   = res(i)   - f
 
-      viscflux = 0.5d0*(grads(i-1)+grads(i))
+      viscflux = 2.0*(q(i) - q(i-1))/(dx(i) + dx(i-1))
       res(i-1) = res(i-1) - viscflux
       res(i  ) = res(i  ) + viscflux
       enddo
@@ -65,12 +65,9 @@ c     Roe flux function
 
       real  :: a
 
-      f = 0.5*(ql*ql*0.5 + qr*qr*0.5)
-
       a = 0.5*abs(ql+qr)
-
+      f = 0.5*(ql*ql*0.5 + qr*qr*0.5)
       f = f - 0.5*a*(qr-ql)
-
 
       return
       end
@@ -86,12 +83,12 @@ c     Roe flux function
       if(limiting.eq.0) then
          minmod=0.5*(sl+sr)
       else 
-         if(sl*sr.le.0.d0 .or. dabs(sl+sr).lt.1.e-12) then
-            minmod=0.d0
+         if(sl*sr.le.0.0 .or. abs(sl+sr).lt.1.e-12) then
+            minmod=0.0
          else 
-            c1 =0.5d0*(sl+sr)
+            c1 =0.50*(sl+sr)
             c2 =2*sl*sr/(sl+sr)
-            if(dabs(c2).ge.dabs(c1)) then
+            if(abs(c2).ge.abs(c1)) then
                minmod=c1
             else
                minmod=c2

@@ -18,8 +18,6 @@ c     residual source term
         s  = u*ux - uxx
 
         res(i)=res(i)-s*dx(i)
-
-
       enddo
 
       return

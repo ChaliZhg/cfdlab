@@ -52,7 +52,7 @@ c     Read primal solution, evaluate residual, save to file
 c     initialize conditions
        
       do i=1,nc
-         q(i) = 0.d0
+         q(i) = 0.0
       enddo
 
       open(10, file='init.dat')
@@ -72,7 +72,7 @@ c     initialize conditions
             res = 0.0
             call residu(nc, q, res, xc, xv, dx)
             call source(nc, q, res, xc, dx, xi_1)
-            residue = 0.d0
+            residue = 0.0
             do i=1,nc
                residue=residue+abs(res(i))
             enddo
