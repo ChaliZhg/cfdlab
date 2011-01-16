@@ -18,20 +18,19 @@
 
       end
 
+c     Least squares gradient
       subroutine calc_grad_lsq(qm,q,qp,xm,x,xp,grads)
       implicit none
       real :: qm,q,qp,xm,x,xp,grads
       real :: w1,w2,epsil,du1,du2,dx1,dx2
-
-      epsil = 1.e-12
 
       du1=q-qm
       du2=qp-q
       dx1=x-xm
       dx2=xp-x
 
-      w1=1.d0
-      w2=1.d0
+      w1=1.0
+      w2=1.0
 
       grads = (w1*dx1*du1+w2*dx2*du2)/(w1*dx1*dx1+w2*dx2*dx2)
 

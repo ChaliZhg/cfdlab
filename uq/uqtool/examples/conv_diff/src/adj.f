@@ -90,7 +90,7 @@ c     initialize conditions
          call residu_bq(nc, q, qb, res, resb, xc, xv, dx)
          alpha=1./float(5-stage)
          resb(1:nc) = resbold(1:nc) - alpha*(dt/dx(1:nc))*qb(1:nc)
-         residue=0.d0
+         residue=0.0
          do i=1,nc
          residue=residue+abs(qb(i))
          enddo
@@ -101,12 +101,12 @@ c        if(mod(iter,5000).eq.0) print*,iter,residue
       print*,iter,residue
 
 
-      q1=0.d0
-      res1=0.d0
-      costb1=0.d0
+      q1=0.0
+      res1=0.0
+      costb1=0.0
       do i=1,nc
-         dSdxi_1=0.d0
-         resb1=1.d0
+         dSdxi_1=0.0
+         resb1=1.0
          CALL SOURCEIS_BA(q1,res1,resb1,xc(i),dx(i),xi_1,dSdxi_1)
          costb1=costb1+dSdxi_1*resb(i)
       enddo
