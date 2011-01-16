@@ -232,7 +232,8 @@ void UQProblem<dim>::compute_moments ()
       {
          moment  += grid.element[j].moment;
          adj_cor += grid.element[j].adj_cor;
-         RE      += grid.element[j].RE;
+         for(unsigned int i=0; i<n_moment; ++i)
+            RE[i] += fabs(grid.element[j].RE[i]);
       }
    
    // Accumulate physical cell error by summing over all
