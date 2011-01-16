@@ -71,7 +71,7 @@ c     initialize conditions
          do stage=1,4
             res = 0.0
             call residu(nc, q, res, xc, xv, dx)
-            call source(nc, q, res, xc, xv, xi_1)
+            call source(nc, q, res, xc, dx, xi_1)
             residue = 0.d0
             do i=1,nc
                residue=residue+abs(res(i))
