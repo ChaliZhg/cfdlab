@@ -127,7 +127,7 @@ void UQProblem<dim>::run_simulations ()
    for(unsigned int i=0; i<sample.size(); ++i)
       if(sample[i].status == NEW)
       {         
-         cout << "Creating new sample " << sample[i].directory << endl;
+         cout << "Running simulation for sample " << sample[i].directory << endl;
          
          // Create directory if it does not exist
          char command[256];
@@ -359,6 +359,10 @@ void UQProblem<dim>::refine_physical (const unsigned int iter)
             grid.element[i].status = NEW;
          }
    }
+   else
+   {
+      cout << "Physical mesh was not adapted\n";
+   }
    
    // Update template dir
    sprintf(template_dir, "%s", new_template_dir);
@@ -369,9 +373,16 @@ void UQProblem<dim>::refine_physical (const unsigned int iter)
 template <int dim>
 void UQProblem<dim>::log_result (ofstream& fj, ofstream& fe)
 {
+   // Count number of active elements
+   unsigned int n_elem_active = 0;
+   for(unsigned int i=0; i<grid.element.size(); ++i)
+      if(grid.element[i].active)
+         ++n_elem_active;
+   
    cout << "No. of stochastic samples  = " << sample.size() << endl;
    cout << "No. of stochastic elements = " << grid.element.size()
         << endl;
+   cout << "No. of active elements     = " << n_elem_active << endl;
    cout << "No. of physical cells      = " << n_cell << endl;  
    
    fj.precision(15);
@@ -380,7 +391,7 @@ void UQProblem<dim>::log_result (ofstream& fj, ofstream& fe)
    fe.precision(15);
    fe.setf (ios::scientific);
    
-   fj << sample.size() << " " << grid.element.size() << " ";
+   fj << sample.size() << " " << n_elem_active << " ";
    fe << sample.size() << " " 
       << 1.0/pow(double(sample.size()), 1.0/dim) << " ";
 
@@ -419,6 +430,7 @@ void UQProblem<dim>::run ()
       {
          flag_elements ();
          refine_grid ();
+         grid.reinit_dof (sample);
          if(error_control == COMBINED)
             refine_physical (iter);
       }
@@ -428,7 +440,6 @@ void UQProblem<dim>::run ()
       log_result (fj, fe);   
       output (iter);
       ++iter;
-
    }
    
    fj.close ();

@@ -39,6 +39,7 @@ Sample<dim>::Sample(const unsigned int n_var,
 }
 
 // Read primal/adjoint solution from file
+// TBD Assuming only one adjoint solution
 template <int dim>
 void Sample<dim>::read ()
 {
@@ -131,6 +132,7 @@ Element<dim>::Element (const unsigned int order,
    dof.resize (n_dof);
    
    // Set directory for element: E000 to E999
+   // Used only if physical grid is refined
    if(counter <= 9)
       sprintf(directory, "E00%d", counter);
    else if(counter <= 99)

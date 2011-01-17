@@ -39,9 +39,11 @@ void Interpolate<1>::execute (const double* x)
    a0 = (x[0] - dof[1]->x[0]) * (x[0] - dof[2]->x[0]);
    a0 = a0 / (dof[0]->x[0] - dof[1]->x[0]);
    a0 = a0 / (dof[0]->x[0] - dof[2]->x[0]);
+   
    a1 = (x[0] - dof[0]->x[0]) * (x[0] - dof[2]->x[0]);
    a1 = a1 / (dof[1]->x[0] - dof[0]->x[0]);
    a1 = a1 / (dof[1]->x[0] - dof[2]->x[0]);
+   
    a2 = (x[0] - dof[0]->x[0]) * (x[0] - dof[1]->x[0]);
    a2 = a2 / (dof[2]->x[0] - dof[0]->x[0]);
    a2 = a2 / (dof[2]->x[0] - dof[1]->x[0]);
