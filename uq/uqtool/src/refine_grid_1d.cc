@@ -56,7 +56,5 @@ void UQProblem<1>::refine_grid ()
 
          grid.element[i].active = false;
          grid.element[i].refine_flag = false;
-      }
-   
-   grid.reinit_dof (sample);
+      }   
 }

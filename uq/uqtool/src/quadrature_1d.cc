@@ -22,24 +22,32 @@ void Quadrature<1>::reinit (const Element<1>& element)
    // Free old memory that may have been allocated
    free_memory ();
    
-   // Quadrature must be exact for polynomials of "degree"
-   degree = 2 * element.order + 1;
-   
+   // Quadrature must be atleast exact for polynomials of
+   // degree = 2 * element.order + 1;
+      
    // Set number of quadrature points
-   if(degree == 3)
+   if(element.order == 1)
    {
+      degree  = 3;
       n_point = 2;
       allocate_memory ();
       q_point[0][0] = -1.0/sqrt(3.0); weight[0] = 1.0;
       q_point[1][0] = +1.0/sqrt(3.0); weight[1] = 1.0;
    }
-   else if(degree == 5)
+   else if(element.order == 2)
    {
-      n_point = 3;
+      degree  = 7;
+      n_point = 4;
       allocate_memory ();
-      q_point[0][0] = -sqrt(15.0)/5.0; weight[0] = 5.0/9.0;
-      q_point[1][0] =  0.0;            weight[1] = 8.0/9.0;
-      q_point[2][0] = +sqrt(15.0)/5.0; weight[2] = 5.0/9.0;
+      double q1 = sqrt((3.0 - 2.0*sqrt(6.0/5.0))/7.0);
+      double q2 = sqrt((3.0 + 2.0*sqrt(6.0/5.0))/7.0);
+      double w1 = (18.0 + sqrt(30.0))/36.0;
+      double w2 = (18.0 - sqrt(30.0))/36.0;
+
+      q_point[0][0] = -q2; weight[0] = w2;
+      q_point[1][0] = -q1; weight[1] = w1;
+      q_point[2][0] = +q1; weight[2] = w1;
+      q_point[3][0] = +q2; weight[3] = w2;
    }
    else 
    {
