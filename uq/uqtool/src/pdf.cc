@@ -26,7 +26,7 @@ double PDFData<dim>::get_pdf (const double* x) const
          // Uniform random variable
          case (int)uniform:
             if(x[i]>=x_min[i] && x[i]<=x_max[i])
-               p = 1.0;
+               p = 1.0/(x_max[i] - x_min[i]);
             else
                p = 0.0;
             break;
