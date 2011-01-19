@@ -22,10 +22,10 @@ J_error = abs(J - Jexact);
 Jc_error= abs(Jc - Jexact);
 
 figure(1)
-plot(Ns,J,'o-',Ns,Jc,'o--','LineWidth',1.5)
+plot(Ns,J,'o-',Ns,Jc,'*--',Ns,ones(size(Ns))*Jexact,'--','LineWidth',1.5)
 xlabel('Number of samples')
 ylabel('Mean functional')
-legend('J','J+CC')
+legend('J','J+CC','Exact')
 
 figure(2)
 loglog(h,J_error,'o--',...
