@@ -3,10 +3,10 @@ c ========== Program to solve u u_x = u_xx + S(x) =================
       implicit none
       include 'param.h'
       real, allocatable :: q(:),xc(:),qexact(:),qold(:),xv(:)
-      real, allocatable :: res(:),dx(:)
+      real, allocatable :: res(:),dx(:),dt(:)
       integer nc
       integer i, niter, iter,stage, mode
-      real :: dt, maxspeed, CFL, factor, xi_1,tol_conv
+      real :: maxspeed, CFL, factor, xi_1,tol_conv
       real :: frac,cost,exactcost,residue,alpha
 
       call read_input(mode, xi_1, CFL, niter,tol_conv)
@@ -18,7 +18,7 @@ c     Set up mesh
       read(10,*) nc
       allocate( q(nc) ,qexact(nc), qold(nc))
       allocate( res(nc))
-      allocate( xv(nc+1),xc(nc),dx(nc))
+      allocate( xv(nc+1),xc(nc),dx(nc),dt(nc))
       do i=1,nc+1
          read(10,*) xv(i)
       enddo
@@ -64,21 +64,17 @@ c     initialize conditions
 
       do iter=1,niter
          qold(1:nc)=q(1:nc)
-          dt=1.e20
           do i=1,nc
-          dt       = min(min(CFL*dx(i)/1.5,CFL*dx(i)*dx(i)),dt)
+            dt(i) = CFL * min(dx(i)/1.5, dx(i)**2)
           enddo
-         do stage=1,4
+         do stage=1,3
             res = 0.0
             call residu(nc, q, res, xc, xv, dx)
             call source(nc, q, res, xc, dx, xi_1)
-            residue = 0.0
+            residue = sum(abs(res))
             do i=1,nc
-               residue=residue+abs(res(i))
-            enddo
-            alpha=1./float(5-stage)
-            do i=1,nc
-            q(i) = qold(i) - alpha*(dt/dx(i))*res(i)
+               q(i) = ark(stage) * qold(i)
+     1              + brk(stage) * (q(i) - (dt(i)/dx(i))*res(i))
             enddo
          enddo
 c        if(mod(iter,1).eq.0) print*,iter,residue
