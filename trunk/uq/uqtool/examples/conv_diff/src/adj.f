@@ -1,13 +1,13 @@
       program main
       implicit none
       include 'param.h'
-      real, allocatable :: q(:),xc(:),xv(:),dx(:)
+      real, allocatable :: q(:),xc(:),xv(:),dx(:),dt(:)
       real, allocatable :: res(:)
       real, allocatable :: qb(:),qb1(:)
       real, allocatable :: resb(:), resbold(:)
       integer nc
       integer i, niter,iter, stage, mode
-      real :: dt, maxspeed, CFL , alpha
+      real :: maxspeed, CFL , alpha
       real :: xi_1, tol_conv
       real :: cost, costb1,costb,residue
       real :: q1,res1,resb1,dSdxi_1
@@ -21,7 +21,7 @@ c     Set up mesh
 
       open(10, file='grid.dat', status='old')
       read(10,*) nc
-      allocate( q(nc),xc(nc),xv(nc+1),dx(nc) )
+      allocate( q(nc),xc(nc),xv(nc+1),dx(nc),dt(nc) )
       allocate( res(nc) )
       allocate( qb(nc) , qb1(nc))
       allocate( resb(nc), resbold(nc) )
@@ -77,23 +77,19 @@ c     initialize conditions
       enddo
       close(10)
 
-          dt=1.e20
-          do i=1,nc
-          dt       = min(min(CFL*dx(i)/1.5,CFL*dx(i)*dx(i)),dt)
-          enddo
+      do i=1,nc
+          dt(i) = CFL * min(dx(i)/1.5, dx(i)**2)
+      enddo
 
 
       do iter=1,niter
          resbold(1:nc)=resb(1:nc)
-         do stage=1,4
-         qb(1:nc)=qb1(1:nc)
-         call residu_bq(nc, q, qb, res, resb, xc, xv, dx)
-         alpha=1./float(5-stage)
-         resb(1:nc) = resbold(1:nc) - alpha*(dt/dx(1:nc))*qb(1:nc)
-         residue=0.0
-         do i=1,nc
-         residue=residue+abs(qb(i))
-         enddo
+         do stage=1,3
+            qb(1:nc)=qb1(1:nc)
+            call residu_bq(nc, q, qb, res, resb, xc, xv, dx)
+            resb(1:nc) = ark(stage) * resbold(1:nc) 
+     1           + brk(stage) * (resb(1:nc) - (dt/dx(1:nc))*qb(1:nc))
+            residue = sum(abs(qb))
          enddo
 c        if(mod(iter,5000).eq.0) print*,iter,residue
          if(abs(residue)<tol_conv) exit
