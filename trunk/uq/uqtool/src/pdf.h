@@ -13,7 +13,7 @@
 #include <vector>
 #include <string>
 
-enum PDFType { uniform, normal };
+enum PDFType { uniform, normal, lognormal };
 
 template <int dim>
 class PDFData
@@ -25,6 +25,7 @@ class PDFData
       double x_max[dim];
       PDFType type[dim];
       double  mean[dim];
+      double  variance[dim];
    
       double get_pdf (const double* x) const;
 };
