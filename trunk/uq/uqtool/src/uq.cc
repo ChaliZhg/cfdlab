@@ -67,7 +67,14 @@ void UQProblem<dim>::read_options ()
       if(input=="uniform") 
          pdf_data.type[i] = uniform;
       else if(input=="normal")  
+      {
          pdf_data.type[i] = normal;
+         // Mean value is at center of given range
+         pdf_data.mean[i] = 0.5 * (pdf_data.x_min[i] + pdf_data.x_max[i]); 
+         fi >> input >> pdf_data.variance[i];
+         assert (input == "variance");
+         assert (pdf_data.variance[i] > 0.0);
+      }
       else
       {
          cout << "Unknown PDF : " << input << endl;
