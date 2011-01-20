@@ -9,6 +9,7 @@
 
 #include <iostream>
 #include <cstdlib>
+#include <cmath>
 #include "pdf.h"
 
 using namespace std;
@@ -31,6 +32,12 @@ double PDFData<dim>::get_pdf (const double* x) const
                p = 0.0;
             break;
             
+         // Normal/gaussian random variable
+         case (int)normal:
+            p = exp(-0.5 * (x[i] - mean[i]) * (x[i] - mean[i]) / variance[i]);
+            p = p / sqrt(2.0 * M_PI * variance[i]);
+            break;
+
          default:
             cout << "Unknown PDF !!!" << endl;
             abort ();
