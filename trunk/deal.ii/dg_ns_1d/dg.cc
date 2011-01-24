@@ -193,7 +193,7 @@ void NSProblem<dim>::assemble_rhs ()
     QGauss<dim>  quadrature_formula(2);
 
     FEValues<dim> fe_values (fe, quadrature_formula,
-                             update_values   |
+                             update_values   | update_gradients |
                              update_quadrature_points | 
                              update_JxW_values);
 
@@ -288,6 +288,7 @@ void NSProblem<dim>::update ()
    density  += rhs_density;
    momentum += rhs_momentum;
    energy   += rhs_energy;
+
 }
 
 // Save solution to file
@@ -318,11 +319,12 @@ void NSProblem<dim>::run ()
     initialize ();
 
     unsigned int iter = 0;
-    while (iter < 20)
+    while (iter < 1)
     {
       assemble_rhs ();
       update ();
       ++iter;
+      std::cout << "Iter = " << iter << endl;
     }
     output_results ();
 }
