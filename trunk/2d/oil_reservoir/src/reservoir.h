@@ -17,6 +17,7 @@ class ReservoirProblem
 
    private:
       unsigned int max_iter;
+      unsigned int save_freq;
       unsigned int nrk;
       unsigned int order;
       double  ark[3], brk[3];

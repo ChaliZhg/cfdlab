@@ -11,6 +11,8 @@
 
 using namespace std;
 
+// Minmod limiter
+// minmod ( 2(u0-ul), (ur-ul)/2, 2(ur-u0) )
 double minmod (const double ul, const double u0, const double ur)
 {
    double result;
@@ -61,9 +63,9 @@ vector<double> ReservoirProblem::reconstruct1
 {
    vector<double> state(3);
 
-   state[0] = saturation (il,jl);
+   state[0] = saturation    (il, jl);
    state[1] = concentration (il, jl); 
-   state[2] = permeability (il, jl); 
+   state[2] = permeability  (il, jl); 
 
    return state;
 }
@@ -147,7 +149,7 @@ double ReservoirProblem::darcy_velocity
    double velocity = - m_perm * dpdn;
 
    // Add gravity effect
-   if(g > 0.0)
+   if(fabs(g) > 0.0)
    {
       double theta_left  = (m_water_left * density_water + 
                             m_oil_left   * density_oil) * gravity * perm_left;
@@ -207,7 +209,7 @@ vector<double> num_flux
 
    vector<double> flux(2);
 
-   if(g > 0.0)
+   if(fabs(g) > 0.0) // Gravity is present
    {
       double perm_left = state_left[2];
       double s_min_left = argmin_flux(c_left, perm_left, velocity);
@@ -239,7 +241,7 @@ vector<double> num_flux
       else
          flux[1] = c_right * flux[0];
    }
-   else
+   else // Gravity is not present
    {
       double m_water_left = mobility_water (s_left, c_left);
       double m_oil_left   = mobility_oil (s_left, c_left);
@@ -270,13 +272,31 @@ void ReservoirProblem::read_input ()
    cout << "Reading input from file data.in ..." << endl;
 
    ifstream inp;
+   string input;
    inp.open ("data.in");
 
-   inp >> order;      assert(order == 1 || order == 2);
-   inp >> max_iter;   assert(max_iter > 0);
-   inp >> cfl;        assert(cfl > 0.0 && cfl <= 1.0);
-   inp >> cinlet;     assert(cinlet >= 0.0);
-   inp >> gravity;    assert(gravity >= 0.0);
+   inp >> input >> order;      
+   assert(input == "order");
+   assert(order == 1 || order == 2);
+
+   inp >> input >> max_iter;   
+   assert(input == "max_iter");
+   assert(max_iter > 0);
+
+   inp >> input >> save_freq;   
+   assert(input == "save_freq");
+   assert(save_freq > 0);
+
+   inp >> input >> cfl;        
+   assert(input == "cfl");
+   assert(cfl > 0.0 && cfl <= 1.0);
+
+   inp >> input >> cinlet;     
+   assert(input == "cinlet");
+   assert(cinlet >= 0.0);
+
+   inp >> input >> gravity;
+   assert(input == "gravity");
 
    inp >> grid.nx >> grid.ny;
    inp >> grid.n_boundary;
@@ -305,6 +325,7 @@ void ReservoirProblem::read_input ()
 
    cout << "Scheme order           = " << order << endl;
    cout << "Max no. of time steps  = " << max_iter << endl;
+   cout << "Solution save freq.    = " << save_freq << endl;
    cout << "CFL number             = " << cfl << endl;
    cout << "Inlet polymer concentr = " << cinlet << endl;
    cout << "Gravity                = " << gravity << endl;
@@ -414,7 +435,7 @@ void ReservoirProblem::initialize ()
    else
       nrk = 3;
    ark[0] = 0.0; ark[1] = 3.0/4.0; ark[2] = 1.0/3.0;
-   for (unsigned int i=0; i<3; ++i) brk[i] = 1.0 - ark[i];
+   for (unsigned int i=0; i<nrk; ++i) brk[i] = 1.0 - ark[i];
 }
 
 // residual for saturation/concentration equation
@@ -669,6 +690,7 @@ void ReservoirProblem::solve ()
       pressure_problem.run (saturation, concentration, 
                             permeability, pressure);
 
+      // Runge-Kutta stages
       for (unsigned int irk=0; irk<nrk; ++irk)
       {
          // compute residual
@@ -695,7 +717,7 @@ void ReservoirProblem::solve ()
       ++iter;
 
       // save solution to file
-      if (iter % 25 == 0)
+      if (iter % save_freq == 0 || iter == max_iter)
          output (iter);
 
       cout << "Time= " << time << " iter= " << iter << endl;
