@@ -321,26 +321,31 @@ void LaxFlux (Vector<double>& left_state,
               Vector<double>& right_state,
               Vector<double>& flux)
 {
-   Vector<double> left_flux(3);
-   Vector<double> right_flux(3);
-   
+   // Left state 
    double left_velocity = left_state(1) / left_state(0);
    double left_pressure = (gas_gamma-1.0) * (left_state(2) - 0.5 * left_state(1) * left_velocity );
    double left_sonic    = sqrt( gas_gamma * left_pressure / left_state(0) );
    double left_eig = fabs(left_velocity) + left_sonic;
+
+   // Left flux
+   Vector<double> left_flux(3);
    left_flux(0) = left_state(1);
    left_flux(1) = left_pressure + left_state(1) * left_velocity;
    left_flux(2) = (left_state(2) + left_pressure) * left_velocity;
 
+   // Right state
    double right_velocity = right_state(1) / right_state(0);
    double right_pressure = (gas_gamma-1.0) * (right_state(2) - 0.5 * right_state(1) * right_velocity );
    double right_sonic    = sqrt( gas_gamma * right_pressure / right_state(0) );
    double right_eig = fabs(right_velocity) + right_sonic;
+
+   // Right flux
+   Vector<double> right_flux(3);
    right_flux(0) = right_state(1);
    right_flux(1) = right_pressure + right_state(1) * right_velocity;
    right_flux(2) = (right_state(2) + right_pressure) * right_velocity;
    
-   
+   // Maximum local wave speed at face
    double lambda = std::max ( left_eig, right_eig );
    
    for(unsigned int i=0; i<3; ++i)
@@ -473,7 +478,7 @@ void NSProblem<dim>::assemble_rhs ()
             }
         }
 
-        // Compute flux at cell boundaries TBD
+        // Add flux at cell boundaries
         for (unsigned int i=0; i<dofs_per_cell; ++i)
         {
            // Left face flux
@@ -539,10 +544,22 @@ void NSProblem<dim>::update (const unsigned int rk_stage)
 template <int dim>
 void NSProblem<dim>::output_results () const
 {
+    Vector<double> velocity(dof_handler.n_dofs());
+    Vector<double> pressure(dof_handler.n_dofs());
+
+    // Compute velocity and pressure
+    for(unsigned int i=0; i<dof_handler.n_dofs(); ++i)
+    {
+       velocity(i) = momentum(i) / density(i);
+       pressure(i) = (gas_gamma-1.0) * (energy(i) - 0.5 * momentum(i) * velocity(i));
+    }
+
     DataOut<dim> data_out;
 
     data_out.attach_dof_handler (dof_handler);
     data_out.add_data_vector (density, "density");
+    data_out.add_data_vector (velocity, "velocity");
+    data_out.add_data_vector (pressure, "pressure");
 
     data_out.build_patches ();
 
