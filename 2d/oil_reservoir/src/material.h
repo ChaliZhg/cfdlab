@@ -5,9 +5,9 @@
 
 #define harmonic_average(a,b)   (2.0*(a)*(b)/((a)+(b)))
 
-const double viscosity_oil = 10.0;
-const double density_water = 1.0;
-const double density_oil   = 0.9;
+extern double viscosity_oil;
+extern double density_water;
+extern double density_oil;
 extern double gravity;
 
 // viscosity of water
@@ -59,8 +59,8 @@ double mobility_total (const double& saturation, const double& concentration)
 inline
 double rock_permeability (const double& x, const double& y)
 {
-   //return 1.0;
-   return 1.0 + 0.5 * cos(6.0*M_PI*(x+0.2)) * cos(6.0*M_PI*y);
+   return 1.0;
+   //return 1.0 + 0.5 * cos(6.0*M_PI*(x+0.2)) * cos(6.0*M_PI*y);
 }
 
 #endif
