@@ -3,6 +3,11 @@ max_iter  2200
 save_freq 25
 cfl       0.5
 cinlet    0.0
+pinlet    1.0
+poutlet   0.0
+mu_oil    10.0
+d_water   1.0
+d_oil     0.9
 gravity   0.0
 101  101
 4

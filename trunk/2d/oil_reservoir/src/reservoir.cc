@@ -295,6 +295,24 @@ void ReservoirProblem::read_input ()
    assert(input == "cinlet");
    assert(cinlet >= 0.0);
 
+   inp >> input >> pinlet;     
+   assert(input == "pinlet");
+
+   inp >> input >> poutlet;     
+   assert(input == "poutlet");
+
+   inp >> input >> viscosity_oil;     
+   assert(input == "mu_oil");
+   assert(viscosity_oil > 0.0);
+
+   inp >> input >> density_water;     
+   assert(input == "d_water");
+   assert(density_water > 0.0);
+
+   inp >> input >> density_oil;     
+   assert(input == "d_oil");
+   assert(density_oil > 0.0);
+
    inp >> input >> gravity;
    assert(input == "gravity");
    assert(gravity >= 0.0);
@@ -329,6 +347,11 @@ void ReservoirProblem::read_input ()
    cout << "Solution save freq.    = " << save_freq << endl;
    cout << "CFL number             = " << cfl << endl;
    cout << "Inlet polymer concentr = " << cinlet << endl;
+   cout << "Inlet pressure         = " << pinlet << endl;
+   cout << "Outlet pressure        = " << poutlet << endl;
+   cout << "Viscosity oil          = " << viscosity_oil << endl;
+   cout << "Density water          = " << density_water << endl;
+   cout << "Density oil            = " << density_oil << endl;
    cout << "Gravity                = " << gravity << endl;
    cout << "nx x ny                = " << grid.nx << " x " << grid.ny << endl;
    cout << "Number of boundaries   = " << grid.n_boundary << endl;

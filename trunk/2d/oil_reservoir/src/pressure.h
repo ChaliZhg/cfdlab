@@ -6,8 +6,8 @@
 #include "matrix.h"
 #include "grid.h"
 
-const double pinlet  = 1.0;
-const double poutlet = 0.0;
+extern double pinlet;
+extern double poutlet;
 
 class PressureProblem
 {

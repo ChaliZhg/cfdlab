@@ -1,7 +1,13 @@
 #include <iostream>
 #include "reservoir.h"
 
+// Global variables
 double gravity;
+double pinlet;
+double poutlet;
+double viscosity_oil;
+double density_water;
+double density_oil;
 
 using namespace std;
 
