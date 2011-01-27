@@ -40,38 +40,38 @@ class ReservoirProblem
 
       std::vector<double> reconstruct
        (
-       const unsigned int ill,
-       const unsigned int jll,
-       const unsigned int il,
-       const unsigned int jl,
-       const unsigned int ir,
-       const unsigned int jr
+       const unsigned int& ill,
+       const unsigned int& jll,
+       const unsigned int& il,
+       const unsigned int& jl,
+       const unsigned int& ir,
+       const unsigned int& jr
        ) const;
 
       std::vector<double> reconstruct1
        (
-       const unsigned int ill,
-       const unsigned int jll,
-       const unsigned int il,
-       const unsigned int jl,
-       const unsigned int ir,
-       const unsigned int jr
+       const unsigned int& ill,
+       const unsigned int& jll,
+       const unsigned int& il,
+       const unsigned int& jl,
+       const unsigned int& ir,
+       const unsigned int& jr
        ) const;
 
       std::vector<double> reconstruct2
        (
-       const unsigned int ill,
-       const unsigned int jll,
-       const unsigned int il,
-       const unsigned int jl,
-       const unsigned int ir,
-       const unsigned int jr
+       const unsigned int& ill,
+       const unsigned int& jll,
+       const unsigned int& il,
+       const unsigned int& jl,
+       const unsigned int& ir,
+       const unsigned int& jr
        ) const;
 
       double darcy_velocity
-         (const unsigned int, const unsigned int,
-          const unsigned int, const unsigned int,
-          const double);
+         (const unsigned int&, const unsigned int&,
+          const unsigned int&, const unsigned int&,
+          const double&);
 
       void updateConcentration (Matrix&);
       void updateGhostCells ();
@@ -79,14 +79,17 @@ class ReservoirProblem
 
 };
 
-double minmod (const double ul, const double u0, const double ur);
+double minmod (const double& ul, const double& u0, const double& ur);
 
 std::vector<double> num_flux
        (
-       const double velocity,
-       const std::vector<double> state_left,
-       const std::vector<double> state_right,
-       const double g
+       const double& velocity,
+       const std::vector<double>& state_left,
+       const std::vector<double>& state_right,
+       const double& g
        );
-
+       
+double argmin_flux(const double& concentration,
+                   const double& permeability,
+                   const double& velocity);
 #endif

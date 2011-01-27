@@ -13,7 +13,7 @@ using namespace std;
 
 // Minmod limiter
 // minmod ( 2(u0-ul), (ur-ul)/2, 2(ur-u0) )
-double minmod (const double ul, const double u0, const double ur)
+double minmod (const double& ul, const double& u0, const double& ur)
 {
    double result;
 
@@ -36,12 +36,12 @@ double minmod (const double ul, const double u0, const double ur)
 // (ill,jll) is to the left of (il,jl)
 vector<double> ReservoirProblem::reconstruct
        (
-       const unsigned int ill,
-       const unsigned int jll,
-       const unsigned int il,
-       const unsigned int jl,
-       const unsigned int ir,
-       const unsigned int jr
+       const unsigned int& ill,
+       const unsigned int& jll,
+       const unsigned int& il,
+       const unsigned int& jl,
+       const unsigned int& ir,
+       const unsigned int& jr
        ) const
 {
    if (order==1)
@@ -53,12 +53,12 @@ vector<double> ReservoirProblem::reconstruct
 // First order reconstruction
 vector<double> ReservoirProblem::reconstruct1
        (
-       const unsigned int ill,
-       const unsigned int jll,
-       const unsigned int il,
-       const unsigned int jl,
-       const unsigned int ir,
-       const unsigned int jr
+       const unsigned int& ill,
+       const unsigned int& jll,
+       const unsigned int& il,
+       const unsigned int& jl,
+       const unsigned int& ir,
+       const unsigned int& jr
        ) const
 {
    vector<double> state(3);
@@ -73,12 +73,12 @@ vector<double> ReservoirProblem::reconstruct1
 // Second order reconstruction
 vector<double> ReservoirProblem::reconstruct2
        (
-       const unsigned int ill,
-       const unsigned int jll,
-       const unsigned int il,
-       const unsigned int jl,
-       const unsigned int ir,
-       const unsigned int jr
+       const unsigned int& ill,
+       const unsigned int& jll,
+       const unsigned int& il,
+       const unsigned int& jl,
+       const unsigned int& ir,
+       const unsigned int& jr
        ) const
 {
    vector<double> state(3);
@@ -115,11 +115,11 @@ vector<double> ReservoirProblem::reconstruct2
 // (ileft,jleft) and (iright,jright)
 double ReservoirProblem::darcy_velocity
        (
-       const unsigned int ileft,
-       const unsigned int jleft,
-       const unsigned int iright,
-       const unsigned int jright,
-       const double g
+       const unsigned int& ileft,
+       const unsigned int& jleft,
+       const unsigned int& iright,
+       const unsigned int& jright,
+       const double& g
        )
 {
    double s_left  = saturation    (ileft,  jleft);
@@ -149,7 +149,7 @@ double ReservoirProblem::darcy_velocity
    double velocity = - m_perm * dpdn;
 
    // Add gravity effect
-   if(fabs(g) > 0.0)
+   if(g > 0.0)
    {
       double theta_left  = (m_water_left * density_water + 
                             m_oil_left   * density_oil) * gravity * perm_left;
@@ -168,9 +168,9 @@ double ReservoirProblem::darcy_velocity
 
 // Find location of minimum for the flux
 // This should be called only with g > 0
-double argmin_flux(const double concentration,
-                   const double permeability,
-                   const double velocity)
+double argmin_flux(const double& concentration,
+                   const double& permeability,
+                   const double& velocity)
 {
    double r = viscosity_oil / viscosity_water (concentration);
    double z = velocity * viscosity_oil / 
@@ -179,7 +179,7 @@ double argmin_flux(const double concentration,
    double beta  = 2916.0 * r * r * r + alpha * alpha;
 
    double gamma = pow( alpha + sqrt(beta), 1.0/3.0);
-   double fact  = pow( 32.0, 1.0/3.0);
+   double fact  = 3.0 * pow(2.0, 1.0/3.0);
 
    double sstar = (1.0 - fact * r / gamma + gamma / fact) / (1.0 + r);
 
@@ -196,10 +196,10 @@ double argmin_flux(const double concentration,
 // numerical flux function for saturation
 vector<double> num_flux
        (
-       const double velocity,
-       const vector<double> state_left,
-       const vector<double> state_right,
-       const double g
+       const double& velocity,
+       const vector<double>& state_left,
+       const vector<double>& state_right,
+       const double& g
        )
 {
    double s_left  = state_left[0];
@@ -209,7 +209,7 @@ vector<double> num_flux
 
    vector<double> flux(2);
 
-   if(fabs(g) > 0.0) // Gravity is present
+   if(g > 0.0) // Gravity is present
    {
       double perm_left = state_left[2];
       double s_min_left = argmin_flux(c_left, perm_left, velocity);
@@ -297,6 +297,7 @@ void ReservoirProblem::read_input ()
 
    inp >> input >> gravity;
    assert(input == "gravity");
+   assert(gravity >= 0.0);
 
    inp >> grid.nx >> grid.ny;
    inp >> grid.n_boundary;
