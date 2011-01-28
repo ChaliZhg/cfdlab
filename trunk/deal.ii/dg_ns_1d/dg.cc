@@ -161,10 +161,11 @@ void NSProblem<dim>::make_grid_and_dofs ()
     rhs_energy.reinit (dof_handler.n_dofs());   
    
     // Array to store flux across cell faces
-    face_flux.resize(triangulation.n_active_cells()+1, Vector<double>(3));
+    face_flux.resize(triangulation.n_active_cells()+1, Vector<double>(n_var));
 }
 
 // Set initial conditions
+// L2 projection of initial condition onto dofs
 template <int dim>
 void NSProblem<dim>::initialize ()
 {
@@ -188,7 +189,7 @@ void NSProblem<dim>::initialize ()
    std::vector<unsigned int> local_dof_indices (dofs_per_cell);
    
    InitialCondition<dim> initial_condition;
-   Vector<double> initial_value(3);
+   Vector<double> initial_value(n_var);
    double initial_density;
    double initial_momentum;
    double initial_energy;
@@ -325,10 +326,10 @@ void LaxFlux (Vector<double>& left_state,
    double left_velocity = left_state(1) / left_state(0);
    double left_pressure = (gas_gamma-1.0) * (left_state(2) - 0.5 * left_state(1) * left_velocity );
    double left_sonic    = sqrt( gas_gamma * left_pressure / left_state(0) );
-   double left_eig = fabs(left_velocity) + left_sonic;
+   double left_eig      = fabs(left_velocity) + left_sonic;
 
    // Left flux
-   Vector<double> left_flux(3);
+   Vector<double> left_flux(n_var);
    left_flux(0) = left_state(1);
    left_flux(1) = left_pressure + left_state(1) * left_velocity;
    left_flux(2) = (left_state(2) + left_pressure) * left_velocity;
@@ -337,10 +338,10 @@ void LaxFlux (Vector<double>& left_state,
    double right_velocity = right_state(1) / right_state(0);
    double right_pressure = (gas_gamma-1.0) * (right_state(2) - 0.5 * right_state(1) * right_velocity );
    double right_sonic    = sqrt( gas_gamma * right_pressure / right_state(0) );
-   double right_eig = fabs(right_velocity) + right_sonic;
+   double right_eig      = fabs(right_velocity) + right_sonic;
 
    // Right flux
-   Vector<double> right_flux(3);
+   Vector<double> right_flux(n_var);
    right_flux(0) = right_state(1);
    right_flux(1) = right_pressure + right_state(1) * right_velocity;
    right_flux(2) = (right_state(2) + right_pressure) * right_velocity;
@@ -348,12 +349,9 @@ void LaxFlux (Vector<double>& left_state,
    // Maximum local wave speed at face
    double lambda = std::max ( left_eig, right_eig );
    
-   for(unsigned int i=0; i<3; ++i)
-   {
+   for(unsigned int i=0; i<n_var; ++i)
       flux(i) = 0.5 * ( left_flux(i) + right_flux(i) ) -
                 0.5 * lambda * ( right_state(i) - left_state(i) );
-   }
-   
 }
 
 // Compute flux across cell faces
@@ -368,7 +366,7 @@ void NSProblem<dim>::compute_face_flux ()
                                                   l_cell, r_cell;
    
    unsigned int l_dof, r_dof;
-   Vector<double> left_state(3), right_state(3);
+   Vector<double> left_state(n_var), right_state(n_var);
    
    // Loop over faces
    unsigned int n_faces = triangulation.n_active_cells() + 1;
@@ -440,7 +438,7 @@ void NSProblem<dim>::assemble_rhs ()
     Vector<double>       cell_rhs_momentum (dofs_per_cell);
     Vector<double>       cell_rhs_energy   (dofs_per_cell);
    
-    Vector<double>       flux(3);
+    Vector<double>       flux(n_var);
 
     std::vector<unsigned int> local_dof_indices (dofs_per_cell);
 
@@ -522,8 +520,7 @@ void NSProblem<dim>::assemble_rhs ()
 
 }
 
-// Update solution by one time step
-// Forward Euler; TBD implement 3-stage RK
+// Update solution by one stage of RK
 template <int dim>
 void NSProblem<dim>::update (const unsigned int rk_stage)
 {
