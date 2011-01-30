@@ -10,12 +10,16 @@
 /*    to the file deal.II/doc/license.html for the  text  and     */
 /*    further information on this license.                        */
 
+// Modifications by Praveen. C, http://math.tifrbng.res.in/~praveen
+// Explicit time-stepping Runge-Kutta DG method
+// Mass matrix on each cell is computed, inverted and the inverse 
+// is stored. Then in each time iteration, we need to compute right
+// hand side and multipy by inverse mass mass matrix. After that
+// solution is advanced to new time level by an RK scheme.
 
 #include <base/quadrature_lib.h>
 #include <base/function.h>
 #include <lac/vector.h>
-#include <lac/compressed_sparsity_pattern.h>
-#include <lac/sparse_matrix.h>
 #include <grid/tria.h>
 #include <grid/grid_generator.h>
 #include <grid/grid_out.h>
@@ -30,9 +34,6 @@
 #include <fe/mapping_q1.h>
 		
 #include <fe/fe_dgq.h>
-				
-#include <lac/solver_richardson.h>
-#include <lac/precondition_block.h>
 				 
 #include <numerics/derivative_approximation.h>
 
@@ -46,7 +47,9 @@
 
 using namespace dealii;
 
+//------------------------------------------------------------------------------
 // Boundary condition function class
+//------------------------------------------------------------------------------
 template <int dim>
 class BoundaryValues: public Function<dim>
 {
@@ -75,19 +78,25 @@ void BoundaryValues<dim>::value_list(const std::vector<Point<dim> > &points,
    }
 }
 
+//------------------------------------------------------------------------------
+// Class for integrating rhs using MeshWorker
+//------------------------------------------------------------------------------
 template <int dim>
 class RHSIntegrator
 {
    public:
       RHSIntegrator (const DoFHandler<dim>& dof_handler)
          : dof_info (dof_handler) {};
+
       MeshWorker::IntegrationInfoBox<dim> info_box;
       MeshWorker::DoFInfo<dim> dof_info;
       MeshWorker::Assembler::ResidualSimple< Vector<double> >
          assembler;
 };
 
+//------------------------------------------------------------------------------
 // Main class of the problem
+//------------------------------------------------------------------------------
 template <int dim>
 class Step12
 {
@@ -100,7 +109,7 @@ class Step12
       void assemble_mass_matrix ();
       void setup_mesh_worker (RHSIntegrator<dim>&);
       void assemble_rhs (RHSIntegrator<dim>&);
-      void solve (Vector<double> &solution);
+      void solve ();
       void refine_grid ();
       void output_results (const unsigned int cycle) const;
       
@@ -125,8 +134,9 @@ class Step12
                                        CellInfo& info1, CellInfo& info2);
 };
 
-
+//------------------------------------------------------------------------------
 // Constructor
+//------------------------------------------------------------------------------
 template <int dim>
 Step12<dim>::Step12 ()
       :
@@ -135,7 +145,9 @@ Step12<dim>::Step12 ()
       dof_handler (triangulation)
 {}
 
+//------------------------------------------------------------------------------
 // Make dofs and allocate memory
+//------------------------------------------------------------------------------
 template <int dim>
 void Step12<dim>::setup_system ()
 {
@@ -151,13 +163,14 @@ void Step12<dim>::setup_system ()
    right_hand_side.reinit (dof_handler.n_dofs());
 }
 
+//------------------------------------------------------------------------------
 // Assemble mass matrix for each cell
 // Invert it and store
+//------------------------------------------------------------------------------
 template <int dim>
 void Step12<dim>::assemble_mass_matrix ()
 {
    std::cout << "Constructing mass matrix ...\n";
-   std::cout << "  Quadrature using " << fe.degree+1 << " points\n";
    
    QGauss<dim>  quadrature_formula(fe.degree+1);
    
@@ -191,7 +204,9 @@ void Step12<dim>::assemble_mass_matrix ()
    
 }
 
-// Assemble rhs of the problem
+//------------------------------------------------------------------------------
+// Create mesh worker for integration
+//------------------------------------------------------------------------------
 template <int dim>
 void Step12<dim>::setup_mesh_worker (RHSIntegrator<dim>& rhs_integrator)
 {   
@@ -223,12 +238,14 @@ void Step12<dim>::setup_mesh_worker (RHSIntegrator<dim>& rhs_integrator)
    info_box.initialize (fe, mapping, solution_data);
    
    // Attach rhs vector to assembler
-   NamedData<Vector<double>* > rhs;
+   NamedData< Vector<double>* > rhs;
    rhs.add (&right_hand_side, "RHS");
    assembler.initialize (rhs);
 }
-   
+
+//------------------------------------------------------------------------------
 // Assemble rhs of the problem
+//------------------------------------------------------------------------------
 template <int dim>
 void Step12<dim>::assemble_rhs (RHSIntegrator<dim>& rhs_integrator)
 {
@@ -258,27 +275,29 @@ void Step12<dim>::assemble_rhs (RHSIntegrator<dim>& rhs_integrator)
       for (unsigned int i=0; i<dofs_per_cell; ++i)
          for (unsigned int j=0; j<dofs_per_cell; ++j)
             rhs(i) += inv_mass_matrix[c](i,j) * 
-                      right_hand_side(local_dof_indices[i]);
+                      right_hand_side(local_dof_indices[j]);
 
       for (unsigned int i=0; i<dofs_per_cell; ++i)
          right_hand_side(local_dof_indices[i]) = rhs(i);
    }
 }
 
+//------------------------------------------------------------------------------
 // Compute cell integral
+//------------------------------------------------------------------------------
 template <int dim>
 void Step12<dim>::integrate_cell_term (DoFInfo& dinfo, CellInfo& info)
 {
    const FEValuesBase<dim>& fe_v  = info.fe_values();
    const std::vector<double>& sol = info.values[0][0];
    Vector<double>& local_vector   = dinfo.vector(0).block(0);
-   const std::vector<double> &JxW = fe_v.get_JxW_values ();
+   const std::vector<double>& JxW = fe_v.get_JxW_values ();
    
    for (unsigned int point=0; point<fe_v.n_quadrature_points; ++point)
    {
       Point<dim> beta;
       beta(0) = -fe_v.quadrature_point(point)(1);
-      beta(1) = fe_v.quadrature_point(point)(0);
+      beta(1) =  fe_v.quadrature_point(point)(0);
       beta /= beta.norm();
       
       for (unsigned int i=0; i<fe_v.dofs_per_cell; ++i)
@@ -287,7 +306,9 @@ void Step12<dim>::integrate_cell_term (DoFInfo& dinfo, CellInfo& info)
    }
 }
 
+//------------------------------------------------------------------------------
 // Compute boundary integral
+//------------------------------------------------------------------------------
 template <int dim>
 void Step12<dim>::integrate_boundary_term (DoFInfo& dinfo, CellInfo& info)
 {
@@ -296,8 +317,8 @@ void Step12<dim>::integrate_boundary_term (DoFInfo& dinfo, CellInfo& info)
 
    Vector<double>& local_vector = dinfo.vector(0).block(0);
    
-   const std::vector<double> &JxW = fe_v.get_JxW_values ();
-   const std::vector<Point<dim> > &normals = fe_v.get_normal_vectors ();
+   const std::vector<double>& JxW = fe_v.get_JxW_values ();
+   const std::vector<Point<dim> >& normals = fe_v.get_normal_vectors ();
    
    std::vector<double> g(fe_v.n_quadrature_points);
    
@@ -327,7 +348,9 @@ void Step12<dim>::integrate_boundary_term (DoFInfo& dinfo, CellInfo& info)
    }
 }
 
+//------------------------------------------------------------------------------
 // Compute integral over internal faces
+//------------------------------------------------------------------------------
 template <int dim>
 void Step12<dim>::integrate_face_term (DoFInfo& dinfo1, DoFInfo& dinfo2,
 				                           CellInfo& info1, CellInfo& info2)
@@ -341,15 +364,15 @@ void Step12<dim>::integrate_face_term (DoFInfo& dinfo1, DoFInfo& dinfo2,
    Vector<double>& local_vector1 = dinfo1.vector(0).block(0);
    Vector<double>& local_vector2 = dinfo2.vector(0).block(0);
    
-   const std::vector<double> &JxW = fe_v.get_JxW_values ();
-   const std::vector<Point<dim> > &normals = fe_v.get_normal_vectors ();
+   const std::vector<double>& JxW = fe_v.get_JxW_values ();
+   const std::vector<Point<dim> >& normals = fe_v.get_normal_vectors ();
    
    for (unsigned int point=0; point<fe_v.n_quadrature_points; ++point)
    {
       Point<dim> beta;
       beta(0) = -fe_v.quadrature_point(point)(1);
-      beta(1) = fe_v.quadrature_point(point)(0);
-      beta /= beta.norm();
+      beta(1) =  fe_v.quadrature_point(point)(0);
+      beta   /= beta.norm();
       
       const double beta_n=beta * normals[point];
       if (beta_n>0)
@@ -383,29 +406,42 @@ void Step12<dim>::integrate_face_term (DoFInfo& dinfo1, DoFInfo& dinfo2,
    }
 }
 
+//------------------------------------------------------------------------------
 // Solve the problem to convergence by RK time integration
+//------------------------------------------------------------------------------
 template <int dim>
-void Step12<dim>::solve (Vector<double>& solution)
+void Step12<dim>::solve ()
 {
-   std::cout << "Solving by RK ...\n";
-
    RHSIntegrator<dim> rhs_integrator (dof_handler);
    setup_mesh_worker (rhs_integrator);
+   
+   std::cout << "Solving by RK ...\n";
 
    double dt = 0.01;
+   double residue0;
    double residue = 1.0e20;
    unsigned int iter = 0;
    while (iter < 1000 && residue > 1.0e-8)
    {
       assemble_rhs (rhs_integrator);
-      residue = right_hand_side.l2_norm ();
+
       for(unsigned int i=0; i<dof_handler.n_dofs(); ++i)
          solution(i) += dt * right_hand_side(i);
+
+      residue = right_hand_side.l2_norm ();
+      if(iter==0) residue0 = residue;
+      residue /= residue0;
+      
+      ++iter;
    }
+   
+   std::cout << "Iterations=" << iter << ", Residue=" << residue << endl;
 
 }
 
+//------------------------------------------------------------------------------
 // Refine grid
+//------------------------------------------------------------------------------
 template <int dim>
 void Step12<dim>::refine_grid ()
 {
@@ -429,7 +465,9 @@ void Step12<dim>::refine_grid ()
    triangulation.execute_coarsening_and_refinement ();
 }
 
+//------------------------------------------------------------------------------
 // Save results to file
+//------------------------------------------------------------------------------
 template <int dim>
 void Step12<dim>::output_results (const unsigned int cycle) const
 {
@@ -439,7 +477,7 @@ void Step12<dim>::output_results (const unsigned int cycle) const
    Assert (cycle < 10, ExcInternalError());
    
    filename += ".eps";
-   deallog << "Writing grid to <" << filename << ">" << std::endl;
+   std::cout << "Writing grid to <" << filename << ">" << std::endl;
    std::ofstream eps_output (filename.c_str());
    
    GridOut grid_out;
@@ -452,7 +490,7 @@ void Step12<dim>::output_results (const unsigned int cycle) const
    Assert (cycle < 10, ExcInternalError());
    
    filename += ".gnuplot";
-   deallog << "Writing solution to <" << filename << ">" << std::endl;
+   std::cout << "Writing solution to <" << filename << ">" << std::endl;
    std::ofstream gnuplot_output (filename.c_str());
    
    DataOut<dim> data_out;
@@ -464,13 +502,15 @@ void Step12<dim>::output_results (const unsigned int cycle) const
    data_out.write_gnuplot(gnuplot_output);
 }
 
+//------------------------------------------------------------------------------
 // Actual computation starts from here
+//------------------------------------------------------------------------------
 template <int dim>
 void Step12<dim>::run ()
 {
    for (unsigned int cycle=0; cycle<1; ++cycle)
    {
-      deallog << "Cycle " << cycle << std::endl;
+      std::cout << "Cycle " << cycle << std::endl;
       
       if (cycle == 0)
       {
@@ -481,23 +521,25 @@ void Step12<dim>::run ()
          refine_grid ();
       
       
-      deallog << "Number of active cells:       "
+      std::cout << "Number of active cells:       "
               << triangulation.n_active_cells()
               << std::endl;
       
       setup_system ();
       
-      deallog << "Number of degrees of freedom: "
+      std::cout << "Number of degrees of freedom: "
               << dof_handler.n_dofs()
               << std::endl;
       
       assemble_mass_matrix ();
-      solve (solution);
+      solve ();
       output_results (cycle);
    }
 }
 
-
+//------------------------------------------------------------------------------
+// Main function
+//------------------------------------------------------------------------------
 int main ()
 {
    try
