@@ -75,6 +75,15 @@ void BoundaryValues<dim>::value_list(const std::vector<Point<dim> > &points,
    }
 }
 
+class RHSIntegrator
+{
+   public:
+      MeshWorker::IntegrationInfoBox<dim> info_box;
+      MeshWorker::DoFInfo<dim> dof_info;
+      MeshWorker::Assembler::ResidualSimple< Vector<double> >
+         assembler;
+};
+
 // Main class of the problem
 template <int dim>
 class Step12
@@ -124,10 +133,10 @@ class Step12
 // Constructor
 template <int dim>
 Step12<dim>::Step12 ()
-		:
+      :
       mapping (),
       fe (1),
-		dof_handler (triangulation), 
+      dof_handler (triangulation),
       dof_info (dof_handler)
 {}
 
@@ -135,13 +144,9 @@ Step12<dim>::Step12 ()
 template <int dim>
 void Step12<dim>::setup_system ()
 {
+   std::cout << "Allocating memory ...\n";
+
    dof_handler.distribute_dofs (fe);
-   
-   CompressedSparsityPattern c_sparsity(dof_handler.n_dofs());
-   DoFTools::make_flux_sparsity_pattern (dof_handler, c_sparsity);
-   sparsity_pattern.copy_from(c_sparsity);
-   
-   system_matrix.reinit (sparsity_pattern);
    
    inv_mass_matrix.resize (triangulation.n_cells(), 
                            FullMatrix<double>(fe.dofs_per_cell,
@@ -173,8 +178,7 @@ void Step12<dim>::assemble_mass_matrix ()
    typename DoFHandler<dim>::active_cell_iterator 
       cell = dof_handler.begin_active(),
       endc = dof_handler.end();
-   unsigned int c = 0;
-   for (; cell!=endc; ++cell, ++c)
+   for (unsigned int c = 0; cell!=endc; ++cell, ++c)
    {
       fe_values.reinit (cell);
       cell_matrix = 0.0;
@@ -204,21 +208,21 @@ void Step12<dim>::setup_mesh_worker ()
    
    // Add solution vector to info_box
    NamedData< Vector<double>* > solution_data;
-   solution_data.add(&solution, "solution");
+   solution_data.add (&solution, "solution");
    info_box.cell_selector.add     ("solution", true, false, false);
    info_box.boundary_selector.add ("solution", true, false, false);
    info_box.face_selector.add     ("solution", true, false, false);
    
-   info_box.initialize_update_flags();
+   info_box.initialize_update_flags ();
    info_box.add_update_flags_cell     (update_gradients);
    info_box.add_update_flags_boundary (update_values);
    info_box.add_update_flags_face     (update_values);
 
-   info_box.initialize(fe, mapping, solution_data);
+   info_box.initialize (fe, mapping, solution_data);
    
    // Attach rhs vector to assembler
    NamedData<Vector<double>* > rhs;
-   rhs.add(&right_hand_side, "RHS");
+   rhs.add (&right_hand_side, "RHS");
    assembler.initialize (rhs);
 }
    
@@ -226,6 +230,8 @@ void Step12<dim>::setup_mesh_worker ()
 template <int dim>
 void Step12<dim>::assemble_rhs ()
 {
+   right_hand_side = 0.0;
+
    MeshWorker::integration_loop<dim, dim>
       (dof_handler.begin_active(), dof_handler.end(),
        dof_info, info_box,
@@ -233,6 +239,27 @@ void Step12<dim>::assemble_rhs ()
        &Step12<dim>::integrate_boundary_term,
        &Step12<dim>::integrate_face_term,
        assembler, true);
+
+   // Multiply by inverse mass matrix
+   const unsigned int   dofs_per_cell = fe.dofs_per_cell;
+   std::vector<unsigned int> local_dof_indices (dofs_per_cell);
+   Vector<double> rhs (dofs_per_cell);
+   typename DoFHandler<dim>::active_cell_iterator 
+      cell = dof_handler.begin_active(),
+      endc = dof_handler.end();
+   for (unsigned int c = 0; cell!=endc; ++cell, ++c)
+   {
+      cell->get_dof_indices (local_dof_indices);
+
+      rhs = 0.0;
+      for (unsigned int i=0; i<dofs_per_cell; ++i)
+         for (unsigned int j=0; j<dofs_per_cell; ++j)
+            rhs(i) += inv_mass_matrix[c](i,j) * 
+                      right_hand_side(local_dof_indices[i]);
+
+      for (unsigned int i=0; i<dofs_per_cell; ++i)
+         right_hand_side(local_dof_indices[i]) = rhs(i);
+   }
 }
 
 // Compute cell integral
@@ -243,7 +270,6 @@ void Step12<dim>::integrate_cell_term (DoFInfo& dinfo, CellInfo& info)
    const std::vector<double>& sol = info.values[0][0];
    Vector<double>& local_vector   = dinfo.vector(0).block(0);
    const std::vector<double> &JxW = fe_v.get_JxW_values ();
-   std::vector<unsigned int>& local_dof_indices = dinfo.indices;
    
    for (unsigned int point=0; point<fe_v.n_quadrature_points; ++point)
    {
@@ -285,7 +311,7 @@ void Step12<dim>::integrate_boundary_term (DoFInfo& dinfo, CellInfo& info)
       const double beta_n=beta * normals[point];
       if (beta_n>0)
          for (unsigned int i=0; i<fe_v.dofs_per_cell; ++i)
-            local_vector(i) += beta_n * 
+            local_vector(i) -= beta_n * 
                                sol[point] *
                                fe_v.shape_value(i,point) *
                                JxW[point];
@@ -326,13 +352,13 @@ void Step12<dim>::integrate_face_term (DoFInfo& dinfo1, DoFInfo& dinfo2,
       if (beta_n>0)
       {
          for (unsigned int i=0; i<fe_v.dofs_per_cell; ++i)
-            local_vector1(i) += beta_n *
+            local_vector1(i) -= beta_n *
                                 sol1[point] *
                                 fe_v.shape_value(i,point) *
                                 JxW[point];
          
          for (unsigned int k=0; k<fe_v_neighbor.dofs_per_cell; ++k)
-            local_vector2(k) -= beta_n *
+            local_vector2(k) += beta_n *
                                 sol1[point] *
                                 fe_v_neighbor.shape_value(k,point) *
                                 JxW[point];
@@ -340,13 +366,13 @@ void Step12<dim>::integrate_face_term (DoFInfo& dinfo1, DoFInfo& dinfo2,
       else
       {
          for (unsigned int i=0; i<fe_v.dofs_per_cell; ++i)
-            local_vector1(i) += beta_n *
+            local_vector1(i) -= beta_n *
                                 sol2[point] *
                                 fe_v.shape_value(i,point) *
                                 JxW[point];
          
          for (unsigned int k=0; k<fe_v_neighbor.dofs_per_cell; ++k)
-            local_vector2(k) -= beta_n *
+            local_vector2(k) += beta_n *
                                 sol2[point] *
                                 fe_v_neighbor.shape_value(k,point) *
                                 JxW[point];
@@ -354,10 +380,20 @@ void Step12<dim>::integrate_face_term (DoFInfo& dinfo1, DoFInfo& dinfo2,
    }
 }
 
-// Solve the problem to convergence
+// Solve the problem to convergence by RK time integration
 template <int dim>
 void Step12<dim>::solve (Vector<double>& solution)
 {
+   double dt = 0.01;
+   double residue = 1.0e20;
+   unsigned int iter = 0;
+   while (iter < 1000 && residue > 1.0e-8)
+   {
+      assemble_rhs ();
+      residue = right_hand_side.l2_norm ();
+      for(unsigned int i=0; i<dof_handler.n_dofs(); ++i)
+         solution(i) += dt * right_hand_side(i);
+   }
 
 }
 
@@ -373,8 +409,8 @@ void Step12<dim>::refine_grid ()
                                                   gradient_indicator);
    
    typename DoFHandler<dim>::active_cell_iterator
-   cell = dof_handler.begin_active(),
-   endc = dof_handler.end();
+      cell = dof_handler.begin_active(),
+      endc = dof_handler.end();
    for (unsigned int cell_no=0; cell!=endc; ++cell, ++cell_no)
       gradient_indicator(cell_no)*=std::pow(cell->diameter(), 1+1.0*dim/2);
    
@@ -424,15 +460,14 @@ void Step12<dim>::output_results (const unsigned int cycle) const
 template <int dim>
 void Step12<dim>::run ()
 {
-   for (unsigned int cycle=0; cycle<6; ++cycle)
+   for (unsigned int cycle=0; cycle<1; ++cycle)
    {
       deallog << "Cycle " << cycle << std::endl;
       
       if (cycle == 0)
       {
          GridGenerator::hyper_cube (triangulation);
-         
-         triangulation.refine_global (3);
+         triangulation.refine_global (5);
       }
       else
          refine_grid ();
@@ -451,7 +486,6 @@ void Step12<dim>::run ()
       assemble_mass_matrix ();
       setup_mesh_worker ();
       solve (solution);
-      
       output_results (cycle);
    }
 }
