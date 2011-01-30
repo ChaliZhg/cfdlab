@@ -75,9 +75,12 @@ void BoundaryValues<dim>::value_list(const std::vector<Point<dim> > &points,
    }
 }
 
+template <int dim>
 class RHSIntegrator
 {
    public:
+      RHSIntegrator (const DoFHandler<dim>& dof_handler)
+         : dof_info (dof_handler) {};
       MeshWorker::IntegrationInfoBox<dim> info_box;
       MeshWorker::DoFInfo<dim> dof_info;
       MeshWorker::Assembler::ResidualSimple< Vector<double> >
@@ -95,8 +98,8 @@ class Step12
    private:
       void setup_system ();
       void assemble_mass_matrix ();
-      void setup_mesh_worker ();
-      void assemble_rhs ();
+      void setup_mesh_worker (RHSIntegrator<dim>&);
+      void assemble_rhs (RHSIntegrator<dim>&);
       void solve (Vector<double> &solution);
       void refine_grid ();
       void output_results (const unsigned int cycle) const;
@@ -107,19 +110,12 @@ class Step12
       FE_DGQ<dim>          fe;
       DoFHandler<dim>      dof_handler;
       
-      SparsityPattern      sparsity_pattern;
-      SparseMatrix<double> system_matrix;
       std::vector< FullMatrix<double> > inv_mass_matrix;
       
       Vector<double>       solution;
       Vector<double>       solution_old;
       Vector<double>       right_hand_side;
    
-      MeshWorker::IntegrationInfoBox<dim> info_box;
-      MeshWorker::DoFInfo<dim> dof_info;
-      MeshWorker::Assembler::ResidualSimple< Vector<double> >
-         assembler;
-      
       typedef MeshWorker::DoFInfo<dim> DoFInfo;
       typedef MeshWorker::IntegrationInfo<dim> CellInfo;
       
@@ -136,8 +132,7 @@ Step12<dim>::Step12 ()
       :
       mapping (),
       fe (1),
-      dof_handler (triangulation),
-      dof_info (dof_handler)
+      dof_handler (triangulation)
 {}
 
 // Make dofs and allocate memory
@@ -198,14 +193,20 @@ void Step12<dim>::assemble_mass_matrix ()
 
 // Assemble rhs of the problem
 template <int dim>
-void Step12<dim>::setup_mesh_worker ()
+void Step12<dim>::setup_mesh_worker (RHSIntegrator<dim>& rhs_integrator)
 {   
+   std::cout << "Setting up mesh worker ...\n";
+
+   MeshWorker::IntegrationInfoBox<dim>& info_box = rhs_integrator.info_box;
+   MeshWorker::DoFInfo<dim>& dof_info = rhs_integrator.dof_info;
+   MeshWorker::Assembler::ResidualSimple< Vector<double> >&
+      assembler = rhs_integrator.assembler;
+
    const unsigned int n_gauss_points = dof_handler.get_fe().degree+1;
    info_box.initialize_gauss_quadrature(n_gauss_points,
                                         n_gauss_points,
                                         n_gauss_points);
 
-   
    // Add solution vector to info_box
    NamedData< Vector<double>* > solution_data;
    solution_data.add (&solution, "solution");
@@ -214,6 +215,7 @@ void Step12<dim>::setup_mesh_worker ()
    info_box.face_selector.add     ("solution", true, false, false);
    
    info_box.initialize_update_flags ();
+   info_box.add_update_flags_all      (update_quadrature_points);
    info_box.add_update_flags_cell     (update_gradients);
    info_box.add_update_flags_boundary (update_values);
    info_box.add_update_flags_face     (update_values);
@@ -228,17 +230,18 @@ void Step12<dim>::setup_mesh_worker ()
    
 // Assemble rhs of the problem
 template <int dim>
-void Step12<dim>::assemble_rhs ()
+void Step12<dim>::assemble_rhs (RHSIntegrator<dim>& rhs_integrator)
 {
    right_hand_side = 0.0;
 
    MeshWorker::integration_loop<dim, dim>
       (dof_handler.begin_active(), dof_handler.end(),
-       dof_info, info_box,
+       rhs_integrator.dof_info, 
+       rhs_integrator.info_box,
        &Step12<dim>::integrate_cell_term,
        &Step12<dim>::integrate_boundary_term,
        &Step12<dim>::integrate_face_term,
-       assembler, true);
+       rhs_integrator.assembler, true);
 
    // Multiply by inverse mass matrix
    const unsigned int   dofs_per_cell = fe.dofs_per_cell;
@@ -384,12 +387,17 @@ void Step12<dim>::integrate_face_term (DoFInfo& dinfo1, DoFInfo& dinfo2,
 template <int dim>
 void Step12<dim>::solve (Vector<double>& solution)
 {
+   std::cout << "Solving by RK ...\n";
+
+   RHSIntegrator<dim> rhs_integrator (dof_handler);
+   setup_mesh_worker (rhs_integrator);
+
    double dt = 0.01;
    double residue = 1.0e20;
    unsigned int iter = 0;
    while (iter < 1000 && residue > 1.0e-8)
    {
-      assemble_rhs ();
+      assemble_rhs (rhs_integrator);
       residue = right_hand_side.l2_norm ();
       for(unsigned int i=0; i<dof_handler.n_dofs(); ++i)
          solution(i) += dt * right_hand_side(i);
@@ -484,7 +492,6 @@ void Step12<dim>::run ()
               << std::endl;
       
       assemble_mass_matrix ();
-      setup_mesh_worker ();
       solve (solution);
       output_results (cycle);
    }
