@@ -239,7 +239,8 @@ void Step12<dim>::setup_mesh_worker (RHSIntegrator<dim>& rhs_integrator)
    
    // Attach rhs vector to assembler
    NamedData< Vector<double>* > rhs;
-   rhs.add (&right_hand_side, "RHS");
+   Vector<double>* data = &right_hand_side;
+   rhs.add (data, "RHS");
    assembler.initialize (rhs);
 }
 
@@ -417,7 +418,7 @@ void Step12<dim>::solve ()
    
    std::cout << "Solving by RK ...\n";
 
-   double dt = 0.01;
+   double dt = 0.001;
    double residue0;
    double residue = 1.0e20;
    unsigned int iter = 0;
@@ -433,6 +434,7 @@ void Step12<dim>::solve ()
       residue /= residue0;
       
       ++iter;
+      std::cout << "Iterations=" << iter << ", Residue=" << residue << endl;
    }
    
    std::cout << "Iterations=" << iter << ", Residue=" << residue << endl;
@@ -489,9 +491,9 @@ void Step12<dim>::output_results (const unsigned int cycle) const
    filename += ('0' + cycle);
    Assert (cycle < 10, ExcInternalError());
    
-   filename += ".gnuplot";
+   filename += ".plt";
    std::cout << "Writing solution to <" << filename << ">" << std::endl;
-   std::ofstream gnuplot_output (filename.c_str());
+   std::ofstream tecplot_output (filename.c_str());
    
    DataOut<dim> data_out;
    data_out.attach_dof_handler (dof_handler);
@@ -499,7 +501,7 @@ void Step12<dim>::output_results (const unsigned int cycle) const
    
    data_out.build_patches ();
    
-   data_out.write_gnuplot(gnuplot_output);
+   data_out.write_tecplot (tecplot_output);
 }
 
 //------------------------------------------------------------------------------
