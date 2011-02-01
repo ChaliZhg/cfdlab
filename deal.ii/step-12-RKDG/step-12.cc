@@ -47,6 +47,9 @@
 
 using namespace dealii;
 
+const double a_rk[] = {0.0, 3.0/4.0, 1.0/3.0};
+const double b_rk[] = {1.0, 1.0/4.0, 2.0/3.0};
+
 //------------------------------------------------------------------------------
 // Boundary condition function class
 //------------------------------------------------------------------------------
@@ -109,6 +112,7 @@ class Step12
       void assemble_mass_matrix ();
       void setup_mesh_worker (RHSIntegrator<dim>&);
       void assemble_rhs (RHSIntegrator<dim>&);
+      void compute_dt ();
       void solve ();
       void refine_grid ();
       void output_results (const unsigned int cycle) const;
@@ -124,6 +128,8 @@ class Step12
       Vector<double>       solution;
       Vector<double>       solution_old;
       Vector<double>       right_hand_side;
+      double               dt;
+      double               cfl;
    
       typedef MeshWorker::DoFInfo<dim> DoFInfo;
       typedef MeshWorker::IntegrationInfo<dim> CellInfo;
@@ -143,7 +149,9 @@ Step12<dim>::Step12 ()
       mapping (),
       fe (1),
       dof_handler (triangulation)
-{}
+{
+   cfl = 0.1;
+}
 
 //------------------------------------------------------------------------------
 // Make dofs and allocate memory
@@ -242,6 +250,35 @@ void Step12<dim>::setup_mesh_worker (RHSIntegrator<dim>& rhs_integrator)
    Vector<double>* data = &right_hand_side;
    rhs.add (data, "RHS");
    assembler.initialize (rhs);
+}
+
+//------------------------------------------------------------------------------
+// Compute time-step
+//------------------------------------------------------------------------------
+template <int dim>
+void Step12<dim>::compute_dt ()
+{
+   std::cout << "Computing local time-step ...\n";
+      
+   dt = 1.0e20;
+   
+   // Cell iterator
+   typename DoFHandler<dim>::active_cell_iterator 
+      cell = dof_handler.begin_active(),
+      endc = dof_handler.end();
+   for (unsigned int c = 0; cell!=endc; ++cell, ++c)
+   {
+      double h = cell->diameter ();
+      const Point<dim> cell_center = cell->center();
+      Point<dim> beta;
+      beta(0) = -cell_center(1);
+      beta(1) =  cell_center(0);
+      
+      dt = std::min ( dt, h / beta.norm ());
+   }
+   
+   dt *= cfl;
+   
 }
 
 //------------------------------------------------------------------------------
@@ -415,26 +452,35 @@ void Step12<dim>::solve ()
 {
    RHSIntegrator<dim> rhs_integrator (dof_handler);
    setup_mesh_worker (rhs_integrator);
+   compute_dt ();
    
    std::cout << "Solving by RK ...\n";
 
-   double dt = 0.001;
    double residue0;
    double residue = 1.0e20;
    unsigned int iter = 0;
    while (iter < 1000 && residue > 1.0e-8)
    {
-      assemble_rhs (rhs_integrator);
+      solution_old = solution;
 
-      for(unsigned int i=0; i<dof_handler.n_dofs(); ++i)
-         solution(i) += dt * right_hand_side(i);
+      // 3-stage RK scheme
+      for(unsigned int r=0; r<3; ++r)
+      {
+         assemble_rhs (rhs_integrator);
+         
+         for(unsigned int i=0; i<dof_handler.n_dofs(); ++i)
+            solution(i) = a_rk[r] * solution_old(i) +
+               b_rk[r] * (solution(i) + dt * right_hand_side(i));
+      }
 
       residue = right_hand_side.l2_norm ();
       if(iter==0) residue0 = residue;
       residue /= residue0;
       
       ++iter;
-      std::cout << "Iterations=" << iter << ", Residue=" << residue << endl;
+      std::cout << "Iterations=" << iter 
+                << ", dt = " << dt 
+                << ", Residue=" << residue << endl;
    }
    
    std::cout << "Iterations=" << iter << ", Residue=" << residue << endl;
@@ -510,14 +556,14 @@ void Step12<dim>::output_results (const unsigned int cycle) const
 template <int dim>
 void Step12<dim>::run ()
 {
-   for (unsigned int cycle=0; cycle<1; ++cycle)
+   for (unsigned int cycle=0; cycle<6; ++cycle)
    {
       std::cout << "Cycle " << cycle << std::endl;
       
       if (cycle == 0)
       {
          GridGenerator::hyper_cube (triangulation);
-         triangulation.refine_global (5);
+         triangulation.refine_global (3);
       }
       else
          refine_grid ();
