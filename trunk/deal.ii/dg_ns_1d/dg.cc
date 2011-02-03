@@ -32,6 +32,22 @@ const double gas_gamma = 1.4;
 const double a_rk[3] = {0.0, 3.0/4.0, 1.0/3.0};
 const double b_rk[3] = {1.0, 1.0/4.0, 2.0/3.0};
 
+// minmod of three numbers
+double minmod (const double& a, const double& b, const double& c)
+{
+   double result;
+   if( a*b > 0.0 && b*c > 0.0)
+   {
+      result  = std::min( std::fabs(a), std::min(std::fabs(b), std::fabs(c)));
+      result *= ((a>0.0) ? 1.0 : -1.0);
+   }
+   else {
+      result = 0.0;
+   }
+   
+   return result;
+}
+
 // Initial condition
 template <int dim>
 class InitialCondition : public Function<dim>
@@ -77,6 +93,8 @@ private:
     void assemble_mass_matrix ();
     void compute_face_flux ();
     void assemble_rhs ();
+    void compute_averages ();
+    void apply_limiter ();
     void update (const unsigned int rk_stage);
     void output_results () const;
    
@@ -104,6 +122,11 @@ private:
     Vector<double>       rhs_energy;
    
     std::vector< Vector<double> > face_flux;
+   
+    std::vector< Vector<double> > density_average;
+    std::vector< Vector<double> > momentum_average;
+    std::vector< Vector<double> > energy_average;
+
 };
 
 // Constructor
@@ -116,7 +139,7 @@ NSProblem<dim>::NSProblem (unsigned int degree) :
    
    xmin    = 0.0;
    xmax    = 1.0;
-   n_cells = 500;
+   n_cells = 100;
 
    dx      = (xmax - xmin) / n_cells;
    n_rk_stages = 3;
@@ -162,6 +185,10 @@ void NSProblem<dim>::make_grid_and_dofs ()
    
     // Array to store flux across cell faces
     face_flux.resize(triangulation.n_active_cells()+1, Vector<double>(n_var));
+   
+    density_average.resize (triangulation.n_cells(), Vector<double>(fe.degree+1));
+    momentum_average.resize (triangulation.n_cells(), Vector<double>(fe.degree+1));
+    energy_average.resize (triangulation.n_cells(), Vector<double>(fe.degree+1));
 }
 
 // Set initial conditions
@@ -318,13 +345,14 @@ void ns_flux (const double& density,
 }
 
 // Lax-Friedrichs flux
-void LaxFlux (Vector<double>& left_state,
-              Vector<double>& right_state,
+void LaxFlux (const Vector<double>& left_state,
+              const Vector<double>& right_state,
               Vector<double>& flux)
 {
    // Left state 
    double left_velocity = left_state(1) / left_state(0);
-   double left_pressure = (gas_gamma-1.0) * (left_state(2) - 0.5 * left_state(1) * left_velocity );
+   double left_pressure = (gas_gamma-1.0) * (left_state(2) - 
+                              0.5 * left_state(1) * left_velocity );
    double left_sonic    = sqrt( gas_gamma * left_pressure / left_state(0) );
    double left_eig      = fabs(left_velocity) + left_sonic;
 
@@ -336,7 +364,8 @@ void LaxFlux (Vector<double>& left_state,
 
    // Right state
    double right_velocity = right_state(1) / right_state(0);
-   double right_pressure = (gas_gamma-1.0) * (right_state(2) - 0.5 * right_state(1) * right_velocity );
+   double right_pressure = (gas_gamma-1.0) * (right_state(2) - 
+                              0.5 * right_state(1) * right_velocity );
    double right_sonic    = sqrt( gas_gamma * right_pressure / right_state(0) );
    double right_eig      = fabs(right_velocity) + right_sonic;
 
@@ -361,9 +390,11 @@ void NSProblem<dim>::compute_face_flux ()
    const unsigned int dofs_per_cell = fe.dofs_per_cell;
    std::vector<unsigned int> dofs(dofs_per_cell);
    
-   typename DoFHandler<dim>::active_cell_iterator cell = dof_handler.begin_active(),
-                                                  endc = dof_handler.end(),
-                                                  l_cell, r_cell;
+   typename DoFHandler<dim>::active_cell_iterator 
+      cell = dof_handler.begin_active(),
+      endc = dof_handler.end(),
+      l_cell, 
+      r_cell;
    
    unsigned int l_dof, r_dof;
    Vector<double> left_state(n_var), right_state(n_var);
@@ -442,8 +473,10 @@ void NSProblem<dim>::assemble_rhs ()
 
     std::vector<unsigned int> local_dof_indices (dofs_per_cell);
 
-    typename DoFHandler<dim>::active_cell_iterator cell = dof_handler.begin_active(),
-                                                   endc = dof_handler.end();
+    typename DoFHandler<dim>::active_cell_iterator 
+      cell = dof_handler.begin_active(),
+      endc = dof_handler.end();
+   
     for (; cell!=endc; ++cell)
     {
         fe_values.reinit (cell);
@@ -520,6 +553,119 @@ void NSProblem<dim>::assemble_rhs ()
 
 }
 
+// Compute cell average values
+template <int dim>
+void NSProblem<dim>::compute_averages ()
+{
+   QGauss<dim>  quadrature_formula(fe.degree+1);
+      
+   FEValues<dim> fe_values (fe, quadrature_formula,
+                            update_values   | update_gradients |
+                            update_quadrature_points | 
+                            update_JxW_values);
+   
+   const unsigned int   dofs_per_cell = fe.dofs_per_cell;
+   const unsigned int   n_q_points    = quadrature_formula.size();
+      
+   std::vector<unsigned int> local_dof_indices (dofs_per_cell);
+   
+   typename DoFHandler<dim>::active_cell_iterator 
+      cell = dof_handler.begin_active(),
+      endc = dof_handler.end();
+   
+   for (unsigned int c=0; cell!=endc; ++c, ++cell)
+   {
+      fe_values.reinit (cell);
+      cell->get_dof_indices (local_dof_indices);
+      
+      density_average[c] = 0.0;
+      momentum_average[c] = 0.0;
+      energy_average[c] = 0.0;
+      for(unsigned int point=0; point<n_q_points; ++point)
+         for(unsigned int i=0; i<dofs_per_cell; ++i)
+         {
+            density_average[c](0) += density(local_dof_indices[i]) * 
+                                     fe_values.shape_value (i, point) *
+                                     fe_values.JxW (point);
+            momentum_average[c](0) += momentum(local_dof_indices[i]) * 
+                                      fe_values.shape_value (i, point) *
+                                      fe_values.JxW (point);
+            energy_average[c](0) += energy(local_dof_indices[i]) * 
+                                    fe_values.shape_value (i, point) *
+                                    fe_values.JxW (point);
+            
+            if(fe.degree >= 1) // compute average gradient
+            {
+               density_average[c](1) += density(local_dof_indices[i]) * 
+                                        fe_values.shape_grad (i, point)[0] *
+                                        fe_values.JxW (point);
+               momentum_average[c](1) += momentum(local_dof_indices[i]) * 
+                                         fe_values.shape_grad (i, point)[0] *
+                                         fe_values.JxW (point);
+               energy_average[c](1) += energy(local_dof_indices[i]) * 
+                                       fe_values.shape_grad (i, point)[0] *
+                                       fe_values.JxW (point);
+            }
+         }
+      
+      density_average[c]  /= dx;
+      momentum_average[c] /= dx;
+      energy_average[c]   /= dx;
+   }
+}
+
+// Compute cell average values
+template <int dim>
+void NSProblem<dim>::apply_limiter ()
+{
+   const double beta = 1.5;
+   
+   const unsigned int   dofs_per_cell = fe.dofs_per_cell;   
+   std::vector<unsigned int> local_dof_indices (dofs_per_cell);
+   
+   typename DoFHandler<dim>::active_cell_iterator 
+      cell = dof_handler.begin_active(),
+      endc = dof_handler.end();
+   
+   ++cell;
+   
+   double db, df, dl;
+   for (unsigned int c=1; c<n_cells-1; ++c, ++cell)
+   {
+      cell->get_dof_indices (local_dof_indices);
+      
+      // density
+      db = (density_average[c](0) - density_average[c-1](0)) / dx;
+      df = (density_average[c+1](0) - density_average[c](0)) / dx;
+      dl = minmod ( density_average[c](1), beta * db, beta * df);
+      
+      density(local_dof_indices[0]) = density_average[c](0) - 
+         0.5 * dx * dl;
+      density(local_dof_indices[1]) = density_average[c](0) + 
+         0.5 * dx * dl;
+      
+      // momentum
+      db = (momentum_average[c](0) - momentum_average[c-1](0)) / dx;
+      df = (momentum_average[c+1](0) - momentum_average[c](0)) / dx;
+      dl = minmod ( momentum_average[c](1), beta * db, beta * df);
+      
+      momentum(local_dof_indices[0]) = momentum_average[c](0) - 
+         0.5 * dx * dl;
+      momentum(local_dof_indices[1]) = momentum_average[c](0) + 
+         0.5 * dx * dl;
+      
+      // energy
+      db = (energy_average[c](0) - energy_average[c-1](0)) / dx;
+      df = (energy_average[c+1](0) - energy_average[c](0)) / dx;
+      dl = minmod ( energy_average[c](1), beta * db, beta * df);
+      
+      energy(local_dof_indices[0]) = energy_average[c](0) - 
+         0.5 * dx * dl;
+      energy(local_dof_indices[1]) = energy_average[c](0) + 
+         0.5 * dx * dl;
+   }
+}
+
 // Update solution by one stage of RK
 template <int dim>
 void NSProblem<dim>::update (const unsigned int rk_stage)
@@ -548,7 +694,8 @@ void NSProblem<dim>::output_results () const
     for(unsigned int i=0; i<dof_handler.n_dofs(); ++i)
     {
        velocity(i) = momentum(i) / density(i);
-       pressure(i) = (gas_gamma-1.0) * (energy(i) - 0.5 * momentum(i) * velocity(i));
+       pressure(i) = (gas_gamma-1.0) * (energy(i) - 
+                        0.5 * momentum(i) * velocity(i));
     }
 
     DataOut<dim> data_out;
@@ -590,6 +737,8 @@ void NSProblem<dim>::run ()
          compute_face_flux ();
          assemble_rhs ();
          update (rk);
+         compute_averages ();
+         apply_limiter ();
        }
       time += dt;
       ++iter;
@@ -603,7 +752,7 @@ int main ()
 {
     deallog.depth_console (0);
     {
-        NSProblem<1> ns_problem(0);
+        NSProblem<1> ns_problem(1);
         ns_problem.run ();
     }
 
