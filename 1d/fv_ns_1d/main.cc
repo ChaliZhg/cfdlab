@@ -5,13 +5,23 @@
 
 #define SIGN(a) (((a)<0) ? -1:1)
 
-const double GAMMA = 1.4;
+const double Pr    = 2.0/3.0;
 const double arks[] = {0.0, 3.0/4.0, 1.0/3.0};
 const double brks[] = {1.0, 1.0/4.0, 2.0/3.0};
 
-enum Model {euler, ns};
+// These values are set below based on test case type
+double GAMMA;
+double gas_const;
+double mu_ref, T_ref;
 
 using namespace std;
+
+// viscosity coefficient as functon of temperature
+double viscosity (const double T)
+{
+   double mu = mu_ref * pow( T / T_ref, 0.8);
+   return mu;
+}
 
 //------------------------------------------------------------------------------
 // Minmod of three numbers
@@ -44,13 +54,14 @@ vector<double> muscl (const vector<double>& ul,
    unsigned int n = ul.size();
    vector<double> result (n);
    double dul, duc, dur;
+   const double beta = 1.5;
    
    for(unsigned int i=0; i<n; ++i)
    {
       dul = uc[i] - ul[i];
       dur = ur[i] - uc[i];
       duc = (ur[i] - ul[i])/2.0;
-      result[i] = uc[i] + 0.5 * minmod (1.5*dul, duc, 1.5*dur);
+      result[i] = uc[i] + 0.5 * minmod (beta*dul, duc, beta*dur);
    }
    
    return result;
@@ -75,10 +86,16 @@ class FVProblem
                         vector<double>& left,
                         vector<double>& right) const;
       void kfvs_split_flux (const vector<double>& prim,
+                            const double& tau,
+                            const double& q,
                             const int sign,
                             vector<double>& flux) const;
       void num_flux (const vector<double>&,
                      const vector<double>&,
+                     const double&         tau_left,
+                     const double&         tau_right,
+                     const double&         q_left,
+                     const double&         q_right,
                      vector<double>&) const;
       void compute_residual ();
       void update_solution (const unsigned int rk);
@@ -86,16 +103,18 @@ class FVProblem
       
       double d_left, u_left, p_left;
       double d_right, u_right, p_right;
+      vector<double> prim_left;
+      vector<double> prim_right;
       unsigned int n_var;
       unsigned int n_cell;
       unsigned int n_face;
       double xmin;
       double xmax;
+      double xmid;
       double dx;
       double dt;
       double cfl;
       double final_time;
-      Model  model;
       vector<double> xc;
       vector<double> xf;
    
@@ -103,7 +122,7 @@ class FVProblem
       vector< vector<double> > residual;
       vector< vector<double> > conserved;
       vector< vector<double> > conserved_old;
-      vector<double> ux_f, Tx_f;
+      vector<double> tau_f, q_f;
 
 };
 
@@ -112,22 +131,70 @@ class FVProblem
 //------------------------------------------------------------------------------
 FVProblem::FVProblem ()
 {   
-   model  = euler;
    n_var  = 3;
    n_cell = 100;
-   xmin   = 0.0;
-   xmax   = 1.0;
-   cfl    = 0.8;
-   final_time = 0.2;
+   cfl    = 0.1;
+   final_time = 2.0;
+
+   int test_case = 1;
+
+   if(test_case == 1)
+   {
+      // Sod shock tube case
+      GAMMA = 1.4;
+      gas_const = 1.0;
+
+      xmin    = 0.0;
+      xmax    = 1.0;
+      xmid   = 0.5 * (xmin + xmax);
+
+      d_left  = 1.0;
+      d_right = 0.125;
    
-   d_left  = 1.0;
-   d_right = 0.125;
+      u_left  = 0.0;
+      u_right = 0.0;
    
-   u_left  = 0.0;
-   u_right = 0.0;
+      p_left  = 1.0;
+      p_right = 0.1;
+
+      mu_ref= 0.0;
+      T_ref = p_left / d_left / gas_const;
+   }
+   else if(test_case == 2)
+   {
+      // shock structure case
+      GAMMA = 5.0/3.0;
+      gas_const = 0.5;
+
+      xmin   = -0.25;
+      xmax   =  0.00;
+      xmid   = 0.5 * (xmin + xmax);
+      double mach_left = 1.5;
+      double M2 = pow(mach_left, 2);
+
+      d_left = 1.0;
+      u_left = 1.0;
+      p_left = 1.0/GAMMA/M2;
+
+      d_right= (GAMMA+1.0)*M2/(2.0+(GAMMA-1.0)*M2)*d_left;
+      u_right= ((GAMMA-1.0)/(GAMMA+1.0)+2.0/(GAMMA+1.0)/M2)*u_left;
+      p_right= (2.0*GAMMA/(GAMMA+1.0)*M2-(GAMMA-1)/(GAMMA+1.0))*p_left;
+
+      mu_ref= 0.0005;
+      T_ref = p_left / d_left / gas_const;
+   }
+
+   prim_left.resize (n_var);
+   prim_right.resize (n_var);
+
+   prim_left[0] = d_left;
+   prim_left[1] = u_left;
+   prim_left[2] = p_left;
    
-   p_left  = 1.0;
-   p_right = 0.1;
+   prim_right[0] = d_right;
+   prim_right[1] = u_right;
+   prim_right[2] = p_right;
+   
 }
 
 //------------------------------------------------------------------------------
@@ -153,11 +220,8 @@ void FVProblem::make_grid_and_dofs ()
    conserved.resize (n_cell, vector<double>(n_var));
    conserved_old.resize (n_cell, vector<double>(n_var));
    
-   if(model == ns)
-   {
-      ux_f.resize (n_face);
-      Tx_f.resize (n_face);
-   }
+   tau_f.resize (n_face);
+   q_f.resize   (n_face);
 }
 
 //------------------------------------------------------------------------------
@@ -170,7 +234,7 @@ void FVProblem::initial_condition ()
    // Set initial condition
    for(unsigned int i=0; i<n_cell; ++i)
    {
-      if(xf[i+1] <= 0.5)
+      if(xf[i+1] <= xmid)
       {
          conserved[i][0] = d_left;
          conserved[i][1] = d_left * u_left;
@@ -195,12 +259,16 @@ void FVProblem::compute_dt ()
    {
       double speed = fabs(primitive[i][1]) + 
                      sqrt(GAMMA * primitive[i][2] / primitive[i][0]);
-      dt = min (dt, 1.0/speed);
+      dt = min (dt, dx/speed);
    }
-   dt *= cfl * dx;
+
+   dt = min (dt, dx * dx / mu_ref);
+   dt *= cfl;
 }
 
+//------------------------------------------------------------------------------
 // Convert conserved to primitive
+//------------------------------------------------------------------------------
 void FVProblem::con_to_prim ()
 {
    for(unsigned int i=0; i<n_cell; ++i)
@@ -217,18 +285,26 @@ void FVProblem::con_to_prim ()
 //------------------------------------------------------------------------------
 void FVProblem::compute_face_derivatives ()
 {
-   ux_f[0] = 0.0;
-   Tx_f[0] = 0.0;
+   tau_f[0] = 0.0;
+   q_f[0]   = 0.0;
    
    for(unsigned int i=1; i<n_face-1; ++i)
    {
-      ux_f[i] = (primitive[i][1] - primitive[i-1][1]) / dx;
-      Tx_f[i] = (primitive[i][2]   / primitive[i][0] -
-                 primitive[i-1][2] / primitive[i-1][0]) / dx;
+      double T_left  = primitive[i-1][2] / (primitive[i-1][0] * gas_const);
+      double T_right = primitive[i][2] / (primitive[i][0] * gas_const);
+      double T       = 0.5 * (T_left + T_right);
+      double mu      = viscosity (T);
+
+      tau_f[i] = (4.0 * mu / 3.0 ) * 
+                 (primitive[i][1] - primitive[i-1][1]) / dx;
+
+      double k = mu * GAMMA * gas_const / (GAMMA-1.0) / Pr;
+
+      q_f[i]   = -k * (T_right - T_left) / dx;
    }
    
-   ux_f[n_face-1] = 0.0;
-   Tx_f[n_face-1] = 0.0;
+   tau_f[n_face-1] = 0.0;
+   q_f[n_face-1]   = 0.0;
 }
 
 //------------------------------------------------------------------------------
@@ -261,6 +337,8 @@ void FVProblem::reconstruct (const unsigned int face,
 // sign=-1 gives negative flux
 //------------------------------------------------------------------------------
 void FVProblem::kfvs_split_flux (const vector<double>& prim,
+                                 const double& tau,
+                                 const double& q,
                                  const int sign,
                                  vector<double>& flux) const
 {
@@ -273,11 +351,23 @@ void FVProblem::kfvs_split_flux (const vector<double>& prim,
    E    = prim[2]/(GAMMA-1.0) + 0.5 * prim[0] * pow(prim[1], 2);
    fact = prim[1] * A + B;
    
+   // inviscid flux
    flux[0] = prim[0] * fact;
    flux[1] = (prim[2] + prim[0] * pow(prim[1], 2)) * A + 
              prim[0] * prim[1] * B;
    flux[2] = prim[1] * (E + prim[2]) * A +
              (E + 0.5 * prim[2]) * B;
+
+   double g1 = (GAMMA - 1.0) / GAMMA;
+   double g2 = (3.0 * GAMMA - 1.0) / (4.0 * (GAMMA - 1.0) );
+   double g3 = (3.0 - GAMMA) / (2.0 * GAMMA);
+
+   // viscous flux
+   flux[0] += prim[0] * B / prim[2] * ( -0.5 * tau -
+                  g1 * prim[1] * beta * q );
+   flux[1] += -tau * A + g1 * prim[0] * B * q / prim[2];
+   flux[2] += (-prim[1] * tau + q) * A +
+              B * (-g2 * tau - g3 * prim[1] * beta * q);
 }
 
 //------------------------------------------------------------------------------
@@ -285,13 +375,17 @@ void FVProblem::kfvs_split_flux (const vector<double>& prim,
 //------------------------------------------------------------------------------
 void FVProblem::num_flux(const vector<double>& left,
                          const vector<double>& right,
+                         const double&         tau_left,
+                         const double&         tau_right,
+                         const double&         q_left,
+                         const double&         q_right,
                          vector<double>&       flux) const
 {
    vector<double> flux_pos(n_var);
    vector<double> flux_neg(n_var);
    
-   kfvs_split_flux (left,  +1, flux_pos);
-   kfvs_split_flux (right, -1, flux_neg);
+   kfvs_split_flux (left,  tau_left,  q_left,  +1, flux_pos);
+   kfvs_split_flux (right, tau_right, q_right, -1, flux_neg);
    
    for(unsigned int i=0; i<n_var; ++i)
       flux[i] = flux_pos[i] + flux_neg[i];
@@ -313,7 +407,9 @@ void FVProblem::compute_residual ()
    vector<double> right(n_var);
    
    // Flux through left boundary
-   num_flux (primitive[0], primitive[0], flux);
+   num_flux (prim_left, primitive[0], 
+             tau_f[0], tau_f[0], 
+             q_f[0], q_f[0], flux);
    for(unsigned int j=0; j<n_var; ++j)
       residual[0][j] -= flux[j];
 
@@ -321,7 +417,7 @@ void FVProblem::compute_residual ()
    for(unsigned int i=1; i<n_face-1; ++i)
    {
       reconstruct (i, left, right);
-      num_flux (left, right, flux);
+      num_flux (left, right, tau_f[i], tau_f[i], q_f[i], q_f[i], flux);
       for(unsigned int j=0; j<n_var; ++j)
       {
          residual[i-1][j] += flux[j];
@@ -330,7 +426,9 @@ void FVProblem::compute_residual ()
    }
 
    // Flux through right boundary
-   num_flux (primitive[n_cell-1], primitive[n_cell-1], flux);
+   num_flux (primitive[n_cell-1], prim_right, 
+             tau_f[n_face-1], tau_f[n_face-1], 
+             q_f[n_face-1], q_f[n_face-1], flux);
    for(unsigned int j=0; j<n_var; ++j)
       residual[n_cell-1][j] += flux[j];
 }
@@ -381,13 +479,16 @@ void FVProblem::run ()
       if(time+dt > final_time) dt = final_time - time;
       for(unsigned int rk=0; rk<3; ++rk)
       {
+         compute_face_derivatives ();
          compute_residual ();
          update_solution (rk);
          con_to_prim ();
       }
       time += dt;
       ++iter;
+      if(iter % 1000 == 0) 
       cout << "Iter = " << iter << " Time = " << time << endl;
+      if(iter % 1000 == 0) output ();
    }
    
    con_to_prim ();
