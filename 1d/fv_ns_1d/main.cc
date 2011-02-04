@@ -132,9 +132,6 @@ class FVProblem
 FVProblem::FVProblem ()
 {   
    n_var  = 3;
-   n_cell = 100;
-   cfl    = 0.1;
-   final_time = 2.0;
 
    int test_case = 1;
 
@@ -143,6 +140,9 @@ FVProblem::FVProblem ()
       // Sod shock tube case
       GAMMA = 1.4;
       gas_const = 1.0;
+      final_time = 0.2;
+      n_cell = 100;
+      cfl    = 0.8;
 
       xmin    = 0.0;
       xmax    = 1.0;
@@ -165,6 +165,9 @@ FVProblem::FVProblem ()
       // shock structure case
       GAMMA = 5.0/3.0;
       gas_const = 0.5;
+      final_time = 100.0;
+      n_cell = 200;
+      cfl    = 0.1;
 
       xmin   = -0.25;
       xmax   =  0.00;
