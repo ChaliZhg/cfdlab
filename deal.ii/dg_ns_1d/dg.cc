@@ -32,7 +32,12 @@ const double gas_gamma = 1.4;
 const double a_rk[3] = {0.0, 3.0/4.0, 1.0/3.0};
 const double b_rk[3] = {1.0, 1.0/4.0, 2.0/3.0};
 
+// Numerical flux functions
+enum FluxType {lxf, kfvs};
+
+//------------------------------------------------------------------------------
 // minmod of three numbers
+//------------------------------------------------------------------------------
 double minmod (const double& a, const double& b, const double& c)
 {
    double result;
@@ -48,7 +53,9 @@ double minmod (const double& a, const double& b, const double& c)
    return result;
 }
 
+//------------------------------------------------------------------------------
 // Initial condition
+//------------------------------------------------------------------------------
 template <int dim>
 class InitialCondition : public Function<dim>
 {
@@ -79,7 +86,9 @@ void InitialCondition<dim>::vector_value (const Point<dim>   &p,
 
 }
 
+//------------------------------------------------------------------------------
 // Main class of the problem
+//------------------------------------------------------------------------------
 template <int dim>
 class NSProblem
 {
@@ -103,6 +112,7 @@ private:
     double               dt;
     double               dx;
     unsigned int         n_rk_stages;
+    FluxType             flux_type;
 
     Triangulation<dim>   triangulation;
     FE_DGQ<dim>          fe;
@@ -129,7 +139,9 @@ private:
 
 };
 
+//------------------------------------------------------------------------------
 // Constructor
+//------------------------------------------------------------------------------
 template <int dim>
 NSProblem<dim>::NSProblem (unsigned int degree) :
     fe (degree),
@@ -143,9 +155,12 @@ NSProblem<dim>::NSProblem (unsigned int degree) :
 
    dx      = (xmax - xmin) / n_cells;
    n_rk_stages = 3;
+   flux_type = kfvs;
 }
 
+//------------------------------------------------------------------------------
 // Make grid and allocate memory for solution variables
+//------------------------------------------------------------------------------
 template <int dim>
 void NSProblem<dim>::make_grid_and_dofs ()
 {
@@ -191,8 +206,10 @@ void NSProblem<dim>::make_grid_and_dofs ()
     energy_average.resize (triangulation.n_cells(), Vector<double>(fe.degree+1));
 }
 
+//------------------------------------------------------------------------------
 // Set initial conditions
 // L2 projection of initial condition onto dofs
+//------------------------------------------------------------------------------
 template <int dim>
 void NSProblem<dim>::initialize ()
 {
@@ -281,8 +298,10 @@ void NSProblem<dim>::initialize ()
    }
 }
 
+//------------------------------------------------------------------------------
 // Assemble mass matrix for each cell
 // Invert it and store
+//------------------------------------------------------------------------------
 template <int dim>
 void NSProblem<dim>::assemble_mass_matrix ()
 {
@@ -331,7 +350,9 @@ void NSProblem<dim>::assemble_mass_matrix ()
 
 }
 
+//------------------------------------------------------------------------------
 // Flux for NS equation
+//------------------------------------------------------------------------------
 void ns_flux (const double& density,
               const double& momentum,
               const double& energy,
@@ -343,8 +364,9 @@ void ns_flux (const double& density,
    flux(1) = pressure + momentum * velocity;
    flux(2) = (energy + pressure) * velocity;
 }
-
+//------------------------------------------------------------------------------
 // Lax-Friedrichs flux
+//------------------------------------------------------------------------------
 void LaxFlux (const Vector<double>& left_state,
               const Vector<double>& right_state,
               Vector<double>& flux)
@@ -383,7 +405,78 @@ void LaxFlux (const Vector<double>& left_state,
                 0.5 * lambda * ( right_state(i) - left_state(i) );
 }
 
+//------------------------------------------------------------------------------
+// KFVS split fluxes: sign=+1 give positive flux and
+// sign=-1 gives negative flux
+//------------------------------------------------------------------------------
+void kfvs_split_flux (const std::vector<double>& prim,
+                      const double& tau,
+                      const double& q,
+                      const int sign,
+                      std::vector<double>& flux)
+{
+   double beta, s, A, B, E, fact;
+   
+   beta = 0.5 * prim[0] / prim[2];
+   s    = prim[1] * sqrt(beta);
+   A    = 0.5 * (1.0 + sign * erf(s));
+   B    = sign * 0.5 * exp(-s * s) / sqrt(beta * M_PI);
+   E    = prim[2]/(gas_gamma-1.0) + 0.5 * prim[0] * pow(prim[1], 2);
+   fact = prim[1] * A + B;
+   
+   // inviscid flux
+   flux[0] = prim[0] * fact;
+   flux[1] = (prim[2] + prim[0] * pow(prim[1], 2)) * A +
+   prim[0] * prim[1] * B;
+   flux[2] = prim[1] * (E + prim[2]) * A +
+             (E + 0.5 * prim[2]) * B;
+   
+   static const double g1 = (gas_gamma - 1.0) / gas_gamma;
+   static const double g2 = (3.0 * gas_gamma - 1.0) / (4.0 * (gas_gamma - 1.0) );
+   static const double g3 = (3.0 - gas_gamma) / (2.0 * gas_gamma);
+   
+   // viscous flux
+   flux[0] += prim[0] * B / prim[2] * ( -0.5 * tau -
+                                       g1 * prim[1] * beta * q );
+   flux[1] += -tau * A + g1 * prim[0] * B * q / prim[2];
+   flux[2] += (-prim[1] * tau + q) * A +
+              B * (-g2 * tau - g3 * prim[1] * beta * q);
+}
+//------------------------------------------------------------------------------
+// KFVS flux
+//------------------------------------------------------------------------------
+void KFVSFlux (const Vector<double>& left_state,
+               const Vector<double>& right_state,
+               Vector<double>& flux)
+{
+   std::vector<double> left (n_var);
+   std::vector<double> right (n_var);
+
+   // Left primitive state 
+   left[0] = left_state(0);
+   left[1] = left_state(1) / left_state(0);
+   left[2] = (gas_gamma-1.0) * (left_state(2) - 
+                                    0.5 * left_state(1) * left[1] );
+   
+   // Right primitive state
+   right[0] = right_state(0);
+   right[1] = right_state(1) / right_state(0);
+   right[2] = (gas_gamma-1.0) * (right_state(2) - 
+                                    0.5 * right_state(1) * right[1] );
+   
+   std::vector<double> flux_pos (n_var);
+   std::vector<double> flux_neg (n_var);
+   
+   kfvs_split_flux (left,  0.0, 0.0, +1, flux_pos);
+   kfvs_split_flux (right, 0.0, 0.0, -1, flux_neg);
+   
+   for(unsigned int i=0; i<n_var; ++i)
+      flux(i) = flux_pos[i] + flux_neg[i];
+}
+
+//------------------------------------------------------------------------------
 // Compute flux across cell faces
+//------------------------------------------------------------------------------
 template <int dim>
 void NSProblem<dim>::compute_face_flux ()
 {
@@ -443,11 +536,25 @@ void NSProblem<dim>::compute_face_flux ()
       right_state(1) = momentum (r_dof);
       right_state(2) = energy   (r_dof);
       
-      LaxFlux (left_state, right_state, face_flux[i]);
+      switch (flux_type) {
+         case lxf:
+            LaxFlux (left_state, right_state, face_flux[i]);
+            break;
+            
+         case kfvs:
+            KFVSFlux (left_state, right_state, face_flux[i]);
+            break;
+            
+         default:
+            cout << "Unknown flux_type !!!\n";
+            abort ();
+      }
    }
 }
 
+//------------------------------------------------------------------------------
 // Assemble system rhs
+//------------------------------------------------------------------------------
 template <int dim>
 void NSProblem<dim>::assemble_rhs ()
 {
@@ -553,7 +660,9 @@ void NSProblem<dim>::assemble_rhs ()
 
 }
 
+//------------------------------------------------------------------------------
 // Compute cell average values
+//------------------------------------------------------------------------------
 template <int dim>
 void NSProblem<dim>::compute_averages ()
 {
@@ -614,7 +723,9 @@ void NSProblem<dim>::compute_averages ()
    }
 }
 
+//------------------------------------------------------------------------------
 // Compute cell average values
+//------------------------------------------------------------------------------
 template <int dim>
 void NSProblem<dim>::apply_limiter ()
 {
@@ -666,7 +777,9 @@ void NSProblem<dim>::apply_limiter ()
    }
 }
 
+//------------------------------------------------------------------------------
 // Update solution by one stage of RK
+//------------------------------------------------------------------------------
 template <int dim>
 void NSProblem<dim>::update (const unsigned int rk_stage)
 {
@@ -683,7 +796,9 @@ void NSProblem<dim>::update (const unsigned int rk_stage)
 
 }
 
+//------------------------------------------------------------------------------
 // Save solution to file
+//------------------------------------------------------------------------------
 template <int dim>
 void NSProblem<dim>::output_results () const
 {
@@ -711,7 +826,9 @@ void NSProblem<dim>::output_results () const
     data_out.write_gnuplot (output);
 }
 
+//------------------------------------------------------------------------------
 // Start solving the problem
+//------------------------------------------------------------------------------
 template <int dim>
 void NSProblem<dim>::run ()
 {
@@ -747,7 +864,9 @@ void NSProblem<dim>::run ()
     output_results ();
 }
 
+//------------------------------------------------------------------------------
 // Main function
+//------------------------------------------------------------------------------
 int main ()
 {
     deallog.depth_console (0);
