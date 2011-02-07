@@ -17,6 +17,7 @@
 #include <lac/compressed_sparsity_pattern.h>
 
 #include <numerics/data_out.h>
+#include <numerics/fe_field_function.h>
 #include <fstream>
 #include <iostream>
 
@@ -26,7 +27,14 @@ using namespace dealii;
 
 // Number of variables: mass, momentum and energy
 const unsigned int n_var = 3;
-const double gas_gamma = 1.4;
+double gas_gamma;
+double gas_const;
+double mu_ref;
+double T_ref;
+double Pr;
+double               d_left, u_left, p_left;
+double               d_right, u_right, p_right;
+double               xmin, xmax, xmid;
 
 // Coefficients for 3-stage SSP RK scheme of Shu-Osher
 const double a_rk[3] = {0.0, 3.0/4.0, 1.0/3.0};
@@ -34,6 +42,15 @@ const double b_rk[3] = {1.0, 1.0/4.0, 2.0/3.0};
 
 // Numerical flux functions
 enum FluxType {lxf, kfvs};
+enum TestCase {sod, shock_structure};
+
+//------------------------------------------------------------------------------
+// Viscosity coefficient as function of temperature
+//------------------------------------------------------------------------------
+double viscosity (const double& T)
+{
+   return mu_ref * pow( T/T_ref, 0.8);
+}
 
 //------------------------------------------------------------------------------
 // minmod of three numbers
@@ -71,17 +88,17 @@ template<int dim>
 void InitialCondition<dim>::vector_value (const Point<dim>   &p,
                                           Vector<double>& values) const
 {
-   if(p[0] < 0.5)
+   if(p[0] < xmid)
    {
-      values(0) = 1.0; // left density
-      values(1) = 0.0; // left velocity
-      values(2) = 1.0; // left pressure
+      values(0) = d_left; // left density
+      values(1) = u_left; // left velocity
+      values(2) = p_left; // left pressure
    }
    else
    {
-      values(0) = 0.125; // right density
-      values(1) = 0.0; // right velocity
-      values(2) = 0.1; // right pressure
+      values(0) = d_right; // right density
+      values(1) = u_right; // right velocity
+      values(2) = p_right; // right pressure
    }
 
 }
@@ -93,7 +110,7 @@ template <int dim>
 class NSProblem
 {
 public:
-    NSProblem (unsigned int degree);
+    NSProblem (unsigned int degree, TestCase test_case);
     void run ();
 
 private:
@@ -103,16 +120,20 @@ private:
     void compute_face_flux ();
     void assemble_rhs ();
     void compute_averages ();
+    void compute_dt ();
     void apply_limiter ();
     void update (const unsigned int rk_stage);
     void output_results () const;
    
-    double               xmin, xmax;
+    TestCase             test_case;
     unsigned int         n_cells;
     double               dt;
     double               dx;
+    double                cfl;
+    double               final_time;
     unsigned int         n_rk_stages;
     FluxType             flux_type;
+
 
     Triangulation<dim>   triangulation;
     FE_DGQ<dim>          fe;
@@ -143,19 +164,76 @@ private:
 // Constructor
 //------------------------------------------------------------------------------
 template <int dim>
-NSProblem<dim>::NSProblem (unsigned int degree) :
+NSProblem<dim>::NSProblem (unsigned int degree, TestCase test_case) :
+    test_case (test_case),
     fe (degree),
     dof_handler (triangulation)
 {
    Assert (dim==1, ExcIndexRange(dim, 0, 1));
    
-   xmin    = 0.0;
-   xmax    = 1.0;
+
    n_cells = 100;
 
-   dx      = (xmax - xmin) / n_cells;
    n_rk_stages = 3;
    flux_type = kfvs;
+   
+   if(test_case == sod)
+   {
+      xmin    = 0.0;
+      xmax    = 1.0;
+      xmid    = 0.5;
+      final_time = 2.0;
+      cfl     = 0.1;
+      
+      gas_gamma = 1.4;
+      gas_const = 1.0;
+      Pr = 1.0;
+      
+      d_left  = 1.0;
+      d_right = 0.125;
+      
+      u_left  = 0.0;
+      u_right = 0.0;
+      
+      p_left  = 1.0;
+      p_right = 0.1;
+      
+      mu_ref = 0.0;
+      T_ref  = p_left / d_left / gas_const; // not used
+   }
+   else if (test_case == shock_structure)
+   {
+      xmin    = -0.25;
+      xmax    =  0.0;
+      xmid    = 0.5 * ( xmin + xmax );
+      final_time = 2.0;
+      cfl = 0.1;
+      
+      gas_gamma = 5.0/3.0;
+      gas_const = 0.5;
+      Pr = 2.0/3.0;
+      
+      double mach_left = 1.5;
+      double M2 = pow(mach_left, 2);
+      
+      d_left = 1.0;
+      u_left = 1.0;
+      p_left = 1.0/gas_gamma/M2;
+      
+      d_right= (gas_gamma+1.0)*M2/(2.0+(gas_gamma-1.0)*M2)*d_left;
+      u_right= ((gas_gamma-1.0)/(gas_gamma+1.0)+2.0/(gas_gamma+1.0)/M2)*u_left;
+      p_right= (2.0*gas_gamma/(gas_gamma+1.0)*M2-(gas_gamma-1)/(gas_gamma+1.0))*p_left;
+      
+      mu_ref= 0.0005;
+      T_ref = p_left / d_left / gas_const;
+   }
+   else
+   {
+      std::cout << "Unknown test case\n";
+   }
+   
+   dx      = (xmax - xmin) / n_cells;
+
 }
 
 //------------------------------------------------------------------------------
@@ -351,11 +429,38 @@ void NSProblem<dim>::assemble_mass_matrix ()
 }
 
 //------------------------------------------------------------------------------
+// compute tau and q
+// state = conserved
+// grad  = conserved grad
+//------------------------------------------------------------------------------
+void compute_nsterms (const Vector<double>& state,
+                      const Vector<double>& grad,
+                      double& tau,
+                      double& q)
+{
+   double velocity = state(1) / state(0);
+   double pressure = (gas_gamma - 1.0) * (state(2) - 0.5 * state(1) * velocity);
+   
+   double T   = pressure / state(0) / gas_const;
+   double mu  = viscosity (T);
+   double u_x = (grad(1) - velocity * grad(0)) / state(0);
+   tau = 4.0 * mu * u_x / 3.0;
+   
+   double T_x = ((gas_gamma-1.0)/gas_const * 
+                 (grad(2) - 0.5 * velocity * grad(1) - 0.5 * state(1) * u_x)
+                 - T * grad(0)) / state(0);
+   double k   = mu * gas_gamma * gas_const / (gas_gamma - 1.0) / Pr;
+   q   = -k * T_x;
+}
+//------------------------------------------------------------------------------
 // Flux for NS equation
 //------------------------------------------------------------------------------
 void ns_flux (const double& density,
               const double& momentum,
               const double& energy,
+              const Tensor<1,1>& density_grad,
+              const Tensor<1,1>& momentum_grad,
+              const Tensor<1,1>& energy_grad,
               Vector<double>& flux)
 {   
    double velocity = momentum / density;
@@ -363,6 +468,21 @@ void ns_flux (const double& density,
    flux(0) = momentum;
    flux(1) = pressure + momentum * velocity;
    flux(2) = (energy + pressure) * velocity;
+   
+   Vector<double> state (n_var);
+   state(0) = density;
+   state(1) = momentum;
+   state(2) = energy;
+   Vector<double> grad (n_var);
+   grad(0) = density_grad[0];
+   grad(1) = momentum_grad[0];
+   grad(2) = energy_grad[0];
+   
+   double tau, q;
+   compute_nsterms (state, grad, tau, q);
+      
+   flux(1) -= tau;
+   flux(2) += -tau * velocity + q;
 }
 //------------------------------------------------------------------------------
 // Lax-Friedrichs flux
@@ -408,6 +528,7 @@ void LaxFlux (const Vector<double>& left_state,
 //------------------------------------------------------------------------------
 // KFVS split fluxes: sign=+1 give positive flux and
 // sign=-1 gives negative flux
+// Copied from fv_ns_1d
 //------------------------------------------------------------------------------
 void kfvs_split_flux (const std::vector<double>& prim,
                       const double& tau,
@@ -447,6 +568,8 @@ void kfvs_split_flux (const std::vector<double>& prim,
 //------------------------------------------------------------------------------
 void KFVSFlux (const Vector<double>& left_state,
                const Vector<double>& right_state,
+               const Vector<double>& left_grad,
+               const Vector<double>& right_grad,
                Vector<double>& flux)
 {
    std::vector<double> left (n_var);
@@ -464,11 +587,17 @@ void KFVSFlux (const Vector<double>& left_state,
    right[2] = (gas_gamma-1.0) * (right_state(2) - 
                                     0.5 * right_state(1) * right[1] );
    
+   double tau_l, q_l;
+   compute_nsterms (left_state, left_grad, tau_l, q_l);
+
+   double tau_r, q_r;
+   compute_nsterms (right_state, right_grad, tau_r, q_r);
+   
    std::vector<double> flux_pos (n_var);
    std::vector<double> flux_neg (n_var);
    
-   kfvs_split_flux (left,  0.0, 0.0, +1, flux_pos);
-   kfvs_split_flux (right, 0.0, 0.0, -1, flux_neg);
+   kfvs_split_flux (left,  tau_l, q_l, +1, flux_pos);
+   kfvs_split_flux (right, tau_r, q_r, -1, flux_neg);
    
    for(unsigned int i=0; i<n_var; ++i)
       flux(i) = flux_pos[i] + flux_neg[i];
@@ -490,7 +619,6 @@ void NSProblem<dim>::compute_face_flux ()
       r_cell;
    
    unsigned int l_dof, r_dof;
-   Vector<double> left_state(n_var), right_state(n_var);
    
    // Loop over faces
    unsigned int n_faces = triangulation.n_active_cells() + 1;
@@ -527,7 +655,9 @@ void NSProblem<dim>::compute_face_flux ()
          
          ++cell;
       }
-      
+         
+      Vector<double> left_state(n_var), right_state(n_var);
+
       left_state(0) = density  (l_dof);
       left_state(1) = momentum (l_dof);
       left_state(2) = energy   (l_dof);
@@ -536,13 +666,53 @@ void NSProblem<dim>::compute_face_flux ()
       right_state(1) = momentum (r_dof);
       right_state(2) = energy   (r_dof);
       
+      
+      std::vector< Tensor<1,dim> > l_grad(n_var);
+      std::vector< Tensor<1,dim> > r_grad(n_var);
+      
+      for(unsigned int k=0; k<n_var; ++k)
+      {
+         l_grad[k][0] = 0.0;
+         r_grad[k][0] = 0.0;
+      }
+            
+      // This part of code is VERY SLOW
+      if(test_case == shock_structure)
+      {
+         Functions::FEFieldFunction<dim> density_grad (dof_handler, density);
+         density_grad.set_active_cell (l_cell);
+         l_grad[0] = density_grad.gradient (l_cell->vertex(1));
+         density_grad.set_active_cell (r_cell);
+         r_grad[0] = density_grad.gradient (r_cell->vertex(0));
+
+         Functions::FEFieldFunction<dim> momentum_grad (dof_handler, momentum);
+         momentum_grad.set_active_cell (l_cell);
+         l_grad[1] = momentum_grad.gradient (l_cell->vertex(1));
+         momentum_grad.set_active_cell (r_cell);
+         r_grad[1] = momentum_grad.gradient (r_cell->vertex(0));
+
+         Functions::FEFieldFunction<dim> energy_grad (dof_handler, energy);
+         energy_grad.set_active_cell (l_cell);
+         l_grad[2] = energy_grad.gradient (l_cell->vertex(1));
+         energy_grad.set_active_cell (r_cell);
+         r_grad[2] = energy_grad.gradient (r_cell->vertex(0));
+      }
+      
+      Vector<double> left_grad (n_var), right_grad (n_var);
+      for(unsigned int k=0; k<n_var; ++k)
+      {
+         left_grad(k) = l_grad[k][0];
+         right_grad(k) = r_grad[k][0];
+      }
+
+      
       switch (flux_type) {
          case lxf:
             LaxFlux (left_state, right_state, face_flux[i]);
             break;
             
          case kfvs:
-            KFVSFlux (left_state, right_state, face_flux[i]);
+            KFVSFlux (left_state, right_state, left_grad, right_grad, face_flux[i]);
             break;
             
          default:
@@ -571,6 +741,11 @@ void NSProblem<dim>::assemble_rhs ()
     std::vector<double>  density_values  (n_q_points);
     std::vector<double>  momentum_values (n_q_points);
     std::vector<double>  energy_values   (n_q_points);
+   
+    std::vector< Tensor<1,dim> >  density_grad (n_q_points);
+    std::vector< Tensor<1,dim> >  momentum_grad (n_q_points);
+    std::vector< Tensor<1,dim> >  energy_grad (n_q_points);
+
 
     Vector<double>       cell_rhs_density  (dofs_per_cell);
     Vector<double>       cell_rhs_momentum (dofs_per_cell);
@@ -596,12 +771,17 @@ void NSProblem<dim>::assemble_rhs ()
         fe_values.get_function_values (density,  density_values);
         fe_values.get_function_values (momentum, momentum_values);
         fe_values.get_function_values (energy,   energy_values);
+       
+        fe_values.get_function_gradients (density,  density_grad);
+        fe_values.get_function_gradients (momentum, momentum_grad);
+        fe_values.get_function_gradients (energy,   energy_grad);
 
         // Flux integral over cell
         for (unsigned int q_point=0; q_point<n_q_points; ++q_point)
         {
             ns_flux(density_values[q_point], momentum_values[q_point], 
-                    energy_values[q_point], flux);
+                    energy_values[q_point], density_grad[q_point],
+                    momentum_grad[q_point], energy_grad[q_point], flux);
             for (unsigned int i=0; i<dofs_per_cell; ++i)
             {
                 cell_rhs_density(i) += (fe_values.shape_grad (i, q_point)[0] *
@@ -729,6 +909,8 @@ void NSProblem<dim>::compute_averages ()
 template <int dim>
 void NSProblem<dim>::apply_limiter ()
 {
+   Assert (fe.degree==1, ExcIndexRange(fe.degree, 1, 2));
+   
    const double beta = 1.5;
    
    const unsigned int   dofs_per_cell = fe.dofs_per_cell;   
@@ -775,6 +957,27 @@ void NSProblem<dim>::apply_limiter ()
       energy(local_dof_indices[1]) = energy_average[c](0) + 
          0.5 * dx * dl;
    }
+}
+
+//------------------------------------------------------------------------------
+// Update solution by one stage of RK
+//------------------------------------------------------------------------------
+template <int dim>
+void NSProblem<dim>::compute_dt ()
+{
+   dt = 1.0e20;
+   for(unsigned int i=0; i<n_cells; ++i)
+   {
+      double velocity = momentum_average[i](0) / density_average[i](0);
+      double pressure = (gas_gamma-1.0) * ( energy_average[i](0) -
+               0.5 * momentum_average[i](0) * velocity );
+      double sonic = std::sqrt ( gas_gamma * pressure / density_average[i](0) );
+      double speed = std::fabs(velocity) + sonic;
+      dt = std::min (dt, dx/speed);
+   }
+   
+   dt = std::min(dt, dx*dx/(mu_ref+1.0e-14));
+   dt *= cfl;
 }
 
 //------------------------------------------------------------------------------
@@ -838,16 +1041,19 @@ void NSProblem<dim>::run ()
     assemble_mass_matrix ();
     initialize ();
     output_results ();
+    compute_averages ();
 
-    dt = 0.1 * dx;
     double time = 0.0;
     unsigned int iter = 0;
 
-    while (time < 0.2)
+    while (time < final_time)
     {
        density_old  = density;
        momentum_old = momentum;
        energy_old   = energy;
+       
+       compute_dt ();
+       if(time+dt > final_time) dt = final_time - time;
 
        for(unsigned int rk=0; rk<n_rk_stages; ++rk)
        {
@@ -871,7 +1077,7 @@ int main ()
 {
     deallog.depth_console (0);
     {
-        NSProblem<1> ns_problem(1);
+        NSProblem<1> ns_problem(1, shock_structure);
         ns_problem.run ();
     }
 
