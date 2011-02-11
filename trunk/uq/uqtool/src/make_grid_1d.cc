@@ -13,7 +13,14 @@
 using namespace std;
 
 // Make initial stochastic grid in 1-D
-// Initial grid has two quadratic elements and 5 dof
+//
+// Linear element:
+// Two linear elements and 3 dof
+//   dofs    :          0-----1-----2
+//   elements:          |--0--|--1--|
+//
+// Quadratic element:
+// Two quadratic elements and 5 dof
 //   dofs    :          0--1--2--3--4
 //   elements:          |--0--|--1--|
 template <>
@@ -21,8 +28,20 @@ void UQProblem<1>::make_grid ()
 {
    cout << "Creating stochastic grid in 1-D ... ";
    
-   // Initial 5 samples uniformly distributed
-   unsigned int n_sample = 5;
+   // Number of initial samples
+   unsigned int n_sample;
+   if(order == 1)
+      n_sample = 3;
+   else if(order == 2)
+      n_sample = 5;
+   else
+   {
+      cout << "make_grid: Unknown initial order = " 
+           << order << endl;
+      abort ();
+   }
+   
+   // Initial samples uniformly distributed
    double dx = (pdf_data.x_max[0] - pdf_data.x_min[0])/(n_sample-1);
    for(unsigned int i=0; i<n_sample; ++i)
    {
@@ -35,20 +54,33 @@ void UQProblem<1>::make_grid ()
    unsigned int n_element = 2;
    for(unsigned int i=0; i<n_element; ++i)
    {      
-      Element<1> new_element(2, n_moment, n_cell, i);
+      Element<1> new_element(order, n_moment, n_cell, i);
       grid.element.push_back (new_element);
    }
    
    // Map element dof to samples
-   // First element
-   grid.element[0].idof[0] = 0; // left vertex
-   grid.element[0].idof[1] = 2; // right vertex
-   grid.element[0].idof[2] = 1; // middle
-   
-   // Second element
-   grid.element[1].idof[0] = 2; // left vertex
-   grid.element[1].idof[1] = 4; // right vertex
-   grid.element[1].idof[2] = 3; // middle
+   if(order==1)
+   {
+      // First element
+      grid.element[0].idof[0] = 0; // left vertex
+      grid.element[0].idof[1] = 1; // right vertex
+      
+      // Second element
+      grid.element[1].idof[0] = 1; // left vertex
+      grid.element[1].idof[1] = 2; // right vertex
+   }
+   else if(order==2)
+   {
+      // First element
+      grid.element[0].idof[0] = 0; // left vertex
+      grid.element[0].idof[1] = 2; // right vertex
+      grid.element[0].idof[2] = 1; // middle
+      
+      // Second element
+      grid.element[1].idof[0] = 2; // left vertex
+      grid.element[1].idof[1] = 4; // right vertex
+      grid.element[1].idof[2] = 3; // middle
+   }
    
    grid.reinit_dof (sample);
    

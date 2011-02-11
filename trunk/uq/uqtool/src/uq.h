@@ -43,6 +43,7 @@ class UQProblem
       unsigned int max_sample;
 
       Grid<dim> grid;
+      unsigned int order; // Order of stochastic elements: 1 or 2
    
       unsigned int n_var; // no. of variables per cell
       unsigned int n_cell;// no. of cells

@@ -124,6 +124,10 @@ void UQProblem<dim>::read_options ()
       abort ();
    }
    
+   // Order of elements
+   fi >> str >> order;
+   assert (str == "order");
+   
    fi.close ();
 }
 
