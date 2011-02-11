@@ -17,8 +17,7 @@ using namespace std;
 template <>
 void Interpolate<1>::execute (const double* x)
 {
-   // TBD Later, we will implement linear elements also
-   assert (order == 2);
+   assert (order == 1 || order == 2);
    
    double a0, a1, a2;
    unsigned int n = n_var * n_cell;
@@ -27,35 +26,57 @@ void Interpolate<1>::execute (const double* x)
    a0 = (x[0] - dof[1]->x[0]) / (dof[0]->x[0] - dof[1]->x[0]);
    a1 = (x[0] - dof[0]->x[0]) / (dof[1]->x[0] - dof[0]->x[0]);
    
-   for(unsigned int i=0; i<n; ++i)
+   if(order == 1)
    {
-      primal1[i]  = a0 * dof[0]->primal[i] +
-                    a1 * dof[1]->primal[i];
-      adjoint1[i] = a0 * dof[0]->adjoint[i] +
-                    a1 * dof[1]->adjoint[i];
+      for(unsigned int i=0; i<n; ++i)
+      {
+         // low order is averaging
+         primal1[i]  = 0.5 * ( dof[0]->primal[i] +
+                               dof[1]->primal[i] );
+         adjoint1[i] = 0.5 * ( dof[0]->adjoint[i] +
+                               dof[1]->adjoint[i] );
+         
+         // high order is linear interpolation
+         primal2[i]  = a0 * dof[0]->primal[i] +
+                       a1 * dof[1]->primal[i];
+         adjoint2[i] = a0 * dof[0]->adjoint[i] +
+                       a1 * dof[1]->adjoint[i];
+      }
    }
-
-   // Quadratic interpolation
-   a0 = (x[0] - dof[1]->x[0]) * (x[0] - dof[2]->x[0]);
-   a0 = a0 / (dof[0]->x[0] - dof[1]->x[0]);
-   a0 = a0 / (dof[0]->x[0] - dof[2]->x[0]);
-   
-   a1 = (x[0] - dof[0]->x[0]) * (x[0] - dof[2]->x[0]);
-   a1 = a1 / (dof[1]->x[0] - dof[0]->x[0]);
-   a1 = a1 / (dof[1]->x[0] - dof[2]->x[0]);
-   
-   a2 = (x[0] - dof[0]->x[0]) * (x[0] - dof[1]->x[0]);
-   a2 = a2 / (dof[2]->x[0] - dof[0]->x[0]);
-   a2 = a2 / (dof[2]->x[0] - dof[1]->x[0]);
-   
-   for(unsigned int i=0; i<n; ++i)
+   else
    {
-      primal2[i]  = a0 * dof[0]->primal[i] +
-                    a1 * dof[1]->primal[i] +
-                    a2 * dof[2]->primal[i];
-      adjoint2[i] = a0 * dof[0]->adjoint[i] +
-                    a1 * dof[1]->adjoint[i] +
-                    a2 * dof[2]->adjoint[i];
+      // low order is linear interpolation
+      for(unsigned int i=0; i<n; ++i)
+      {
+         primal1[i]  = a0 * dof[0]->primal[i] +
+                       a1 * dof[1]->primal[i];
+         adjoint1[i] = a0 * dof[0]->adjoint[i] +
+                       a1 * dof[1]->adjoint[i];
+      }
+   
+   
+      // high order is Quadratic interpolation
+      a0 = (x[0] - dof[1]->x[0]) * (x[0] - dof[2]->x[0]);
+      a0 = a0 / (dof[0]->x[0] - dof[1]->x[0]);
+      a0 = a0 / (dof[0]->x[0] - dof[2]->x[0]);
+      
+      a1 = (x[0] - dof[0]->x[0]) * (x[0] - dof[2]->x[0]);
+      a1 = a1 / (dof[1]->x[0] - dof[0]->x[0]);
+      a1 = a1 / (dof[1]->x[0] - dof[2]->x[0]);
+      
+      a2 = (x[0] - dof[0]->x[0]) * (x[0] - dof[1]->x[0]);
+      a2 = a2 / (dof[2]->x[0] - dof[0]->x[0]);
+      a2 = a2 / (dof[2]->x[0] - dof[1]->x[0]);
+      
+      for(unsigned int i=0; i<n; ++i)
+      {
+         primal2[i]  = a0 * dof[0]->primal[i] +
+                       a1 * dof[1]->primal[i] +
+                       a2 * dof[2]->primal[i];
+         adjoint2[i] = a0 * dof[0]->adjoint[i] +
+                       a1 * dof[1]->adjoint[i] +
+                       a2 * dof[2]->adjoint[i];
+      }
    }
    
 }

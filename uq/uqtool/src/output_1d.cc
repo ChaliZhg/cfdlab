@@ -34,4 +34,21 @@ void UQProblem<1>::output (const unsigned int iter) const
    }
    
    fo.close ();
+   
+   sprintf(filename, "RESULT/cc_%d.dat", iter);
+   fo.open (filename);
+   fo.precision (15);
+   
+   for(unsigned int i=0; i<grid.element.size(); ++i)
+      if(grid.element[i].active)
+      {
+         double x = 0.5 * (grid.element[i].dof[0]->x[0] +
+                           grid.element[i].dof[1]->x[0]);
+         fo << x << " ";
+         for(unsigned int j=0; j<n_moment; ++j)
+            fo << grid.element[i].adj_cor[j] << " ";
+         fo << endl;
+      }
+   
+   fo.close ();
 }
