@@ -146,6 +146,22 @@ Element<dim>::Element (const unsigned int order,
    }
 }
 
+// Read primal/adjoint solution for all samples of element into memory
+template <int dim>
+void Element<dim>::read_dof ()
+{
+   for(unsigned int d=0; d<n_dof; ++d)
+      dof[d]->read();
+}
+
+// Clear primal/adjoint solution for all samples of element from memory
+template <int dim>
+void Element<dim>::clear_dof ()
+{
+   for(unsigned int d=0; d<n_dof; ++d)
+      dof[d]->clear();
+}
+
 // Save mesh_error into files
 template <int dim>
 void Element<dim>::save_mesh_error ()

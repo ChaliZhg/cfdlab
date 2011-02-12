@@ -208,8 +208,7 @@ void UQProblem<dim>::flag_eno_elements ()
       if(grid.element[i].status == NEW && grid.element[i].order == 2)
       {
          // Read all samples belonging to this element from file
-         for(unsigned int d=0; d<grid.element[i].n_dof; ++d)
-            grid.element[i].dof[d]->read();
+         grid.element[i].read_dof ();
          
          u_min = +1.0e20;
          u_max = -1.0e20;
@@ -235,8 +234,7 @@ void UQProblem<dim>::flag_eno_elements ()
          }    
          
          // Clear all samples belonging to this element from memory
-         for(unsigned int d=0; d<grid.element[i].n_dof; ++d)
-            grid.element[i].dof[d]->clear();
+         grid.element[i].clear_dof ();
          
          if(is_eno == false)
             grid.element[i].refine_flag = true;
@@ -267,8 +265,7 @@ void UQProblem<dim>::compute_moments ()
          grid.element[i].RE      = 0.0;
          
          // Read all samples belonging to this element from file
-         for(unsigned int d=0; d<grid.element[i].n_dof; ++d)
-            grid.element[i].dof[d]->read();
+         grid.element[i].read_dof();
          
          // Perform quadrature
          quadrature_formula.reinit(grid.element[i]);
@@ -293,8 +290,7 @@ void UQProblem<dim>::compute_moments ()
          }
          
          // Clear all samples belonging to this element from memory
-         for(unsigned int d=0; d<grid.element[i].n_dof; ++d)
-            grid.element[i].dof[d]->clear();
+         grid.element[i].clear_dof ();
                      
          // Save mesh_error into file
          if(error_control == COMBINED)

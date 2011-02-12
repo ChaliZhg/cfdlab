@@ -41,6 +41,8 @@ class Element
                const unsigned int n_cell,
                const unsigned int counter);
       ~Element () {};
+      void read_dof ();
+      void clear_dof ();
       void save_mesh_error ();
       void load_mesh_error ();
    
