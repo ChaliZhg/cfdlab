@@ -127,6 +127,23 @@ void UQProblem<dim>::read_options ()
    // Order of elements
    fi >> str >> order;
    assert (str == "order");
+   assert (order == 1 || order == 2);
+
+   // Eno reconstruction
+   fi >> str >> input;
+   assert (str == "eno");
+   if(input=="false")
+      eno = false;
+   else if(input=="true")
+      eno = true;
+   else
+   {
+      cout << "Unknown eno option: " << input << endl;
+      abort ();
+   }
+   
+   if(eno) 
+      assert (order == 2);
    
    fi.close ();
 }
@@ -174,6 +191,56 @@ void UQProblem<dim>::run_simulations ()
          
          sample[i].status = OLD;
       }
+}
+
+// Find stochastic elements that are oscillatory
+template <int dim>
+void UQProblem<dim>::flag_eno_elements ()
+{
+   Quadrature<dim>  quadrature_formula;
+   Interpolate<dim> interpolate_formula (n_var, n_cell);
+   
+   unsigned int n = n_var * n_cell;
+   valarray<double> u_min (n);
+   valarray<double> u_max (n);
+   
+   for(unsigned int i=0; i<grid.element.size(); ++i)
+      if(grid.element[i].status == NEW && grid.element[i].order == 2)
+      {
+         // Read all samples belonging to this element from file
+         for(unsigned int d=0; d<grid.element[i].n_dof; ++d)
+            grid.element[i].dof[d]->read();
+         
+         u_min = +1.0e20;
+         u_max = -1.0e20;
+         for(unsigned int j=0; j<n; ++j)
+            for(unsigned int k=0; k<grid.element[i].n_dof; ++k)
+            {
+               u_min[j] = min ( u_min[j], grid.element[i].dof[k]->primal[j] );
+               u_max[j] = max ( u_max[j], grid.element[i].dof[k]->primal[j] );
+            }
+         
+         quadrature_formula.reinit(grid.element[i]);
+         interpolate_formula.reinit(grid.element[i]);
+         unsigned int n_q_point = quadrature_formula.n_point;
+         bool is_eno = true;
+         for(unsigned int q=0; q<n_q_point && is_eno==true; ++q)
+         {
+            double* x = quadrature_formula.q_point[q];
+            interpolate_formula.execute (x);
+            for(unsigned int j=0; j<n && is_eno==true; ++j)
+               if(interpolate_formula.primal2[j] > 1.001 * u_max[j] ||
+                  interpolate_formula.primal2[j] < 0.999 * u_min[j])
+                  is_eno = false;
+         }    
+         
+         // Clear all samples belonging to this element from memory
+         for(unsigned int d=0; d<grid.element[i].n_dof; ++d)
+            grid.element[i].dof[d]->clear();
+         
+         if(is_eno == false)
+            grid.element[i].refine_flag = true;
+      }         
 }
 
 // Compute moments and adjoint correction on each new stochastic element
@@ -386,14 +453,21 @@ void UQProblem<dim>::log_result (ofstream& fj, ofstream& fe)
 {
    // Count number of active elements
    unsigned int n_elem_active = 0;
+   unsigned int n_elem_P1 = 0;
+   unsigned int n_elem_P2 = 0;
    for(unsigned int i=0; i<grid.element.size(); ++i)
       if(grid.element[i].active)
+      {
          ++n_elem_active;
+         if(grid.element[i].order == 1) ++n_elem_P1;
+         if(grid.element[i].order == 2) ++n_elem_P2;
+      }
    
    cout << "No. of stochastic samples  = " << sample.size() << endl;
    cout << "No. of stochastic elements = " << grid.element.size()
         << endl;
-   cout << "No. of active elements     = " << n_elem_active << endl;
+   cout << "No. of active elements     = " << n_elem_active 
+        << " (P1 = " << n_elem_P1 << ", P2 = " << n_elem_P2 << ")" << endl;
    cout << "No. of physical cells      = " << n_cell << endl;  
    
    fj.precision(15);
@@ -440,12 +514,18 @@ void UQProblem<dim>::run ()
       if (iter > 0) 
       {
          flag_elements ();
-         refine_grid ();
+         refine_grid (false);
          grid.reinit_dof (sample);
          if(error_control == COMBINED)
             refine_physical (iter);
       }
       run_simulations ();
+      if(eno)
+      {
+         flag_eno_elements ();
+         refine_grid (true);
+         grid.reinit_dof (sample);
+      }
       compute_moments ();
 
       log_result (fj, fe);   

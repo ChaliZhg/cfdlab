@@ -25,9 +25,10 @@ class UQProblem
       void read_options ();
       void make_grid ();
       void run_simulations ();
+      void flag_eno_elements ();
       void compute_moments ();
       void flag_elements ();
-      void refine_grid ();
+      void refine_grid (bool eno_mode);
       void refine_physical (const unsigned int iter);
       void log_result (std::ofstream& fj, std::ofstream& fe);
       void output (const unsigned int iter) const;
@@ -44,6 +45,7 @@ class UQProblem
 
       Grid<dim> grid;
       unsigned int order; // Order of stochastic elements: 1 or 2
+      bool eno;
    
       unsigned int n_var; // no. of variables per cell
       unsigned int n_cell;// no. of cells
