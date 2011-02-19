@@ -9,6 +9,9 @@ double viscosity_oil;
 double density_water;
 double density_oil;
 
+// counter to count how many times the flux has an interior minimum
+int n_interior_min;
+
 using namespace std;
 
 int main ()

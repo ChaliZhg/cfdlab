@@ -9,10 +9,15 @@
 
 #define SIGN(a) (((a)<0) ? -1:1)
 
+extern int n_interior_min;
+const double beta = 2.0; // factor in minmod limiter
+
 using namespace std;
 
+//------------------------------------------------------------------------------
 // Minmod limiter
 // minmod ( 2(u0-ul), (ur-ul)/2, 2(ur-u0) )
+//------------------------------------------------------------------------------
 double minmod (const double& ul, const double& u0, const double& ur)
 {
    double result;
@@ -23,7 +28,7 @@ double minmod (const double& ul, const double& u0, const double& ur)
 
    if (db*dc > 0.0 && dc*df > 0.0)
    {
-      result = min( min(fabs(2.0*db), fabs(dc)), fabs(2.0*df) );
+      result = min( min(fabs(beta*db), fabs(dc)), fabs(beta*df) );
       result *= SIGN(db);
    }
    else
@@ -32,8 +37,10 @@ double minmod (const double& ul, const double& u0, const double& ur)
    return result;
 }
 
+//------------------------------------------------------------------------------
 // Find left state at interface between (il,jl) and (ir,jr)
 // (ill,jll) is to the left of (il,jl)
+//------------------------------------------------------------------------------
 vector<double> ReservoirProblem::reconstruct
        (
        const unsigned int& ill,
@@ -50,7 +57,9 @@ vector<double> ReservoirProblem::reconstruct
       return reconstruct2(ill, jll, il, jl, ir, jr);
 }
 
+//------------------------------------------------------------------------------
 // First order reconstruction
+//------------------------------------------------------------------------------
 vector<double> ReservoirProblem::reconstruct1
        (
        const unsigned int& ill,
@@ -70,7 +79,9 @@ vector<double> ReservoirProblem::reconstruct1
    return state;
 }
 
+//------------------------------------------------------------------------------
 // Second order reconstruction
+//------------------------------------------------------------------------------
 vector<double> ReservoirProblem::reconstruct2
        (
        const unsigned int& ill,
@@ -111,8 +122,10 @@ vector<double> ReservoirProblem::reconstruct2
    return state;
 }
 
+//------------------------------------------------------------------------------
 // computes total darcy velocity at interface b/w
 // (ileft,jleft) and (iright,jright)
+//------------------------------------------------------------------------------
 double ReservoirProblem::darcy_velocity
        (
        const unsigned int& ileft,
@@ -166,8 +179,10 @@ double ReservoirProblem::darcy_velocity
    return velocity;
 }
 
+//------------------------------------------------------------------------------
 // Find location of minimum for the flux
 // This should be called only with g > 0
+//------------------------------------------------------------------------------
 double argmin_flux(const double& concentration,
                    const double& permeability,
                    const double& velocity)
@@ -186,14 +201,19 @@ double argmin_flux(const double& concentration,
    double s_min;
 
    if(sstar <= 1.0 && sstar >= 0.0)
+   {
       s_min = sstar;
+      ++n_interior_min;
+   }
    else
       s_min = (velocity > 0.0) ? 0.0 : 1.0;
 
    return s_min;
 }
 
+//------------------------------------------------------------------------------
 // numerical flux function for saturation
+//------------------------------------------------------------------------------
 vector<double> num_flux
        (
        const double& velocity,
@@ -266,7 +286,9 @@ vector<double> num_flux
    return flux;
 }
 
+//------------------------------------------------------------------------------
 // Read some input from file
+//------------------------------------------------------------------------------
 void ReservoirProblem::read_input ()
 {
    cout << "Reading input from file data.in ..." << endl;
@@ -360,6 +382,8 @@ void ReservoirProblem::read_input ()
 
 }
 
+//------------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 void ReservoirProblem::make_grid ()
 {
    cout << "Making grid for reservoir problem ..." << endl;
@@ -414,7 +438,9 @@ void ReservoirProblem::make_grid ()
 
 }
 
+//------------------------------------------------------------------------------
 // allocate memory and set initial condition
+//------------------------------------------------------------------------------
 void ReservoirProblem::initialize ()
 {
    saturation.allocate    (grid.nx+1, grid.ny+1);
@@ -433,12 +459,12 @@ void ReservoirProblem::initialize ()
       {
          double dist = grid.xc(i,j) * grid.xc(i,j) + 
                        grid.yc(i,j) * grid.yc(i,j);
-         if(dist <= 0.25 * 0.25)
+         if(dist <= 0.25 * 0.25) // Water region
          {
             saturation    (i,j) = 1.0;
             concentration (i,j) = cinlet;
          }
-         else
+         else // Oil region
          {
             saturation    (i,j) = 0.0;
             concentration (i,j) = 0.0;
@@ -462,7 +488,9 @@ void ReservoirProblem::initialize ()
    for (unsigned int i=0; i<nrk; ++i) brk[i] = 1.0 - ark[i];
 }
 
+//------------------------------------------------------------------------------
 // residual for saturation/concentration equation
+//------------------------------------------------------------------------------
 void ReservoirProblem::residual (Matrix& s_residual, Matrix& c_residual)
 {
    unsigned int i, j;
@@ -571,7 +599,9 @@ void ReservoirProblem::residual (Matrix& s_residual, Matrix& c_residual)
    c_residual *= lambda;
 }
 
+//------------------------------------------------------------------------------
 // Update polymer concentration
+//------------------------------------------------------------------------------
 void ReservoirProblem::updateConcentration (Matrix& sc)
 {
    for (unsigned int i=1; i<grid.nx; ++i)
@@ -584,7 +614,9 @@ void ReservoirProblem::updateConcentration (Matrix& sc)
       }
 }
 
+//------------------------------------------------------------------------------
 // Update solution in ghost cells
+//------------------------------------------------------------------------------
 void ReservoirProblem::updateGhostCells ()
 {
    unsigned int i, j;
@@ -664,7 +696,9 @@ void ReservoirProblem::updateGhostCells ()
    }
 }
 
+//------------------------------------------------------------------------------
 // Find min and max values of solution
+//------------------------------------------------------------------------------
 void ReservoirProblem::findMinMax () const
 {
    double s_min = 1.0e20;
@@ -693,7 +727,9 @@ void ReservoirProblem::findMinMax () const
    cout << "dt            = " << dt << endl;
 }
 
+//------------------------------------------------------------------------------
 // perform time stepping
+//------------------------------------------------------------------------------
 void ReservoirProblem::solve ()
 {
    unsigned int iter = 0;
@@ -717,6 +753,8 @@ void ReservoirProblem::solve ()
       // Runge-Kutta stages
       for (unsigned int irk=0; irk<nrk; ++irk)
       {
+         n_interior_min = 0; // reset counter
+
          // compute residual
          residual (s_residual, c_residual);
       
@@ -745,12 +783,15 @@ void ReservoirProblem::solve ()
          output (iter);
 
       cout << "Time= " << time << " iter= " << iter << endl;
+      cout << "No. of interior min flux = " << n_interior_min << endl;
       cout << endl;
    }
 }
 
+//------------------------------------------------------------------------------
 // save solution to file
 // only interior cells are written, ghost cells are not written
+//------------------------------------------------------------------------------
 void ReservoirProblem::output (const unsigned int iter) const
 {
 
@@ -814,7 +855,9 @@ void ReservoirProblem::output (const unsigned int iter) const
 
 }
 
+//------------------------------------------------------------------------------
 // solve the whole problem
+//------------------------------------------------------------------------------
 void ReservoirProblem::run ()
 {
    read_input ();
