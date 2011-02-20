@@ -7,14 +7,18 @@
 
 using namespace std;
 
+//------------------------------------------------------------------------------
 // constructor given grid
+//------------------------------------------------------------------------------
 PressureProblem::PressureProblem (Grid* grid_in)
 {
    // set pointer grid to grid_in
    grid = grid_in;
 }
 
+//------------------------------------------------------------------------------
 // compute rhs (b) of pressure equation A*p=b
+//------------------------------------------------------------------------------
 Matrix PressureProblem::compute_rhs (const Matrix& saturation,
                                      const Matrix& concentration,
                                      const Matrix& permeability,
@@ -36,18 +40,18 @@ Matrix PressureProblem::compute_rhs (const Matrix& saturation,
    for(j=2; j<=grid->ny-1; ++j)
       for(i=1; i<=grid->nx-1; ++i)
       {
-         mobility_water_left = mobility_water (saturation(i,j), concentration(i,j));
-         mobility_oil_left = mobility_oil (saturation(i,j), concentration(i,j));
+         mobility_water_left = mobility_water (saturation(i,j-1), concentration(i,j-1));
+         mobility_oil_left = mobility_oil (saturation(i,j-1), concentration(i,j-1));
          mobility_left = mobility_water_left + mobility_oil_left;
-         perm_left = permeability (i,j);
+         perm_left = permeability (i,j-1);
          m_perm_left = mobility_left * perm_left;
          theta_left = (mobility_water_left * density_water +
                        mobility_oil_left   * density_oil) * gravity * perm_left;
 
-         mobility_water_right = mobility_water (saturation(i,j-1), concentration(i,j-1));
-         mobility_oil_right = mobility_oil (saturation(i,j-1), concentration(i,j-1));
+         mobility_water_right = mobility_water (saturation(i,j), concentration(i,j));
+         mobility_oil_right = mobility_oil (saturation(i,j), concentration(i,j));
          mobility_right = mobility_water_right + mobility_oil_right;
-         perm_right = permeability (i,j-1);
+         perm_right = permeability (i,j);
          m_perm_right = mobility_right * perm_right;
          theta_right = (mobility_water_right * density_water +
                         mobility_oil_right   * density_oil) * gravity * perm_right;
@@ -57,8 +61,8 @@ Matrix PressureProblem::compute_rhs (const Matrix& saturation,
          theta  = 0.5 * m_perm * ( theta_left/m_perm_left + theta_right/m_perm_right );
          flux   = theta * grid->dx;
 
-         result(i,j)   += flux;
-         result(i,j-1) -= flux;
+         result(i,j)   -= flux;
+         result(i,j-1) += flux;
       }
 
    // inlet/outlet boundaries
@@ -97,18 +101,18 @@ Matrix PressureProblem::compute_rhs (const Matrix& saturation,
          for(i=grid->ibeg[n]; i<grid->iend[n]; ++i)
          {
 
-            mobility_water_left = mobility_water (saturation(i,j), concentration(i,j));
-            mobility_oil_left = mobility_oil (saturation(i,j), concentration(i,j));
+            mobility_water_left = mobility_water (saturation(i,j-1), concentration(i,j-1));
+            mobility_oil_left = mobility_oil (saturation(i,j-1), concentration(i,j-1));
             mobility_left = mobility_water_left + mobility_oil_left;
-            perm_left = permeability (i,j);
+            perm_left = permeability (i,j-1);
             m_perm_left = mobility_left * perm_left;
             theta_left = (mobility_water_left * density_water +
                           mobility_oil_left   * density_oil) * gravity * perm_left;
 
-            mobility_water_right = mobility_water (saturation(i,j-1), concentration(i,j-1));
-            mobility_oil_right = mobility_oil (saturation(i,j-1), concentration(i,j-1));
+            mobility_water_right = mobility_water (saturation(i,j), concentration(i,j));
+            mobility_oil_right = mobility_oil (saturation(i,j), concentration(i,j));
             mobility_right = mobility_water_right + mobility_oil_right;
-            perm_right = permeability (i,j-1);
+            perm_right = permeability (i,j);
             m_perm_right = mobility_right * perm_right;
             theta_right = (mobility_water_right * density_water +
                            mobility_oil_right   * density_oil) * gravity * perm_right;
@@ -119,17 +123,17 @@ Matrix PressureProblem::compute_rhs (const Matrix& saturation,
 
             if(grid->jbeg[n] == 1) // inlet-horizontal side
             {
-               // dpdn = (pinlet - pressure(i,j))/(dy)
-               flux         = m_perm * (pinlet)/(grid->dy) * grid->dx
+               // dpdn = (pressure(i,j) - pinlet)/(dy)
+               flux         = m_perm * (-pinlet)/(grid->dy) * grid->dx
                             + theta * grid->dx;
-               result(i,j) += flux;
+               result(i,j) -= flux;
             }
             else // outlet-horizontal side
             {
-               // dpdn = (pressure(i,j-1) - poutlet)/(dy)
-               flux           = m_perm * (-poutlet)/(grid->dy) * grid->dx
+               // dpdn = (poutlet - pressure(i,j-1))/(dy)
+               flux           = m_perm * (poutlet)/(grid->dy) * grid->dx
                               + theta * grid->dx;
-               result(i,j-1) -= flux;
+               result(i,j-1) += flux;
             }
          }
       }
@@ -139,7 +143,9 @@ Matrix PressureProblem::compute_rhs (const Matrix& saturation,
 
 }
 
+//------------------------------------------------------------------------------
 // compute matrix vector product A*p in pressure equation A*p = b
+//------------------------------------------------------------------------------
 Matrix PressureProblem::A_times_pressure (const Matrix& saturation,
                                           const Matrix& concentration,
                                           const Matrix& permeability,
@@ -175,21 +181,21 @@ Matrix PressureProblem::A_times_pressure (const Matrix& saturation,
    for(j=2; j<=grid->ny-1; ++j)
       for(i=1; i<=grid->nx-1; ++i)
       {
-         mobility_left = mobility_total (saturation(i,j), concentration(i,j));
-         perm_left = permeability (i,j);
-         mobility_right = mobility_total (saturation(i,j-1), concentration(i,j-1));
-         perm_right = permeability (i,j-1);
+         mobility_left = mobility_total (saturation(i,j-1), concentration(i,j-1));
+         perm_left = permeability (i,j-1);
+         mobility_right = mobility_total (saturation(i,j), concentration(i,j));
+         perm_right = permeability (i,j);
          m_perm = harmonic_average (mobility_left  * perm_left, 
                                     mobility_right * perm_right);
 
-         dpdn = (pressure(i,j-1) - pressure(i,j))/grid->dy;
+         dpdn = (pressure(i,j) - pressure(i,j-1))/grid->dy;
 
          flux           = - m_perm * dpdn * grid->dx;
-         result(i,j)   += flux;
-         result(i,j-1) -= flux;
+         result(i,j)   -= flux;
+         result(i,j-1) += flux;
       }
 
-   // inlet/outlet boundaries
+   // inlet/outlet boundaries: vertical
    for(unsigned int n=0; n<grid->n_boundary; ++n)
    {
       if (grid->ibeg[n] == grid->iend[n])
@@ -219,29 +225,30 @@ Matrix PressureProblem::A_times_pressure (const Matrix& saturation,
          }
       }
 
+      // inlet/outlet boundaries: horizontal
       if (grid->jbeg[n] == grid->jend[n])
       {
          j = grid->jbeg[n];
          for(i=grid->ibeg[n]; i<grid->iend[n]; ++i)
          {
-            mobility_left = mobility_total (saturation(i,j), concentration(i,j));
-            perm_left = permeability (i,j);
-            mobility_right = mobility_total (saturation(i,j-1), concentration(i,j-1));
-            perm_right = permeability (i,j-1);
+            mobility_left = mobility_total (saturation(i,j-1), concentration(i,j-1));
+            perm_left = permeability (i,j-1);
+            mobility_right = mobility_total (saturation(i,j), concentration(i,j));
+            perm_right = permeability (i,j);
             m_perm = harmonic_average (mobility_left  * perm_left, 
                                        mobility_right * perm_right);
 
             if(grid->jbeg[n] == 1) // inlet-horizontal side
             {
-               // dpdn = (pinlet - pressure(i,j))/(dy)
-               flux         = - m_perm * (-pressure(i,j))/(grid->dy) * grid->dx;
-               result(i,j) += flux;
+               // dpdn = (pressure(i,j) - pinlet)/(dy)
+               flux         = - m_perm * (pressure(i,j))/(grid->dy) * grid->dx;
+               result(i,j) -= flux;
             }
             else // outlet-horizontal side
             {
-               // dpdn = (pressure(i,j-1) - poutlet)/(dy)
-               flux           = - m_perm * pressure(i,j-1)/(grid->dy) * grid->dx;
-               result(i,j-1) -= flux;
+               // dpdn = (poutlet - pressure(i,j-1))/(dy)
+               flux           = - m_perm * (-pressure(i,j-1))/(grid->dy) * grid->dx;
+               result(i,j-1) += flux;
             }
          }
       }
@@ -251,7 +258,9 @@ Matrix PressureProblem::A_times_pressure (const Matrix& saturation,
 
 }
 
+//------------------------------------------------------------------------------
 // Compute residual for pressure problem, r = b - A*p
+//------------------------------------------------------------------------------
 Matrix PressureProblem::residual (const Matrix& saturation, 
                                   const Matrix& concentration,
                                   const Matrix& permeability,
@@ -265,7 +274,9 @@ Matrix PressureProblem::residual (const Matrix& saturation,
    return r;
 }
 
+//------------------------------------------------------------------------------
 // Solve pressure equation by CG method
+//------------------------------------------------------------------------------
 void PressureProblem::run (const Matrix& saturation, 
                            const Matrix& concentration,
                            const Matrix& permeability,
