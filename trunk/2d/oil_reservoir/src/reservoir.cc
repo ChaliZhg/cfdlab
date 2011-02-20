@@ -158,7 +158,7 @@ double ReservoirProblem::darcy_velocity
 
    // we assume dx=dy, so dont divide by length since it is accounted
    // for in flux computation: dont multiply flux by face area
-   double dpdn     = (p_right - p_left);
+   double dpdn     = (p_right - p_left) / grid.dx;
    double velocity = - m_perm * dpdn;
 
    // Add gravity effect
@@ -170,11 +170,11 @@ double ReservoirProblem::darcy_velocity
                             m_oil_right   * density_oil) * gravity * perm_right;
       double theta = 0.5 * m_perm * ( theta_left/m_perm_left + theta_right/m_perm_right);
 
-      velocity -= theta * grid.dx;
+      velocity -= theta;
    }
 
-   max_velocity = max ( max_velocity, fabs(velocity)/grid.dx );
-   min_velocity = min ( min_velocity, fabs(velocity)/grid.dx );
+   max_velocity = max ( max_velocity, fabs(velocity) );
+   min_velocity = min ( min_velocity, fabs(velocity) );
    
    return velocity;
 }
@@ -237,7 +237,7 @@ vector<double> num_flux
       double perm_right = state_right[2];
       double s_min_right = argmin_flux(c_right, perm_right, velocity);
 
-      s_left  = max( s_left, s_min_left);
+      s_left  = max( s_left,  s_min_left);
       s_right = min( s_right, s_min_right);
 
       double m_water_left = mobility_water (s_left, c_left);
@@ -383,6 +383,7 @@ void ReservoirProblem::read_input ()
 }
 
 //------------------------------------------------------------------------------
+// Create cartesian grid
 //------------------------------------------------------------------------------
 void ReservoirProblem::make_grid ()
 {
@@ -512,27 +513,27 @@ void ReservoirProblem::residual (Matrix& s_residual, Matrix& c_residual)
          velocity    = darcy_velocity (i-1, j, i, j, 0.0);
          flux        = num_flux (velocity, state_left, state_right, 0.0);
 
-         s_residual (i-1,j) += flux[0];
-         s_residual (i,  j) -= flux[0];
+         s_residual (i-1,j) += flux[0] * grid.dy;
+         s_residual (i,  j) -= flux[0] * grid.dy;
 
-         c_residual (i-1,j) += flux[1];
-         c_residual (i,  j) -= flux[1];
+         c_residual (i-1,j) += flux[1] * grid.dy;
+         c_residual (i,  j) -= flux[1] * grid.dy;
       }
 
    // interior horizontal faces
    for(j=2; j<=grid.ny-1; ++j)
       for(i=1; i<=grid.nx-1; ++i)
       {
-         state_left  = reconstruct (i, j+1, i, j, i, j-1);
-         state_right = reconstruct (i, j-2, i, j-1, i, j);
-         velocity    = darcy_velocity (i, j, i, j-1, gravity);
+         state_left  = reconstruct (i, j-2, i, j-1, i, j);
+         state_right = reconstruct (i, j+1, i, j, i, j-1);
+         velocity    = darcy_velocity (i, j-1, i, j, gravity);
          flux        = num_flux (velocity, state_left, state_right, gravity);
 
-         s_residual (i,j)   += flux[0];
-         s_residual (i,j-1) -= flux[0];
+         s_residual (i,j)   -= flux[0] * grid.dx;
+         s_residual (i,j-1) += flux[0] * grid.dx;
 
-         c_residual (i,j)   += flux[1];
-         c_residual (i,j-1) -= flux[1];
+         c_residual (i,j)   -= flux[1] * grid.dx;
+         c_residual (i,j-1) += flux[1] * grid.dx;
       }
 
    // inlet/outlet boundaries
@@ -550,8 +551,8 @@ void ReservoirProblem::residual (Matrix& s_residual, Matrix& c_residual)
                state_right = reconstruct (i+1, j, i, j, i-1, j);
                velocity    = darcy_velocity (i-1, j, i, j, 0.0);
                flux        = num_flux (velocity, state_left, state_right, 0.0);
-               s_residual(i,j) -= flux[0];
-               c_residual(i,j) -= flux[1];
+               s_residual(i,j) -= flux[0] * grid.dy;
+               c_residual(i,j) -= flux[1] * grid.dy;
             }
             else // outlet-vertical side
             {
@@ -559,8 +560,8 @@ void ReservoirProblem::residual (Matrix& s_residual, Matrix& c_residual)
                state_right = reconstruct (i, j, i, j, i-1, j);
                velocity    = darcy_velocity (i-1, j, i, j, 0.0);
                flux        = num_flux (velocity, state_left, state_right, 0.0);
-               s_residual(i-1,j) += flux[0];
-               c_residual(i-1,j) += flux[1];
+               s_residual(i-1,j) += flux[0] * grid.dy;
+               c_residual(i-1,j) += flux[1] * grid.dy;
             }
          }
       }
@@ -573,21 +574,21 @@ void ReservoirProblem::residual (Matrix& s_residual, Matrix& c_residual)
 
             if(grid.jbeg[n] == 1) // inlet-horizontal side
             {
-               state_left  = reconstruct (i, j+1, i, j, i, j-1);
-               state_right = reconstruct (i, j-1, i, j-1, i, j);
-               velocity    = darcy_velocity (i, j, i, j-1, gravity);
+               state_left  = reconstruct (i, j-1, i, j-1, i, j);
+               state_right = reconstruct (i, j+1, i, j, i, j-1);
+               velocity    = darcy_velocity (i, j-1, i, j, gravity);
                flux        = num_flux (velocity, state_left, state_right, gravity);
-               s_residual(i,j) += flux[0];
-               c_residual(i,j) += flux[1];
+               s_residual(i,j) -= flux[0] * grid.dx;
+               c_residual(i,j) -= flux[1] * grid.dx;
             }
             else // outlet-horizontal side
             {
-               state_left  = reconstruct (i, j, i, j, i, j-1);
-               state_right = reconstruct (i, j-2, i, j-1, i, j);
-               velocity    = darcy_velocity (i, j, i, j-1, gravity);
+               state_left  = reconstruct (i, j-2, i, j-1, i, j);
+               state_right = reconstruct (i, j, i, j, i, j-1);
+               velocity    = darcy_velocity (i, j-1, i, j, gravity);
                flux        = num_flux (velocity, state_left, state_right, gravity);
-               s_residual(i,j-1) -= flux[0];
-               c_residual(i,j-1) -= flux[1];
+               s_residual(i,j-1) += flux[0] * grid.dx;
+               c_residual(i,j-1) += flux[1] * grid.dx;
             }
          }
       }
