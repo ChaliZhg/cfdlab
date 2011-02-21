@@ -212,9 +212,28 @@ double argmin_flux(const double& concentration,
 }
 
 //------------------------------------------------------------------------------
-// numerical flux function for saturation
+// call appropriate numerical flux function
 //------------------------------------------------------------------------------
-vector<double> num_flux
+vector<double> ReservoirProblem::num_flux
+       (
+       const double& velocity,
+       const vector<double>& state_left,
+       const vector<double>& state_right,
+       const double& g
+       )
+{
+   vector<double> flux(2);
+
+   if(flux_type=="dflu")
+      flux = dflu_flux (velocity, state_left, state_right, g);
+
+   return flux;
+}
+
+//------------------------------------------------------------------------------
+// dflu umerical flux function
+//------------------------------------------------------------------------------
+vector<double> dflu_flux
        (
        const double& velocity,
        const vector<double>& state_left,
@@ -296,6 +315,10 @@ void ReservoirProblem::read_input ()
    ifstream inp;
    string input;
    inp.open ("data.in");
+
+   inp >> input >> flux_type;      
+   assert (input=="flux");
+   assert (flux_type=="dflu");
 
    inp >> input >> order;      
    assert(input == "order");
@@ -821,13 +844,6 @@ void ReservoirProblem::output (const unsigned int iter) const
 
    vtk << "CELL_DATA " << (grid.nx-1)*(grid.ny-1) << endl;
 
-   // write pressure
-   vtk << "SCALARS pressure float 1" << endl;
-   vtk << "LOOKUP_TABLE default" << endl;
-   for(j=1; j<grid.ny; ++j)
-      for(i=1; i<grid.nx; ++i)
-         vtk << fixed << pressure (i,j) << endl;
-
    // write saturation
    vtk << "SCALARS saturation float 1" << endl;
    vtk << "LOOKUP_TABLE default" << endl;
@@ -841,6 +857,13 @@ void ReservoirProblem::output (const unsigned int iter) const
    for(j=1; j<grid.ny; ++j)
       for(i=1; i<grid.nx; ++i)
          vtk << fixed << concentration (i,j) << endl;
+
+   // write pressure
+   vtk << "SCALARS pressure float 1" << endl;
+   vtk << "LOOKUP_TABLE default" << endl;
+   for(j=1; j<grid.ny; ++j)
+      for(i=1; i<grid.nx; ++i)
+         vtk << fixed << pressure (i,j) << endl;
 
    // write permeability
    if (iter==0)
