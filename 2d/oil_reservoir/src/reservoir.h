@@ -1,6 +1,7 @@
 #ifndef __RESERVOIR_H__
 #define __RESERVOIR_H__
 
+#include <string>
 #include "matrix.h"
 #include "grid.h"
 
@@ -20,6 +21,7 @@ class ReservoirProblem
       unsigned int save_freq;
       unsigned int nrk;
       unsigned int order;
+      std::string  flux_type;
       double  ark[3], brk[3];
       double  cfl, final_time, dt;
       double  min_velocity;
@@ -73,6 +75,15 @@ class ReservoirProblem
           const unsigned int&, const unsigned int&,
           const double&);
 
+      std::vector<double> num_flux
+       (
+       const double& velocity,
+       const std::vector<double>& state_left,
+       const std::vector<double>& state_right,
+       const double& g
+       );
+       
+
       void updateConcentration (Matrix&);
       void updateGhostCells ();
       void findMinMax () const;
@@ -81,7 +92,7 @@ class ReservoirProblem
 
 double minmod (const double& ul, const double& u0, const double& ur);
 
-std::vector<double> num_flux
+std::vector<double> dflu_flux
        (
        const double& velocity,
        const std::vector<double>& state_left,
