@@ -362,6 +362,12 @@ void ReservoirProblem::read_input ()
    assert(input == "gravity");
    assert(gravity >= 0.0);
 
+   inp >> input >> grid.xmin >> grid.xmax;
+   assert(input == "xrange");
+
+   inp >> input >> grid.ymin >> grid.ymax;
+   assert(input == "yrange");
+
    inp >> grid.nx >> grid.ny;
    inp >> grid.n_boundary;
 
@@ -432,12 +438,8 @@ void ReservoirProblem::make_grid ()
       }
    }
 
-   double xmin = 0.0;
-   double xmax = 1.0;
-   double ymin = 0.0;
-   double ymax = 1.0;
-   grid.dx   = (xmax - xmin)/(grid.nx - 1);
-   grid.dy   = (ymax - ymin)/(grid.ny - 1);
+   grid.dx   = (grid.xmax - grid.xmin)/(grid.nx - 1);
+   grid.dy   = (grid.ymax - grid.ymin)/(grid.ny - 1);
 
    // This is implicitly assumed in the flux computations
    assert (grid.dx == grid.dy);
@@ -446,8 +448,8 @@ void ReservoirProblem::make_grid ()
    for(unsigned int i=0; i<=grid.nx+1; ++i)
       for(unsigned int j=0; j<=grid.ny+1; ++j)
       {
-         grid.x (i,j) = xmin + (i-1) * grid.dx;
-         grid.y (i,j) = ymin + (j-1) * grid.dy;
+         grid.x (i,j) = grid.xmin + (i-1) * grid.dx;
+         grid.y (i,j) = grid.ymin + (j-1) * grid.dy;
       }
 
    // cell center coordinates
@@ -718,6 +720,7 @@ void ReservoirProblem::updateGhostCells ()
          }
       }
    }
+
 }
 
 //------------------------------------------------------------------------------

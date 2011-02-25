@@ -300,7 +300,7 @@ void PressureProblem::run (const Matrix& saturation,
    r2[0] = r.dot(r);
 
    // CG iterations
-   while ( sqrt(r2[iter]) > tolerance && iter < max_iter )
+   while ( sqrt(r2[iter]/r2[0]) > tolerance && iter < max_iter )
    {
       if (iter >= 1) // update descent direction
       {              // d = r + beta * d
@@ -322,10 +322,10 @@ void PressureProblem::run (const Matrix& saturation,
       ++iter;
 
       r2[iter] = r.dot(r);
-
    }
+
    cout << "PressureProblem: iter= " << iter 
-        << " residue= " << sqrt(r2[iter]) << endl;
+        << " residue= " << sqrt(r2[iter]/r2[0]) << endl;
 
    if (sqrt(r2[iter]) > tolerance && iter==max_iter)
    {
