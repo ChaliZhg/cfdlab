@@ -19,6 +19,7 @@ class Grid
       Matrix xc, yc; // cell centers
       unsigned int n_boundary;
       unsigned int n_cells;
+      double xmin, xmax, ymin, ymax;
       double dx, dy;
 
       unsigned int cell_num(const unsigned int, const unsigned int);
