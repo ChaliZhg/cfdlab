@@ -1,7 +1,12 @@
 #ifndef __MATERIAL_H__
 #define __MATERIAL_H__
 
+#include <vector>
 #include <cmath>
+
+#define SOLID  0 // no penetration boundary
+#define INLET  1 // inlet
+#define OUTLET 2 // outlet
 
 #define harmonic_average(a,b)   (2.0*(a)*(b)/((a)+(b)))
 
@@ -9,6 +14,12 @@ extern double viscosity_oil;
 extern double density_water;
 extern double density_oil;
 extern double gravity;
+
+namespace Permeability
+{
+   extern unsigned int N;
+   extern std::vector<double> xl, yl;
+}
 
 // viscosity of water
 double viscosity_water (const double& concentration);
@@ -53,14 +64,6 @@ double mobility_total (const double& saturation, const double& concentration)
 {
    return mobility_water (saturation, concentration) +
           mobility_oil   (saturation, concentration);
-}
-
-// permeability of rock
-inline
-double rock_permeability (const double& x, const double& y)
-{
-   return 1.0;
-   //return 1.0 + 0.5 * cos(6.0*M_PI*(x+0.2)) * cos(6.0*M_PI*y);
 }
 
 #endif

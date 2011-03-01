@@ -37,6 +37,7 @@ Matrix PressureProblem::compute_rhs (const Matrix& saturation,
    result = 0.0;
 
    // interior horizontal faces
+   // contribution from gravity term
    for(j=2; j<=grid->ny-1; ++j)
       for(i=1; i<=grid->nx-1; ++i)
       {
@@ -68,6 +69,8 @@ Matrix PressureProblem::compute_rhs (const Matrix& saturation,
    // inlet/outlet boundaries
    for(unsigned int n=0; n<grid->n_boundary; ++n)
    {
+      int bc = grid->boundary_condition[n];
+
       if (grid->ibeg[n] == grid->iend[n]) // Vertical boundary faces
       {
          i = grid->ibeg[n];
@@ -80,17 +83,22 @@ Matrix PressureProblem::compute_rhs (const Matrix& saturation,
             m_perm = harmonic_average (mobility_left  * perm_left, 
                                        mobility_right * perm_right);
 
-            if (grid->ibeg[n] == 1) // inlet-vertical side
+            if (i == 1 && bc == INLET) // inlet-vertical side
             {
                // dpdn = (pressure(i,j) - pinlet)/(dx)
                flux         = m_perm * (-pinlet)/(grid->dx) * grid->dy;
                result(i,j) -= flux;
             }
-            else // outlet-vertical side
+            else if (i == grid->nx && bc == OUTLET) // outlet-vertical side
             {
                // dpdn = (poutlet - pressure(i-1,j))/(dx)
                flux           = m_perm * (poutlet)/(grid->dx) * grid->dy;
                result(i-1,j) += flux;
+            }
+            else
+            {
+               cout << "pressure rhs: Boundary index is wrong !!!\n";
+               abort ();
             }
          }
       }
@@ -100,7 +108,6 @@ Matrix PressureProblem::compute_rhs (const Matrix& saturation,
          j = grid->jbeg[n];
          for(i=grid->ibeg[n]; i<grid->iend[n]; ++i)
          {
-
             mobility_water_left = mobility_water (saturation(i,j-1), concentration(i,j-1));
             mobility_oil_left = mobility_oil (saturation(i,j-1), concentration(i,j-1));
             mobility_left = mobility_water_left + mobility_oil_left;
@@ -121,19 +128,24 @@ Matrix PressureProblem::compute_rhs (const Matrix& saturation,
 
             theta  = 0.5 * m_perm * ( theta_left/m_perm_left + theta_right/m_perm_right );
 
-            if(grid->jbeg[n] == 1) // inlet-horizontal side
+            if(j == 1 && bc == INLET) // inlet-horizontal side
             {
                // dpdn = (pressure(i,j) - pinlet)/(dy)
                flux         = m_perm * (-pinlet)/(grid->dy) * grid->dx
                             + theta * grid->dx;
                result(i,j) -= flux;
             }
-            else // outlet-horizontal side
+            else if(j == grid->ny && bc == OUTLET) // outlet-horizontal side
             {
                // dpdn = (poutlet - pressure(i,j-1))/(dy)
                flux           = m_perm * (poutlet)/(grid->dy) * grid->dx
                               + theta * grid->dx;
                result(i,j-1) += flux;
+            }
+            else
+            {
+               cout << "pressure rhs: Boundary index is wrong !!!\n";
+               abort ();
             }
          }
       }

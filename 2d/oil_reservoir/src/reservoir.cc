@@ -3,9 +3,9 @@
 #include <sstream>
 #include <cstdlib>
 #include <cassert>
+#include "material.h"
 #include "pressure.h"
 #include "reservoir.h"
-#include "material.h"
 
 #define SIGN(a) (((a)<0) ? -1:1)
 
@@ -475,6 +475,14 @@ void ReservoirProblem::initialize ()
    permeability.allocate  (grid.nx+1, grid.ny+1);
 
    // rock permeability
+   Permeability::N = 50;
+   Permeability::xl.resize(Permeability::N);
+   Permeability::yl.resize(Permeability::N);
+   for(unsigned int i=0; i<Permeability::N; ++i)
+   {
+      Permeability::xl[i] = (rand() % 1001 + 1) / 1001.0;
+      Permeability::yl[i] = (rand() % 1001 + 1) / 1001.0;
+   }
    for(unsigned int i=0; i<grid.nx+1; ++i)
       for(unsigned int j=0; j<grid.ny+1; ++j)
          permeability (i,j) = rock_permeability (grid.xc(i,j), grid.yc(i,j));
@@ -485,7 +493,8 @@ void ReservoirProblem::initialize ()
       {
          double dist = grid.xc(i,j) * grid.xc(i,j) + 
                        grid.yc(i,j) * grid.yc(i,j);
-         if(dist <= 0.25 * 0.25) // Water region
+         //if(dist <= 0.25 * 0.25) // Water region
+         if(grid.yc(i,j) <= -0.25) // Water region
          {
             saturation    (i,j) = 1.0;
             concentration (i,j) = cinlet;
@@ -564,13 +573,15 @@ void ReservoirProblem::residual (Matrix& s_residual, Matrix& c_residual)
    // inlet/outlet boundaries
    for(unsigned int n=0; n<grid.n_boundary; ++n)
    {
-      if (grid.ibeg[n] == grid.iend[n])
+      int bc = grid.boundary_condition[n];
+
+      if (grid.ibeg[n] == grid.iend[n] && bc != SOLID)
       {
          i = grid.ibeg[n];
          for(j=grid.jbeg[n]; j<grid.jend[n]; ++j)
          {
 
-            if (grid.ibeg[n] == 1) // inlet-vertical side
+            if (i == 1) // inlet-vertical side
             {
                state_left  = reconstruct (i-1, j, i-1, j, i, j);
                state_right = reconstruct (i+1, j, i, j, i-1, j);
@@ -591,13 +602,13 @@ void ReservoirProblem::residual (Matrix& s_residual, Matrix& c_residual)
          }
       }
 
-      if (grid.jbeg[n] == grid.jend[n])
+      if (grid.jbeg[n] == grid.jend[n] && bc != SOLID)
       {
          j = grid.jbeg[n];
          for(i=grid.ibeg[n]; i<grid.iend[n]; ++i)
          {
 
-            if(grid.jbeg[n] == 1) // inlet-horizontal side
+            if(j == 1) // inlet-horizontal side
             {
                state_left  = reconstruct (i, j-1, i, j-1, i, j);
                state_right = reconstruct (i, j+1, i, j, i, j-1);
