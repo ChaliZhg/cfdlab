@@ -63,7 +63,8 @@ double minmod (const double& a, const double& b, const double& c)
       result  = std::min( std::fabs(a), std::min(std::fabs(b), std::fabs(c)));
       result *= ((a>0.0) ? 1.0 : -1.0);
    }
-   else {
+   else 
+   {
       result = 0.0;
    }
    
@@ -117,7 +118,6 @@ private:
     void make_grid_and_dofs ();
     void initialize ();
     void assemble_mass_matrix ();
-    void compute_face_flux ();
     void assemble_rhs ();
     void compute_averages ();
     void compute_dt ();
@@ -129,8 +129,9 @@ private:
     unsigned int         n_cells;
     double               dt;
     double               dx;
-    double                cfl;
+    double               cfl;
     double               final_time;
+    double               min_residue;
     unsigned int         n_rk_stages;
     FluxType             flux_type;
 
@@ -157,6 +158,9 @@ private:
     std::vector< Vector<double> > density_average;
     std::vector< Vector<double> > momentum_average;
     std::vector< Vector<double> > energy_average;
+   
+    std::vector<double> residual;
+    std::vector<double> residual0;
 
 };
 
@@ -182,7 +186,8 @@ NSProblem<dim>::NSProblem (unsigned int degree, TestCase test_case) :
       xmin    = 0.0;
       xmax    = 1.0;
       xmid    = 0.5;
-      final_time = 2.0;
+      final_time = 0.2;
+      min_residue= 1.0e20;
       cfl     = 0.1;
       
       gas_gamma = 1.4;
@@ -206,8 +211,9 @@ NSProblem<dim>::NSProblem (unsigned int degree, TestCase test_case) :
       xmin    = -0.25;
       xmax    =  0.0;
       xmid    = 0.5 * ( xmin + xmax );
-      final_time = 2.0;
-      cfl = 0.1;
+      final_time = 0.5;
+      min_residue= 1.0e-8;
+      cfl = 0.01;
       
       gas_gamma = 5.0/3.0;
       gas_const = 0.5;
@@ -282,6 +288,9 @@ void NSProblem<dim>::make_grid_and_dofs ()
     density_average.resize (triangulation.n_cells(), Vector<double>(fe.degree+1));
     momentum_average.resize (triangulation.n_cells(), Vector<double>(fe.degree+1));
     energy_average.resize (triangulation.n_cells(), Vector<double>(fe.degree+1));
+   
+    residual.resize(3, 1.0);
+    residual0.resize(3);
 }
 
 //------------------------------------------------------------------------------
@@ -548,7 +557,7 @@ void kfvs_split_flux (const std::vector<double>& prim,
    // inviscid flux
    flux[0] = prim[0] * fact;
    flux[1] = (prim[2] + prim[0] * pow(prim[1], 2)) * A +
-   prim[0] * prim[1] * B;
+             prim[0] * prim[1] * B;
    flux[2] = prim[1] * (E + prim[2]) * A +
              (E + 0.5 * prim[2]) * B;
    
@@ -564,7 +573,7 @@ void kfvs_split_flux (const std::vector<double>& prim,
               B * (-g2 * tau - g3 * prim[1] * beta * q);
 }
 //------------------------------------------------------------------------------
-// KFVS flux
+// KFVS flux for navier-stokes
 //------------------------------------------------------------------------------
 void KFVSFlux (const Vector<double>& left_state,
                const Vector<double>& right_state,
@@ -606,119 +615,26 @@ void KFVSFlux (const Vector<double>& left_state,
 //------------------------------------------------------------------------------
 // Compute flux across cell faces
 //------------------------------------------------------------------------------
-template <int dim>
-void NSProblem<dim>::compute_face_flux ()
+void numerical_flux (const FluxType& flux_type,
+                     Vector<double>& left_state,
+                     Vector<double>& right_state,
+                     Vector<double>& left_grad,
+                     Vector<double>& right_grad,
+                     Vector<double>& flux)
 {
-   const unsigned int dofs_per_cell = fe.dofs_per_cell;
-   std::vector<unsigned int> dofs(dofs_per_cell);
-   
-   typename DoFHandler<dim>::active_cell_iterator 
-      cell = dof_handler.begin_active(),
-      endc = dof_handler.end(),
-      l_cell, 
-      r_cell;
-   
-   unsigned int l_dof, r_dof;
-   
-   // Loop over faces
-   unsigned int n_faces = triangulation.n_active_cells() + 1;
-   for (unsigned int i=0; i<n_faces; ++i)
+   switch (flux_type) 
    {
-      if(i==0)
-      {
-         l_cell = cell;
-         r_cell = cell;
-         cell->get_dof_indices(dofs);
-         l_dof = dofs[0];
-         r_dof = dofs[0];
+      case lxf:
+         LaxFlux (left_state, right_state, flux);
+         break;
          
-      }
-      else if(i==n_faces-1)
-      {
-         l_cell = cell;
-         r_cell = cell;
-         cell->get_dof_indices(dofs);
-         l_dof = dofs[dofs_per_cell-1];
-         r_dof = dofs[dofs_per_cell-1];
+      case kfvs:
+         KFVSFlux (left_state, right_state, left_grad, right_grad, flux);
+         break;
          
-      }
-      else
-      {
-         l_cell = cell;
-         r_cell = cell->neighbor(1);
-         
-         l_cell->get_dof_indices(dofs);
-         l_dof = dofs[dofs_per_cell-1];
-         
-         r_cell->get_dof_indices(dofs);
-         r_dof = dofs[0];
-         
-         ++cell;
-      }
-         
-      Vector<double> left_state(n_var), right_state(n_var);
-
-      left_state(0) = density  (l_dof);
-      left_state(1) = momentum (l_dof);
-      left_state(2) = energy   (l_dof);
-      
-      right_state(0) = density  (r_dof);
-      right_state(1) = momentum (r_dof);
-      right_state(2) = energy   (r_dof);
-      
-      
-      std::vector< Tensor<1,dim> > l_grad(n_var);
-      std::vector< Tensor<1,dim> > r_grad(n_var);
-      
-      for(unsigned int k=0; k<n_var; ++k)
-      {
-         l_grad[k][0] = 0.0;
-         r_grad[k][0] = 0.0;
-      }
-            
-      // This part of code is VERY SLOW
-      if(test_case == shock_structure)
-      {
-         Functions::FEFieldFunction<dim> density_grad (dof_handler, density);
-         density_grad.set_active_cell (l_cell);
-         l_grad[0] = density_grad.gradient (l_cell->vertex(1));
-         density_grad.set_active_cell (r_cell);
-         r_grad[0] = density_grad.gradient (r_cell->vertex(0));
-
-         Functions::FEFieldFunction<dim> momentum_grad (dof_handler, momentum);
-         momentum_grad.set_active_cell (l_cell);
-         l_grad[1] = momentum_grad.gradient (l_cell->vertex(1));
-         momentum_grad.set_active_cell (r_cell);
-         r_grad[1] = momentum_grad.gradient (r_cell->vertex(0));
-
-         Functions::FEFieldFunction<dim> energy_grad (dof_handler, energy);
-         energy_grad.set_active_cell (l_cell);
-         l_grad[2] = energy_grad.gradient (l_cell->vertex(1));
-         energy_grad.set_active_cell (r_cell);
-         r_grad[2] = energy_grad.gradient (r_cell->vertex(0));
-      }
-      
-      Vector<double> left_grad (n_var), right_grad (n_var);
-      for(unsigned int k=0; k<n_var; ++k)
-      {
-         left_grad(k) = l_grad[k][0];
-         right_grad(k) = r_grad[k][0];
-      }
-
-      
-      switch (flux_type) {
-         case lxf:
-            LaxFlux (left_state, right_state, face_flux[i]);
-            break;
-            
-         case kfvs:
-            KFVSFlux (left_state, right_state, left_grad, right_grad, face_flux[i]);
-            break;
-            
-         default:
-            cout << "Unknown flux_type !!!\n";
-            abort ();
-      }
+      default:
+         cout << "Unknown flux_type !!!\n";
+         abort ();
    }
 }
 
@@ -735,6 +651,11 @@ void NSProblem<dim>::assemble_rhs ()
                              update_quadrature_points | 
                              update_JxW_values);
 
+   // for getting neighbour cell solutions to compute intercell flux
+   QTrapez<dim> quadrature_dummy;
+   FEValues<dim> fe_values_neighbor (fe, quadrature_dummy,
+                            update_values   | update_gradients);
+   
     const unsigned int   dofs_per_cell = fe.dofs_per_cell;
     const unsigned int   n_q_points    = quadrature_formula.size();
 
@@ -745,6 +666,15 @@ void NSProblem<dim>::assemble_rhs ()
     std::vector< Tensor<1,dim> >  density_grad (n_q_points);
     std::vector< Tensor<1,dim> >  momentum_grad (n_q_points);
     std::vector< Tensor<1,dim> >  energy_grad (n_q_points);
+   
+   // for getting neighbor cell solution using trapezoidal rule
+   std::vector<double>  density_values_n  (2);
+   std::vector<double>  momentum_values_n (2);
+   std::vector<double>  energy_values_n   (2);
+   
+   std::vector< Tensor<1,dim> >  density_grad_n (2);
+   std::vector< Tensor<1,dim> >  momentum_grad_n (2);
+   std::vector< Tensor<1,dim> >  energy_grad_n (2);
 
 
     Vector<double>       cell_rhs_density  (dofs_per_cell);
@@ -759,7 +689,9 @@ void NSProblem<dim>::assemble_rhs ()
       cell = dof_handler.begin_active(),
       endc = dof_handler.end();
    
-    for (; cell!=endc; ++cell)
+    residual[0] = residual[1] = residual[2] = 0.0;
+   
+    for (unsigned int c=0; cell!=endc; ++cell, ++c)
     {
         fe_values.reinit (cell);
        
@@ -795,25 +727,113 @@ void NSProblem<dim>::assemble_rhs ()
                                         fe_values.JxW (q_point));
             }
         }
+       
+       // Computation of flux at cell boundaries
+       Vector<double> left_state(3), right_state(3);
+       Vector<double> left_grad(3), right_grad(3);
+
+        // left face flux
+        // right state is from current cell
+       right_state(0) = density_values [0];
+       right_state(1) = momentum_values[0];
+       right_state(2) = energy_values  [0];
+       right_grad(0)  = density_grad [0][0];
+       right_grad(1)  = momentum_grad[0][0];
+       right_grad(2)  = energy_grad  [0][0];
+       
+       if(c==0)
+       {
+          left_state(0) = d_left;
+          left_state(1) = d_left * u_left;
+          left_state(2) = p_left/(gas_gamma-1.0) + 0.5 * d_left * std::pow(u_left,2);
+          left_grad  = 0.0;
+       }else
+       {
+          // get left cell dof indices
+          fe_values_neighbor.reinit (cell->neighbor(0));
+          
+          fe_values_neighbor.get_function_values (density,  density_values_n);
+          fe_values_neighbor.get_function_values (momentum, momentum_values_n);
+          fe_values_neighbor.get_function_values (energy,   energy_values_n);
+          
+          fe_values_neighbor.get_function_gradients (density,  density_grad_n);
+          fe_values_neighbor.get_function_gradients (momentum, momentum_grad_n);
+          fe_values_neighbor.get_function_gradients (energy,   energy_grad_n);
+          
+          left_state(0) = density_values_n [1];
+          left_state(1) = momentum_values_n[1];
+          left_state(2) = energy_values_n  [1];
+          
+          left_grad(0) = density_grad_n [1][0];
+          left_grad(1) = momentum_grad_n[1][0];
+          left_grad(2) = energy_grad_n  [1][0];
+       }
+       
+       Vector<double> left_flux(3);
+       numerical_flux (flux_type, left_state, right_state, 
+                       left_grad, right_grad, left_flux);
+       
+       // right face flux
+       // left state is from current cell
+       left_state(0) = density_values [n_q_points-1];
+       left_state(1) = momentum_values[n_q_points-1];
+       left_state(2) = energy_values  [n_q_points-1];
+       left_grad(0)  = density_grad [n_q_points-1][0];
+       left_grad(1)  = momentum_grad[n_q_points-1][0];
+       left_grad(2)  = energy_grad  [n_q_points-1][0];
+       
+       if(c==triangulation.n_cells()-1)
+       {
+          right_state(0) = d_right;
+          right_state(1) = d_right * u_right;
+          right_state(2) = p_right/(gas_gamma-1.0) + 0.5 * d_right * std::pow(u_right,2);
+          right_grad  = 0.0;
+       }else
+       {          
+          // get right cell to right face
+          fe_values_neighbor.reinit (cell->neighbor(1));
+          
+          fe_values_neighbor.get_function_values (density,  density_values_n);
+          fe_values_neighbor.get_function_values (momentum, momentum_values_n);
+          fe_values_neighbor.get_function_values (energy,   energy_values_n);
+          
+          fe_values_neighbor.get_function_gradients (density,  density_grad_n);
+          fe_values_neighbor.get_function_gradients (momentum, momentum_grad_n);
+          fe_values_neighbor.get_function_gradients (energy,   energy_grad_n);
+          
+          right_state(0) = density_values_n [0];
+          right_state(1) = momentum_values_n[0];
+          right_state(2) = energy_values_n  [0];
+          
+          right_grad(0) = density_grad_n [0][0];
+          right_grad(1) = momentum_grad_n[0][0];
+          right_grad(2) = energy_grad_n  [0][0];
+          
+
+       }
+       
+       Vector<double> right_flux(3);
+       numerical_flux (flux_type, left_state, right_state, 
+                       left_grad, right_grad, right_flux);
 
         // Add flux at cell boundaries
         for (unsigned int i=0; i<dofs_per_cell; ++i)
         {
            // Left face flux
            cell_rhs_density(i) += fe_values.shape_value (i, 0) *
-                                  face_flux[cell->face_index(0)](0);
+                                  left_flux(0);
            cell_rhs_momentum(i)+= fe_values.shape_value (i, 0) *
-                                  face_flux[cell->face_index(0)](1);
+                                  left_flux(1);
            cell_rhs_energy(i)  += fe_values.shape_value (i, 0) *
-                                  face_flux[cell->face_index(0)](2);
+                                  left_flux(2);
            
            // Right face flux
            cell_rhs_density(i) -= fe_values.shape_value (i, n_q_points-1) *
-                                  face_flux[cell->face_index(1)](0);
+                                  right_flux(0);
            cell_rhs_momentum(i)-= fe_values.shape_value (i, n_q_points-1) *
-                                  face_flux[cell->face_index(1)](1);
+                                  right_flux(1);
            cell_rhs_energy(i)  -= fe_values.shape_value (i, n_q_points-1) *
-                                  face_flux[cell->face_index(1)](2);
+                                  right_flux(2);
         }
 
         // Multiply by inverse mass matrix and add to rhs
@@ -834,8 +854,12 @@ void NSProblem<dim>::assemble_rhs ()
                rhs_momentum(ig) += inv_mass_matrix(ig,jg) * cell_rhs_momentum(j);
                rhs_energy(ig)   += inv_mass_matrix(ig,jg) * cell_rhs_energy(j);
             }
-
+           
+            residual[0] += std::pow (rhs_density (ig), 2);
+            residual[1] += std::pow (rhs_momentum (ig), 2);
+            residual[2] += std::pow (rhs_energy (ig), 2);
         }
+       
     }
 
 }
@@ -920,6 +944,7 @@ void NSProblem<dim>::apply_limiter ()
       cell = dof_handler.begin_active(),
       endc = dof_handler.end();
    
+   // dont limit in first cell, skip it.
    ++cell;
    
    double db, df, dl;
@@ -1023,10 +1048,70 @@ void NSProblem<dim>::output_results () const
     data_out.add_data_vector (velocity, "velocity");
     data_out.add_data_vector (pressure, "pressure");
 
-    data_out.build_patches ();
+    if(fe.degree <= 1)
+       data_out.build_patches (1);
+    else
+       data_out.build_patches (5);
 
     std::ofstream output ("solution.gpl");
     data_out.write_gnuplot (output);
+   
+   // compute shear stress and heat flux at cell center
+   // use midpoint quadtrature to get cell center values
+   QMidpoint<dim> quadrature;
+   FEValues<dim> fe_values (fe, quadrature, update_quadrature_points |
+                            update_values   | update_gradients);
+   const unsigned int   dofs_per_cell = fe.dofs_per_cell;   
+   std::vector<unsigned int> local_dof_indices (dofs_per_cell);
+   std::vector<double> density_values (1);
+   std::vector<double> momentum_values (1);
+   std::vector<double> energy_values (1);
+   std::vector< Tensor<1,dim> >  density_grad (1);
+   std::vector< Tensor<1,dim> >  momentum_grad (1);
+   std::vector< Tensor<1,dim> >  energy_grad (1);
+
+   
+   typename DoFHandler<dim>::active_cell_iterator 
+   cell = dof_handler.begin_active(),
+   endc = dof_handler.end();
+
+   Vector<double> state (n_var);
+   Vector<double> grad (n_var);
+   double tau, q;
+   
+   std::ofstream fo;
+   fo.open ("ns.dat");
+   
+   for (unsigned int c=0; cell!=endc; ++c, ++cell)
+   {
+      fe_values.reinit (cell);
+      fe_values.get_function_values (density, density_values);
+      fe_values.get_function_values (momentum, momentum_values);
+      fe_values.get_function_values (energy, energy_values);
+      
+      fe_values.get_function_gradients (density,  density_grad);
+      fe_values.get_function_gradients (momentum, momentum_grad);
+      fe_values.get_function_gradients (energy,   energy_grad);
+      
+      state(0) = density_values [0];
+      state(1) = momentum_values[0];
+      state(2) = energy_values  [0];
+      
+      grad(0) = density_grad [0][0];
+      grad(1) = momentum_grad[0][0];
+      grad(2) = energy_grad  [0][0];
+      
+      compute_nsterms (state, grad, tau, q);
+      
+      double pressure = (gas_gamma-1.0)*(energy_values[0] - 
+                                         0.5 * pow(momentum_values[0],2) / density_values[0]);
+      
+      fo << fe_values.quadrature_point (0)(0) << " " 
+         << tau/(2.0*pressure) << "  " << q << endl;
+
+   }
+   
+   fo.close ();
 }
 
 //------------------------------------------------------------------------------
@@ -1046,7 +1131,8 @@ void NSProblem<dim>::run ()
     double time = 0.0;
     unsigned int iter = 0;
 
-    while (time < final_time)
+    while (time < final_time || ( residual[0] > min_residue &&
+           residual[1] > min_residue && residual[2] > min_residue))
     {
        density_old  = density;
        momentum_old = momentum;
@@ -1057,15 +1143,31 @@ void NSProblem<dim>::run ()
 
        for(unsigned int rk=0; rk<n_rk_stages; ++rk)
        {
-         compute_face_flux ();
          assemble_rhs ();
          update (rk);
          compute_averages ();
-         apply_limiter ();
+         //apply_limiter ();
        }
+       
+       if(iter==0)
+       {
+          std::cout << "Initial residual = " << residual[0] << " "
+                    << residual[1] << " "
+                    << residual[2] << endl;
+          for(unsigned int i=0; i<3; ++i)
+             residual0[i] = residual[i];
+       }
+       
+       for(unsigned int i=0; i<3; ++i)
+          residual[i] /= residual0[i];
+       
       time += dt;
       ++iter;
-      std::cout << "Iter = " << iter << " time = " << time << endl;
+       if(iter % 100 == 0) output_results ();
+       
+      std::cout << "Iter = " << iter << " time = " << time 
+                << " Res =" << residual[0] << " " << residual[1] << " "
+                << residual[2] << endl;
     }
     output_results ();
 }
@@ -1077,7 +1179,7 @@ int main ()
 {
     deallog.depth_console (0);
     {
-        NSProblem<1> ns_problem(1, shock_structure);
+        NSProblem<1> ns_problem(3, shock_structure);
         ns_problem.run ();
     }
 
