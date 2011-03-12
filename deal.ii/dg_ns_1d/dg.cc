@@ -36,6 +36,9 @@ double               d_left, u_left, p_left;
 double               d_right, u_right, p_right;
 double               xmin, xmax, xmid;
 
+// Factor in Maxwell distribution
+double alpha;
+
 // Coefficients for 3-stage SSP RK scheme of Shu-Osher
 const double a_rk[3] = {0.0, 3.0/4.0, 1.0/3.0};
 const double b_rk[3] = {1.0, 1.0/4.0, 2.0/3.0};
@@ -43,6 +46,7 @@ const double b_rk[3] = {1.0, 1.0/4.0, 2.0/3.0};
 // Numerical flux functions
 enum FluxType {lxf, kfvs};
 enum TestCase {sod, shock_structure};
+enum ViscScheme {none, split, avg};
 
 //------------------------------------------------------------------------------
 // Viscosity coefficient as function of temperature
@@ -134,6 +138,7 @@ private:
     double               min_residue;
     unsigned int         n_rk_stages;
     FluxType             flux_type;
+    ViscScheme           visc_scheme;
 
 
     Triangulation<dim>   triangulation;
@@ -213,7 +218,7 @@ NSProblem<dim>::NSProblem (unsigned int degree, TestCase test_case) :
       xmid    = 0.5 * ( xmin + xmax );
       final_time = 0.5;
       min_residue= 1.0e-8;
-      cfl = 0.01;
+      cfl = 0.1;
       
       gas_gamma = 5.0/3.0;
       gas_const = 0.5;
@@ -232,6 +237,8 @@ NSProblem<dim>::NSProblem (unsigned int degree, TestCase test_case) :
       
       mu_ref= 0.0005;
       T_ref = p_left / d_left / gas_const;
+      
+      visc_scheme = split;
    }
    else
    {
@@ -239,6 +246,9 @@ NSProblem<dim>::NSProblem (unsigned int degree, TestCase test_case) :
    }
    
    dx      = (xmax - xmin) / n_cells;
+
+   double d = 1.0/( 1.0/(gas_gamma - 1.0) - dim/2.0 );
+   alpha = std::sqrt(2.0*M_PI) * gamma(1.0 + 1.0/d);
 
 }
 
@@ -539,7 +549,8 @@ void LaxFlux (const Vector<double>& left_state,
 // sign=-1 gives negative flux
 // Copied from fv_ns_1d
 //------------------------------------------------------------------------------
-void kfvs_split_flux (const std::vector<double>& prim,
+void kfvs_split_flux (unsigned int mode,
+                      const std::vector<double>& prim,
                       const double& tau,
                       const double& q,
                       const int sign,
@@ -554,12 +565,17 @@ void kfvs_split_flux (const std::vector<double>& prim,
    E    = prim[2]/(gas_gamma-1.0) + 0.5 * prim[0] * pow(prim[1], 2);
    fact = prim[1] * A + B;
    
-   // inviscid flux
-   flux[0] = prim[0] * fact;
-   flux[1] = (prim[2] + prim[0] * pow(prim[1], 2)) * A +
-             prim[0] * prim[1] * B;
-   flux[2] = prim[1] * (E + prim[2]) * A +
-             (E + 0.5 * prim[2]) * B;
+   if(mode==0)
+   {
+      // inviscid flux
+      flux[0] = prim[0] * fact;
+      flux[1] = (prim[2] + prim[0] * pow(prim[1], 2)) * A +
+                prim[0] * prim[1] * B;
+      flux[2] = prim[1] * (E + prim[2]) * A +
+                (E + 0.5 * prim[2]) * B;
+   }
+   else
+      flux[0] = flux[1] = flux[2] = 0.0;
    
    static const double g1 = (gas_gamma - 1.0) / gas_gamma;
    static const double g2 = (3.0 * gas_gamma - 1.0) / (4.0 * (gas_gamma - 1.0) );
@@ -605,8 +621,8 @@ void KFVSFlux (const Vector<double>& left_state,
    std::vector<double> flux_pos (n_var);
    std::vector<double> flux_neg (n_var);
    
-   kfvs_split_flux (left,  tau_l, q_l, +1, flux_pos);
-   kfvs_split_flux (right, tau_r, q_r, -1, flux_neg);
+   kfvs_split_flux (0, left,  tau_l, q_l, +1, flux_pos);
+   kfvs_split_flux (0, right, tau_r, q_r, -1, flux_neg);
    
    for(unsigned int i=0; i<n_var; ++i)
       flux(i) = flux_pos[i] + flux_neg[i];
@@ -636,6 +652,69 @@ void numerical_flux (const FluxType& flux_type,
          cout << "Unknown flux_type !!!\n";
          abort ();
    }
+}
+//------------------------------------------------------------------------------
+//Compute entropy variable given conserved state
+//------------------------------------------------------------------------------
+Vector<double> entropy_var (const Vector<double>& state)
+{
+   Vector<double> evar(n_var);
+   
+   double velocity = state(1) / state(0);
+   double pressure = (gas_gamma-1.0) * (state(2) - 
+                                        0.5 * state(1) * velocity );
+   double T = pressure / (gas_const * state(0));
+   
+   double ss = state(0) / std::pow(gas_const*T, 1.0/(gas_gamma-1)) / alpha;
+   evar(0) = std::log(ss) - 0.5 * velocity * velocity / (gas_const * T);
+   evar(1) = velocity / (gas_const * T);
+   evar(2) = -1.0 / (gas_const * T);
+   
+   return evar;
+}
+
+//------------------------------------------------------------------------------
+//Convert conserved to primitive
+//------------------------------------------------------------------------------
+std::vector<double> con2prim (const Vector<double>& state)
+{
+   std::vector<double> prim (n_var);
+   
+   prim[0] = state(0);
+   prim[1] = state(1) / state(0);
+   prim[2] = (gas_gamma-1.0) * (state(2) - 
+                                0.5 * state(1) * prim[1] );
+   return prim;
+}
+//------------------------------------------------------------------------------
+//------------------------------------------------------------------------------
+void convert_con (const std::vector<double>& prim, Vector<double>& grad)
+{
+   Vector<double> vec = grad;
+   FullMatrix<double> mat(n_var, n_var);
+   
+   double E = prim[2]/(gas_gamma-1) + 0.5 * prim[0] * std::pow(prim[1],2);
+   
+   mat(0,0) = prim[0];
+   mat(0,1) = prim[0] * prim[1];
+   mat(0,2) = E;
+   
+   mat(1,1) = prim[2] + prim[0] * prim[1] * prim[1];
+   mat(1,2) = (E + prim[2]) * prim[1];
+   
+   mat(2,2) = gas_gamma * prim[2] * (E + 0.5 * prim[0] * prim[1] * prim[1]) /
+              (prim[0] * (gas_gamma - 1)) +
+               0.25 * prim[0] * std::pow(prim[1], 4);
+   
+   //symmetry
+   mat(1,0) = mat(0,1);
+   mat(2,0) = mat(0,2);
+   mat(2,1) = mat(1,2);
+   
+   grad = 0.0;
+   for(unsigned int i=0; i<n_var; ++i)
+      for(unsigned int j=0; j<n_var; ++j)
+         grad(i) += mat(i,j) * vec(j);
 }
 
 //------------------------------------------------------------------------------
@@ -729,24 +808,24 @@ void NSProblem<dim>::assemble_rhs ()
         }
        
        // Computation of flux at cell boundaries
-       Vector<double> left_state(3), right_state(3);
-       Vector<double> left_grad(3), right_grad(3);
+       Vector<double> lf_left_state(3), lf_right_state(3);
+       Vector<double> lf_left_grad(3), lf_right_grad(3);
 
         // left face flux
         // right state is from current cell
-       right_state(0) = density_values [0];
-       right_state(1) = momentum_values[0];
-       right_state(2) = energy_values  [0];
-       right_grad(0)  = density_grad [0][0];
-       right_grad(1)  = momentum_grad[0][0];
-       right_grad(2)  = energy_grad  [0][0];
+       lf_right_state(0) = density_values [0];
+       lf_right_state(1) = momentum_values[0];
+       lf_right_state(2) = energy_values  [0];
+       lf_right_grad(0)  = density_grad [0][0];
+       lf_right_grad(1)  = momentum_grad[0][0];
+       lf_right_grad(2)  = energy_grad  [0][0];
        
        if(c==0)
        {
-          left_state(0) = d_left;
-          left_state(1) = d_left * u_left;
-          left_state(2) = p_left/(gas_gamma-1.0) + 0.5 * d_left * std::pow(u_left,2);
-          left_grad  = 0.0;
+          lf_left_state(0) = d_left;
+          lf_left_state(1) = d_left * u_left;
+          lf_left_state(2) = p_left/(gas_gamma-1.0) + 0.5 * d_left * std::pow(u_left,2);
+          lf_left_grad  = 0.0;
        }else
        {
           // get left cell dof indices
@@ -760,34 +839,45 @@ void NSProblem<dim>::assemble_rhs ()
           fe_values_neighbor.get_function_gradients (momentum, momentum_grad_n);
           fe_values_neighbor.get_function_gradients (energy,   energy_grad_n);
           
-          left_state(0) = density_values_n [1];
-          left_state(1) = momentum_values_n[1];
-          left_state(2) = energy_values_n  [1];
+          lf_left_state(0) = density_values_n [1];
+          lf_left_state(1) = momentum_values_n[1];
+          lf_left_state(2) = energy_values_n  [1];
           
-          left_grad(0) = density_grad_n [1][0];
-          left_grad(1) = momentum_grad_n[1][0];
-          left_grad(2) = energy_grad_n  [1][0];
+          lf_left_grad(0) = density_grad_n [1][0];
+          lf_left_grad(1) = momentum_grad_n[1][0];
+          lf_left_grad(2) = energy_grad_n  [1][0];
        }
        
        Vector<double> left_flux(3);
-       numerical_flux (flux_type, left_state, right_state, 
-                       left_grad, right_grad, left_flux);
+       numerical_flux (flux_type, lf_left_state, lf_right_state, 
+                       lf_left_grad, lf_right_grad, left_flux);
+       
+       Vector<double> lf_left_entropy = entropy_var (lf_left_state);
+       Vector<double> lf_right_entropy = entropy_var (lf_right_state);
+       Vector<double> lf_entropy_jump(n_var);
+       for(unsigned int i=0; i<n_var; ++i)
+          lf_entropy_jump(i) = lf_right_entropy(i) - lf_left_entropy(i);
+       std::vector<double> lf_left_prim = con2prim(lf_left_state);
+       std::vector<double> lf_right_prim = con2prim(lf_right_state);
+
        
        // right face flux
+       Vector<double> rf_left_state(3), rf_right_state(3);
+       Vector<double> rf_left_grad(3), rf_right_grad(3);
        // left state is from current cell
-       left_state(0) = density_values [n_q_points-1];
-       left_state(1) = momentum_values[n_q_points-1];
-       left_state(2) = energy_values  [n_q_points-1];
-       left_grad(0)  = density_grad [n_q_points-1][0];
-       left_grad(1)  = momentum_grad[n_q_points-1][0];
-       left_grad(2)  = energy_grad  [n_q_points-1][0];
+       rf_left_state(0) = density_values [n_q_points-1];
+       rf_left_state(1) = momentum_values[n_q_points-1];
+       rf_left_state(2) = energy_values  [n_q_points-1];
+       rf_left_grad(0)  = density_grad [n_q_points-1][0];
+       rf_left_grad(1)  = momentum_grad[n_q_points-1][0];
+       rf_left_grad(2)  = energy_grad  [n_q_points-1][0];
        
        if(c==triangulation.n_cells()-1)
        {
-          right_state(0) = d_right;
-          right_state(1) = d_right * u_right;
-          right_state(2) = p_right/(gas_gamma-1.0) + 0.5 * d_right * std::pow(u_right,2);
-          right_grad  = 0.0;
+          rf_right_state(0) = d_right;
+          rf_right_state(1) = d_right * u_right;
+          rf_right_state(2) = p_right/(gas_gamma-1.0) + 0.5 * d_right * std::pow(u_right,2);
+          rf_right_grad  = 0.0;
        }else
        {          
           // get right cell to right face
@@ -801,20 +891,26 @@ void NSProblem<dim>::assemble_rhs ()
           fe_values_neighbor.get_function_gradients (momentum, momentum_grad_n);
           fe_values_neighbor.get_function_gradients (energy,   energy_grad_n);
           
-          right_state(0) = density_values_n [0];
-          right_state(1) = momentum_values_n[0];
-          right_state(2) = energy_values_n  [0];
+          rf_right_state(0) = density_values_n [0];
+          rf_right_state(1) = momentum_values_n[0];
+          rf_right_state(2) = energy_values_n  [0];
           
-          right_grad(0) = density_grad_n [0][0];
-          right_grad(1) = momentum_grad_n[0][0];
-          right_grad(2) = energy_grad_n  [0][0];
-          
-
+          rf_right_grad(0) = density_grad_n [0][0];
+          rf_right_grad(1) = momentum_grad_n[0][0];
+          rf_right_grad(2) = energy_grad_n  [0][0];
        }
        
        Vector<double> right_flux(3);
-       numerical_flux (flux_type, left_state, right_state, 
-                       left_grad, right_grad, right_flux);
+       numerical_flux (flux_type, rf_left_state, rf_right_state, 
+                       rf_left_grad, rf_right_grad, right_flux);
+       
+       Vector<double> rf_left_entropy = entropy_var (rf_left_state);
+       Vector<double> rf_right_entropy = entropy_var (rf_right_state);
+       Vector<double> rf_entropy_jump(n_var);
+       for(unsigned int i=0; i<n_var; ++i)
+          rf_entropy_jump(i) = rf_right_entropy(i) - rf_left_entropy(i);
+       std::vector<double> rf_left_prim = con2prim(rf_left_state);
+       std::vector<double> rf_right_prim = con2prim(rf_right_state);
 
         // Add flux at cell boundaries
         for (unsigned int i=0; i<dofs_per_cell; ++i)
@@ -834,6 +930,51 @@ void NSProblem<dim>::assemble_rhs ()
                                   right_flux(1);
            cell_rhs_energy(i)  -= fe_values.shape_value (i, n_q_points-1) *
                                   right_flux(2);
+           
+           if(visc_scheme == split)
+           {
+              for(unsigned int j=0; j<n_var; ++j)
+              {
+                 Vector<double> phi_grad(n_var);
+                 double tau, q;
+                 
+                 //left face
+                 phi_grad = 0.0;
+                 phi_grad (j) = fe_values.shape_grad(i,0)[0];
+                 convert_con (lf_right_prim, phi_grad);
+                 compute_nsterms (lf_right_state, phi_grad, tau, q);
+                 std::vector<double> flux_p_left(n_var);
+                 kfvs_split_flux (1, lf_right_prim, tau, q, -1, flux_p_left);
+                 
+                 double left_stab = 0.0;
+                 for(unsigned int k=0; k<n_var; ++k)
+                    left_stab += flux_p_left[k] * lf_entropy_jump(k);
+                 
+                 //right face
+                 phi_grad = 0.0;
+                 phi_grad (j) = fe_values.shape_grad(i,n_q_points-1)[0];
+                 convert_con (rf_left_prim, phi_grad);
+                 compute_nsterms (rf_left_state, phi_grad, tau, q);
+                 std::vector<double> flux_p_right(n_var);
+                 kfvs_split_flux (1, rf_left_prim, tau, q, +1, flux_p_right);
+                 
+                 double right_stab = 0.0;
+                 for(unsigned int k=0; k<n_var; ++k)
+                    right_stab += flux_p_right[k] * rf_entropy_jump(k);
+                 
+                 if(j==0)
+                 {
+                    cell_rhs_density(i) += - left_stab - right_stab;
+                 }
+                 else if(j==1)
+                 {
+                    cell_rhs_momentum(i) += - left_stab - right_stab;
+                 }else
+                 {
+                    cell_rhs_energy(i) += - left_stab - right_stab;
+                 }
+              }
+           }
         }
 
         // Multiply by inverse mass matrix and add to rhs
@@ -1179,7 +1320,7 @@ int main ()
 {
     deallog.depth_console (0);
     {
-        NSProblem<1> ns_problem(3, shock_structure);
+        NSProblem<1> ns_problem(1, shock_structure);
         ns_problem.run ();
     }
 
