@@ -1,0 +1,8 @@
+This is a modification of step-33 taken from version 7.0.0
+
+The following changes have been made:
+
+1. Code is broken into several files. There may be unnecessary header files which I have not cared to remove.
+2. Meshworker used for assembling.
+3. In struct EulerEquations, variable first_momentum_component has been removed. We always store momentum components in the indices 0 to dim-1
+4. Output format can be vtk or tecplot and can be specified in input file.
