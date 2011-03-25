@@ -181,7 +181,7 @@ NSProblem<dim>::NSProblem (unsigned int degree, TestCase test_case) :
    Assert (dim==1, ExcIndexRange(dim, 0, 1));
    
 
-   n_cells = 100;
+   n_cells = 200;
 
    n_rk_stages = 3;
    flux_type = kfvs;
@@ -210,6 +210,8 @@ NSProblem<dim>::NSProblem (unsigned int degree, TestCase test_case) :
       
       mu_ref = 0.0;
       T_ref  = p_left / d_left / gas_const; // not used
+      
+      visc_scheme = none;
    }
    else if (test_case == shock_structure)
    {
@@ -218,7 +220,7 @@ NSProblem<dim>::NSProblem (unsigned int degree, TestCase test_case) :
       xmid    = 0.5 * ( xmin + xmax );
       final_time = 0.5;
       min_residue= 1.0e-8;
-      cfl = 0.1;
+      cfl = 0.05;
       
       gas_gamma = 5.0/3.0;
       gas_const = 0.5;
@@ -238,7 +240,7 @@ NSProblem<dim>::NSProblem (unsigned int degree, TestCase test_case) :
       mu_ref= 0.0005;
       T_ref = p_left / d_left / gas_const;
       
-      visc_scheme = split;
+      visc_scheme = avg;
    }
    else
    {
@@ -687,6 +689,8 @@ std::vector<double> con2prim (const Vector<double>& state)
    return prim;
 }
 //------------------------------------------------------------------------------
+// convert entropy gradient to conserved gradient
+// grad(U) = tilde{A}_0 grad(V)
 //------------------------------------------------------------------------------
 void convert_con (const std::vector<double>& prim, Vector<double>& grad)
 {
@@ -848,6 +852,15 @@ void NSProblem<dim>::assemble_rhs ()
           lf_left_grad(2) = energy_grad_n  [1][0];
        }
        
+       if(visc_scheme == avg) //average gradients
+       {
+          Vector<double> avg_grad (n_var);
+          for(unsigned int i=0; i<n_var; ++i)
+             avg_grad(i) = 0.5*(lf_left_grad(i) + lf_right_grad(i));
+          lf_left_grad = avg_grad;
+          lf_right_grad = avg_grad;
+       }
+       
        Vector<double> left_flux(3);
        numerical_flux (flux_type, lf_left_state, lf_right_state, 
                        lf_left_grad, lf_right_grad, left_flux);
@@ -900,6 +913,15 @@ void NSProblem<dim>::assemble_rhs ()
           rf_right_grad(2) = energy_grad_n  [0][0];
        }
        
+       if(visc_scheme == avg)
+       {
+          Vector<double> avg_grad (n_var);
+          for(unsigned int i=0; i<n_var; ++i)
+             avg_grad(i) = 0.5*(rf_left_grad(i) + rf_right_grad(i));
+          rf_left_grad = avg_grad;
+          rf_right_grad = avg_grad;
+       }
+       
        Vector<double> right_flux(3);
        numerical_flux (flux_type, rf_left_state, rf_right_state, 
                        rf_left_grad, rf_right_grad, right_flux);
@@ -931,7 +953,7 @@ void NSProblem<dim>::assemble_rhs ()
            cell_rhs_energy(i)  -= fe_values.shape_value (i, n_q_points-1) *
                                   right_flux(2);
            
-           if(visc_scheme == split)
+           if(visc_scheme != none)
            {
               for(unsigned int j=0; j<n_var; ++j)
               {
@@ -944,7 +966,16 @@ void NSProblem<dim>::assemble_rhs ()
                  convert_con (lf_right_prim, phi_grad);
                  compute_nsterms (lf_right_state, phi_grad, tau, q);
                  std::vector<double> flux_p_left(n_var);
-                 kfvs_split_flux (1, lf_right_prim, tau, q, -1, flux_p_left);
+                 if(visc_scheme == split)
+                    kfvs_split_flux (1, lf_right_prim, tau, q, -1, flux_p_left);
+                 else
+                 {
+                    std::vector<double> fp(n_var), fm(n_var);
+                    kfvs_split_flux (1, lf_right_prim, tau, q, -1, fm);
+                    kfvs_split_flux (1, lf_left_prim, tau, q, +1, fp);
+                    for(unsigned int k=0; k<n_var; ++k)
+                       flux_p_left[k] = 0.5*(fm[k] + fp[k]);
+                 }
                  
                  double left_stab = 0.0;
                  for(unsigned int k=0; k<n_var; ++k)
@@ -956,7 +987,16 @@ void NSProblem<dim>::assemble_rhs ()
                  convert_con (rf_left_prim, phi_grad);
                  compute_nsterms (rf_left_state, phi_grad, tau, q);
                  std::vector<double> flux_p_right(n_var);
-                 kfvs_split_flux (1, rf_left_prim, tau, q, +1, flux_p_right);
+                 if(visc_scheme == split)
+                    kfvs_split_flux (1, rf_left_prim, tau, q, +1, flux_p_right);
+                 else
+                 {
+                    std::vector<double> fp(n_var), fm(n_var);
+                    kfvs_split_flux (1, rf_left_prim, tau, q, +1, fp);
+                    kfvs_split_flux (1, rf_right_prim, tau, q, -1, fm);
+                    for(unsigned int k=0; k<n_var; ++k)
+                       flux_p_right[k] = 0.5*(fm[k] + fp[k]);
+                 }
                  
                  double right_stab = 0.0;
                  for(unsigned int k=0; k<n_var; ++k)
@@ -1248,7 +1288,7 @@ void NSProblem<dim>::output_results () const
                                          0.5 * pow(momentum_values[0],2) / density_values[0]);
       
       fo << fe_values.quadrature_point (0)(0) << " " 
-         << tau/(2.0*pressure) << "  " << q << endl;
+         << tau/(2.0*pressure) << "  " << q/pressure << endl;
 
    }
    
@@ -1320,7 +1360,7 @@ int main ()
 {
     deallog.depth_console (0);
     {
-        NSProblem<1> ns_problem(1, shock_structure);
+        NSProblem<1> ns_problem(2, shock_structure);
         ns_problem.run ();
     }
 
