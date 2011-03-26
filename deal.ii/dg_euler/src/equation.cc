@@ -137,11 +137,11 @@ std::vector<std::string>
 EulerEquations<dim>::Postprocessor::get_names () const
 {
   std::vector<std::string> names;
-  names.push_back ("xvelocity");
-  names.push_back ("yvelocity");
+  names.push_back ("XVelocity");
+  names.push_back ("YVelocity");
   if(dim==3)
-     names.push_back ("zvelocity");
-  names.push_back ("pressure");
+     names.push_back ("ZVelocity");
+  names.push_back ("Pressure");
 
   if (do_schlieren_plot == true)
     names.push_back ("schlieren_plot");
