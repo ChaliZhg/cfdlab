@@ -184,6 +184,41 @@ private:
    
    Parameters::AllParameters<dim>  parameters;
    dealii::ConditionalOStream      verbose_cout;
-};
 
+   // Call the appropriate numerical flux function
+   template <typename InputVector>
+   void numerical_normal_flux (const dealii::Point<dim>  &normal,
+                               const InputVector         &Wplus,
+                               const InputVector         &Wminus,
+                               Sacado::Fad::DFad<double> (&normal_flux)[EulerEquations<dim>::n_components])
+   {
+      switch(parameters.flux_type)
+      {
+         case Parameters::Flux::lxf:
+            EulerEquations<dim>::lxf_flux (normal,
+                                           Wplus,
+                                           Wminus,
+                                           normal_flux);
+            break;
+
+         case Parameters::Flux::sw:
+            EulerEquations<dim>::steger_warming_flux (normal,
+                                                      Wplus,
+                                                      Wminus,
+                                                      normal_flux);
+            break;
+
+         case Parameters::Flux::kfvs:
+            EulerEquations<dim>::kfvs_flux (normal,
+                                            Wplus,
+                                            Wminus,
+                                            normal_flux);
+            break;
+
+	      default:
+            Assert (false, dealii::ExcNotImplemented());
+      }
+   }
+
+};
 #endif

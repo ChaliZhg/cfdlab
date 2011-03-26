@@ -32,12 +32,12 @@ struct EulerEquations
    component_names ()
    {
       std::vector<std::string> names;
-      names.push_back ("xmomentum");
-      names.push_back ("ymomentum");
+      names.push_back ("XMomentum");
+      names.push_back ("YMomentum");
       if(dim==3)
-         names.push_back ("zmomentum");
-      names.push_back ("density");
-      names.push_back ("energy");
+         names.push_back ("ZMomentum");
+      names.push_back ("Density");
+      names.push_back ("Energy");
       
       return names;
    }
@@ -138,17 +138,18 @@ struct EulerEquations
    // $\alpha$. It's form has also
    // been given already in the
    // introduction:
+
+   // --------------------------------------------------------------------------
+   // Local lax-Friedrichs flux
+   // --------------------------------------------------------------------------
    template <typename InputVector>
    static
-   void numerical_normal_flux (const dealii::Point<dim>  &normal,
-                               const InputVector         &Wplus,
-                               const InputVector         &Wminus,
-                               const double               alpha,
-                               Sacado::Fad::DFad<double> (&normal_flux)[n_components])
+   void lxf_flux (const dealii::Point<dim>  &normal,
+                  const InputVector         &Wplus,
+                  const InputVector         &Wminus,
+                  Sacado::Fad::DFad<double> (&normal_flux)[n_components])
    {
-      Sacado::Fad::DFad<double> iflux[n_components][dim];
-      Sacado::Fad::DFad<double> oflux[n_components][dim];
-      
+      // Normal velocity
       Sacado::Fad::DFad<double> vdotn_plus=0, vdotn_minus=0;
       
       for(unsigned int d=0; d<dim; ++d)
@@ -160,11 +161,13 @@ struct EulerEquations
       vdotn_plus  /= Wplus [density_component];
       vdotn_minus /= Wminus[density_component];
       
+      // pressure
       Sacado::Fad::DFad<double> p_plus, p_minus;
 
       p_plus  = compute_pressure< Sacado::Fad::DFad<double> > (Wplus);
       p_minus = compute_pressure< Sacado::Fad::DFad<double> > (Wminus);
       
+      // Maximum eigenvalue at cell face, based on an average
       Sacado::Fad::DFad<double> vdotn_avg, p_avg, d_avg, lambda;
       vdotn_avg = 0.5 * (vdotn_plus + vdotn_minus);
       p_avg     = 0.5 * (p_plus + p_minus);
@@ -173,19 +176,27 @@ struct EulerEquations
       lambda = std::fabs(vdotn_avg) + 
                std::sqrt( gas_gamma * p_avg / d_avg );
             
-      compute_flux_matrix (Wplus, iflux);
-      compute_flux_matrix (Wminus, oflux);
+      // Momentum flux
+      for (unsigned int d=0; d<dim; ++d)
+         normal_flux[d] = 0.5 * ( p_plus  * normal[d] + Wplus [d] * vdotn_plus +
+                                  p_minus * normal[d] + Wminus[d] * vdotn_minus );
+
+      // Density flux
+      normal_flux[density_component] = 0.5 * (Wplus [density_component] * vdotn_plus +
+                                              Wminus[density_component] * vdotn_minus);
       
+      // Energy flux
+      normal_flux[energy_component] = 0.5 * ((Wplus [energy_component] + p_plus)  * vdotn_plus +
+                                             (Wminus[energy_component] + p_minus) * vdotn_minus);
+      
+      // Dissipation flux
       for (unsigned int c=0; c<n_components; ++c)
-      {
-         normal_flux[c] = 0;
-         for (unsigned int d=0; d<dim; ++d)
-            normal_flux[c] += 0.5 * (iflux[c][d] + oflux[c][d]) * normal[d];
-         
          normal_flux[c] += 0.5 * lambda * (Wplus[c] - Wminus[c]);
-      }
    }
    
+   // --------------------------------------------------------------------------
+   // Steger-Warming flux
+   // --------------------------------------------------------------------------
    template <typename InputVector>
    static
    void steger_warming_flux (const dealii::Point<dim>  &normal,
@@ -200,7 +211,6 @@ struct EulerEquations
       Sacado::Fad::DFad<double> vdotn_plus=0, vdotn_minus=0;
       Sacado::Fad::DFad<double> q2_plus=0, q2_minus=0;
 
-      
       for(unsigned int d=0; d<dim; ++d)
       {
          vdotn_plus  += Wplus[d]  * normal[d];
@@ -268,7 +278,101 @@ struct EulerEquations
          normal_flux[c] = fp * pflux[c] + fm * mflux[c];
    }
    
+   // --------------------------------------------------------------------------
+   // Error function
+   // --------------------------------------------------------------------------
+   template <typename number>
+   static
+   number ERF(number xarg)
+   {
+      // constants
+      const double a1 =  0.254829592;
+      const double a2 = -0.284496736;
+      const double a3 =  1.421413741;
+      const double a4 = -1.453152027;
+      const double a5 =  1.061405429;
+      const double p  =  0.3275911;
+
+      // Save the sign of x
+      int sign = 1;
+      if (xarg < 0)
+         sign = -1;
+      number x = std::fabs(xarg);
+
+      // A&S formula 7.1.26
+      number t = 1.0/(1.0 + p*x);
+      number y = 1.0 - (((((a5*t + a4)*t) + a3)*t + a2)*t + a1)*t*exp(-x*x);
+
+      return sign*y;
+   }
    
+   // --------------------------------------------------------------------------
+   // --------------------------------------------------------------------------
+   template <typename InputVector>
+   static
+   void kinetic_split_flux (int sign,
+                            const dealii::Point<dim>  &normal,
+                            const InputVector         &W,
+                            Sacado::Fad::DFad<double> (&normal_flux)[n_components])
+   {
+      
+      // normal velocity
+      Sacado::Fad::DFad<double> vdotn=0;
+
+      for(unsigned int d=0; d<dim; ++d)
+         vdotn += W[d] * normal[d];
+      
+      vdotn  /= W[density_component];
+      
+      // pressure
+      Sacado::Fad::DFad<double> pressure, beta, s, A, B, ufact;
+      
+      pressure  = compute_pressure< Sacado::Fad::DFad<double> > (W);
+      beta      = 0.5 * W[density_component] / pressure;
+      s         = vdotn * std::sqrt(beta);
+      A         = 0.5 * (1.0 + sign * ERF(s));
+      B         = 0.5 * sign * std::exp(-s*s) / std::sqrt(M_PI * beta);
+      ufact     = vdotn * A + B;
+      
+      for(unsigned int d=0; d<dim; ++d)
+         normal_flux[d] = pressure * normal[d] * A + W[d] * ufact;
+      
+      normal_flux[density_component] = W[density_component] * ufact;
+      normal_flux[energy_component]  = (W[energy_component] + pressure) * vdotn * A +
+                                       (W[energy_component] + 0.5 * pressure) * B;
+      
+   }
+
+   // --------------------------------------------------------------------------
+   // KFVS flux of Deshpande and Mandal
+   // --------------------------------------------------------------------------
+   template <typename InputVector>
+   static
+   void kfvs_flux (const dealii::Point<dim>  &normal,
+                   const InputVector         &Wplus,
+                   const InputVector         &Wminus,
+                   Sacado::Fad::DFad<double> (&normal_flux)[n_components])
+   {
+      Sacado::Fad::DFad<double> pflux[n_components];
+      Sacado::Fad::DFad<double> mflux[n_components];
+
+      kinetic_split_flux (+1,
+                          normal,
+                          Wplus,
+                          pflux);
+
+      kinetic_split_flux (-1,
+                          normal,
+                          Wminus,
+                          mflux);
+
+      for (unsigned int c=0; c<n_components; ++c)
+         normal_flux[c] = pflux[c] + mflux[c];
+   }
+   
+   // --------------------------------------------------------------------------
+   // Flux on slip walls. Only pressure flux is present
+   // --------------------------------------------------------------------------
    template <typename InputVector>
    static
    void no_penetration_flux (const dealii::Point<dim>  &normal,
@@ -318,16 +422,18 @@ struct EulerEquations
 
       
       for (unsigned int c=0; c<n_components; ++c)
-         switch (c)
+      switch (c)
       {
 	      case dim-1:
             forcing[c] = gravity * W[density_component];
             break;
+
 	      case energy_component:
             forcing[c] = gravity *
                          W[density_component] *
                          W[dim-1];
             break;
+
 	      default:
             forcing[c] = 0;
       }
@@ -495,7 +601,7 @@ struct EulerEquations
                Wminus[c] = Wplus[c] - 2.0 * vdotn * normal_vector[c];
 
             Wminus[density_component] = Wplus[density_component];
-            Wminus[energy_component] = Wplus[energy_component];
+            Wminus[energy_component]  = Wplus[energy_component];
             break;
 	      }
             

@@ -15,10 +15,12 @@
 #include <grid/tria_accessor.h>
 #include <grid/tria_iterator.h>
 #include <grid/grid_in.h>
+#include <grid/tria_boundary_lib.h>
 
 #include <dofs/dof_handler.h>
 #include <dofs/dof_accessor.h>
 #include <dofs/dof_tools.h>
+#include <dofs/dof_renumbering.h>
 
 #include <fe/fe_values.h>
 #include <fe/fe_system.h>
@@ -34,6 +36,8 @@
 #include <lac/trilinos_precondition.h>
 #include <lac/trilinos_solver.h>
 
+#include <lac/solver_gmres.h>
+#include <lac/precondition_block.h>
 
 #include <Sacado.hpp>
 
@@ -84,11 +88,18 @@ ConservationLaw<dim>::ConservationLaw (const char *input_filename)
 template <int dim>
 void ConservationLaw<dim>::setup_system ()
 {
+   DoFRenumbering::Cuthill_McKee (dof_handler);
+
    CompressedSparsityPattern c_sparsity(dof_handler.n_dofs());
    DoFTools::make_flux_sparsity_pattern (dof_handler, c_sparsity);
 
    SparsityPattern      sparsity_pattern;
    sparsity_pattern.copy_from(c_sparsity);
+
+   // Visualize sparsity pattern
+   //std::ofstream out ("sparsity_pattern.1");
+   //sparsity_pattern.print_gnuplot (out);
+   //abort ();
    
    system_matrix.reinit (sparsity_pattern);
 }
@@ -117,6 +128,9 @@ void ConservationLaw<dim>::setup_mesh_worker (Integrator<dim>& integrator)
    integrator.assembler.initialize (system_matrix, right_hand_side);
 }
 
+//------------------------------------------------------------------------------
+// Contribution of volume integral terms
+//------------------------------------------------------------------------------
 template <int dim>
 void ConservationLaw<dim>::integrate_cell_term (DoFInfo& dinfo, 
                                            CellInfo& info)
@@ -328,12 +342,14 @@ void ConservationLaw<dim>::integrate_cell_term (DoFInfo& dinfo,
                    fe_v.shape_grad_component(i, point, component_i)[d] *
                    fe_v.JxW(point);
          
-         for (unsigned int d=0; d<dim; d++)
-            F_i += 1.0*std::pow(fe_v.get_cell()->diameter(),
-                                parameters.diffusion_power) *
-                   grad_W[point][component_i][d] *
-                   fe_v.shape_grad_component(i, point, component_i)[d] *
-                   fe_v.JxW(point);
+         // Diffusion term for shocks
+         if(parameters.diffusion_power > 0.0)
+            for (unsigned int d=0; d<dim; d++)
+               F_i += 1.0*std::pow(fe_v.get_cell()->diameter(),
+                                 parameters.diffusion_power) *
+                     grad_W[point][component_i][d] *
+                     fe_v.shape_grad_component(i, point, component_i)[d] *
+                     fe_v.JxW(point);
          
          F_i -= forcing[point][component_i] *
                 fe_v.shape_value_component(i, point, component_i) *
@@ -366,6 +382,9 @@ void ConservationLaw<dim>::integrate_cell_term (DoFInfo& dinfo,
 }
 
 
+//------------------------------------------------------------------------------
+// Contribution from boundary faces
+//------------------------------------------------------------------------------
 template <int dim>
 void ConservationLaw<dim>::integrate_boundary_term (DoFInfo& dinfo, 
                                                     CellInfo& info)
@@ -479,21 +498,6 @@ void ConservationLaw<dim>::integrate_boundary_term (DoFInfo& dinfo,
    typedef Sacado::Fad::DFad<double> NormalFlux[EulerEquations<dim>::n_components];
    NormalFlux *normal_fluxes = new NormalFlux[n_q_points];
    
-   double alpha;
-   
-   switch(parameters.stabilization_kind)
-   {
-      case Parameters::Flux::constant:
-         alpha = parameters.stabilization_value;
-         break;
-      case Parameters::Flux::mesh_dependent:
-         alpha = face_diameter/(2.0*parameters.time_step);
-         break;
-      default:
-         Assert (false, ExcNotImplemented());
-         alpha = 1;
-   }
-   
    if(boundary_kind == EulerEquations<dim>::farfield_boundary)
    {
       for (unsigned int q=0; q<n_q_points; ++q)
@@ -511,9 +515,10 @@ void ConservationLaw<dim>::integrate_boundary_term (DoFInfo& dinfo,
    else
    {
       for (unsigned int q=0; q<n_q_points; ++q)
-         EulerEquations<dim>::numerical_normal_flux(fe_v.normal_vector(q),
-                                                    Wplus[q], Wminus[q], alpha,
-                                                    normal_fluxes[q]);
+         numerical_normal_flux(fe_v.normal_vector(q),
+                               Wplus[q], 
+                               Wminus[q],
+                               normal_fluxes[q]);
    }
    
    // Now assemble the face term in exactly
@@ -551,6 +556,9 @@ void ConservationLaw<dim>::integrate_boundary_term (DoFInfo& dinfo,
 
 
 
+//------------------------------------------------------------------------------
+// Contribution from interior faces
+//------------------------------------------------------------------------------
 template <int dim>
 void ConservationLaw<dim>::integrate_face_term (DoFInfo& dinfo1, DoFInfo& dinfo2,
                                                 CellInfo& info1, CellInfo& info2)
@@ -568,11 +576,6 @@ void ConservationLaw<dim>::integrate_face_term (DoFInfo& dinfo1, DoFInfo& dinfo2
    std::vector<unsigned int>& dof_indices_neighbor = dinfo2.indices;
    const unsigned int& face_no_neighbor = dinfo2.face_number;
 
-   //FullMatrix<double>& local_matrix11 = dinfo1.matrix(0,false).matrix;
-   //FullMatrix<double>& local_matrix_neighbor21 = dinfo1.matrix(0,true).matrix;
-   //FullMatrix<double>& local_matrix_neighbor22 = dinfo2.matrix(0,false).matrix;
-   //FullMatrix<double>& local_matrix12 = dinfo2.matrix(0,true).matrix;
-   
    const FEValuesBase<dim>& fe_v = info1.fe_values();
    const unsigned int n_q_points = fe_v.n_quadrature_points;
    const unsigned int dofs_per_cell = fe_v.dofs_per_cell;
@@ -580,7 +583,6 @@ void ConservationLaw<dim>::integrate_face_term (DoFInfo& dinfo1, DoFInfo& dinfo2
    const FEValuesBase<dim>& fe_v_neighbor = info2.fe_values();
    const unsigned int dofs_per_cell_neighbor = fe_v_neighbor.dofs_per_cell;
 
-   
    std::vector<Sacado::Fad::DFad<double> >
    independent_local_dof_values (dofs_per_cell),
    independent_neighbor_dof_values (dofs_per_cell_neighbor);
@@ -656,25 +658,11 @@ void ConservationLaw<dim>::integrate_face_term (DoFInfo& dinfo1, DoFInfo& dinfo2
    typedef Sacado::Fad::DFad<double> NormalFlux[EulerEquations<dim>::n_components];
    NormalFlux *normal_fluxes = new NormalFlux[n_q_points];
    
-   double alpha;
-   
-   switch(parameters.stabilization_kind)
-   {
-      case Parameters::Flux::constant:
-         alpha = parameters.stabilization_value;
-         break;
-      case Parameters::Flux::mesh_dependent:
-         alpha = face_diameter/(2.0*parameters.time_step);
-         break;
-      default:
-         Assert (false, ExcNotImplemented());
-         alpha = 1;
-   }
-   
    for (unsigned int q=0; q<n_q_points; ++q)
-      EulerEquations<dim>::numerical_normal_flux(fe_v.normal_vector(q),
-                                                 Wplus[q], Wminus[q], alpha,
-                                                 normal_fluxes[q]);
+      numerical_normal_flux(fe_v.normal_vector(q),
+                            Wplus[q], 
+                            Wminus[q],
+                            normal_fluxes[q]);
    
    // Now assemble the face term in exactly
    // the same way as for the cell
@@ -709,6 +697,7 @@ void ConservationLaw<dim>::integrate_face_term (DoFInfo& dinfo1, DoFInfo& dinfo2
          local_vector(i) -= F_i.val();
       }
    
+   // Contributions to neighbouring cell
    for (unsigned int i=0; i<dofs_per_cell_neighbor; ++i)
       if (fe_v_neighbor.get_fe().has_support_on_face(i, face_no_neighbor) == true)
       {
@@ -734,9 +723,6 @@ void ConservationLaw<dim>::integrate_face_term (DoFInfo& dinfo1, DoFInfo& dinfo2
       }
    
    delete[] normal_fluxes;
-   
-
-
 }
 
 template <int dim>
@@ -897,6 +883,23 @@ ConservationLaw<dim>::solve (Vector<double> &newton_update)
          return std::pair<unsigned int, double> (solver.NumIters(),
                                                  solver.TrueResidual());
       }
+
+      /*
+      case Parameters::Solver::dgmres:
+      {
+         SolverControl   solver_control (parameters.max_iterations, 
+                                         parameters.linear_residual);
+         SolverGMRES<>   solver (solver_control);
+
+         PreconditionBlockSSOR<SparseMatrix<double> > preconditioner;
+         preconditioner.initialize(system_matrix, fe.dofs_per_cell);
+
+         solver.solve (system_matrix, 
+                       newton_update, 
+                       right_hand_side,
+                       preconditioner);
+      }
+      */
    }
    
    Assert (false, ExcNotImplemented());
@@ -1095,6 +1098,11 @@ void ConservationLaw<dim>::run ()
       else if(parameters.mesh_type == "gmsh")
          grid_in.read_msh(input_file);
    }
+
+   /*
+   static const HyperBallBoundary<dim> boundary_description;
+   triangulation.set_boundary (1, boundary_description);
+   */
    
    dof_handler.clear();
    dof_handler.distribute_dofs (fe);
@@ -1237,7 +1245,7 @@ void ConservationLaw<dim>::run ()
          }
          
          ++nonlin_iter;
-         AssertThrow (nonlin_iter <= 10,
+         AssertThrow (nonlin_iter <= parameters.max_nonlin_iter, 
                       ExcMessage ("No convergence in nonlinear solver"));
       }
       
@@ -1274,6 +1282,8 @@ void ConservationLaw<dim>::run ()
       // finally continue on with the
       // next time step:
       time += parameters.time_step;
+
+      //parameters.time_step *= 2;
       
       if (parameters.output_step < 0)
          output_results ();
@@ -1300,6 +1310,5 @@ void ConservationLaw<dim>::run ()
       }
    }
 }
-
 
 template class ConservationLaw<2>;
