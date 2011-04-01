@@ -69,6 +69,7 @@ c
 
       integer :: i
       real    :: q(nc), grads(nc)
+      real    :: q1, q2
 
       print*,'Reconstructing ', filename
 
@@ -83,9 +84,72 @@ c
 c     Overwrite filename with reconstructed values on fine mesh
       open(10, file=filename)
       do i=1,nc
-         write(10,'(e24.14)') q(i)-0.25*grads(i)*dx(i)
-         write(10,'(e24.14)') q(i)+0.25*grads(i)*dx(i)
-        enddo
+         if(i.eq.1)then
+            call do_reconstruct(q(i),   xv(i),   xv(i+1),
+     1                          q(i+1), xv(i+1), xv(i+2),
+     2                          q(i+2), xv(i+2), xv(i+3), q1, q2)
+         else if(i.eq.nc)then
+            call do_reconstruct(q(i),   xv(i),   xv(i+1),
+     1                          q(i-1), xv(i-1), xv(i),
+     2                          q(i-2), xv(i-2), xv(i-1), q1, q2)
+         else
+            call do_reconstruct(q(i),   xv(i),   xv(i+1),
+     1                          q(i-1), xv(i-1), xv(i),
+     2                          q(i+1), xv(i+1), xv(i+2), q1, q2)
+         endif
+c        write(10,'(e24.14)') q(i)-0.25*grads(i)*dx(i)
+c        write(10,'(e24.14)') q(i)+0.25*grads(i)*dx(i)
+         write(10,'(e24.14)') q1
+         write(10,'(e24.14)') q2
+      enddo
       close(10)
+
+      end
+c
+c Fit 
+c     q(x) = q0 + a (x - x0) + b[ (x - x0)^2 - h0^2/12]
+c so that cell averages are preserved
+c
+      subroutine do_reconstruct(q0, x01, x02, 
+     1                          q1, x11, x12, 
+     2                          q2, x21, x22,
+     3                          qr1, qr2)
+      implicit none
+
+      real :: q0, x01, x02, q1, x11, x12, q2, x21, x22, qr1, qr2
+      real :: h0, h1, h2
+      real :: mat(2,2), rhs(2)
+      real :: x, x0, fun1, fun2
+      real :: a, b, det
+
+      fun1(x) = (x - x0)**2 / 2.0
+      fun2(x) = (x - x0)**3 / 3.0 - h0**2 * x / 12.0
+
+      x0 = 0.5 * (x01 + x02)
+      h0 = x02 - x01
+      h1 = x12 - x11
+      h2 = x22 - x21
+
+      mat(1,1) = fun1(x12) - fun1(x11)
+      mat(1,2) = fun2(x12) - fun2(x11)
+
+      mat(2,1) = fun1(x22) - fun1(x21)
+      mat(2,2) = fun2(x22) - fun2(x21)
+
+      rhs(1) = (q1 - q0) * h1
+      rhs(2) = (q2 - q0) * h2
+
+      det = mat(1,1) * mat(2,2) - mat(1,2) * mat(2,1)
+      a   = ( mat(2,2) * rhs(1) - mat(1,2) * rhs(2) ) / det
+      b   = (-mat(2,1) * rhs(1) + mat(1,1) * rhs(2) ) / det
+
+c     Average over two cells
+      qr1 = q0 * h0/2.0 + a * (fun1(x0) - fun1(x01)) +
+     1                    b * (fun2(x0) - fun2(x01))
+      qr1 = qr1 * 2.0 / h0
+
+      qr2 = q0 * h0/2.0 + a * (fun1(x02) - fun1(x0)) +
+     1                    b * (fun2(x02) - fun2(x0))
+      qr2 = qr2 * 2.0 / h0
 
       end
