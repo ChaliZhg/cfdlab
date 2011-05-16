@@ -1,0 +1,13 @@
+You need tapenade for this testcase. Set TAPENADE_HOME variable in your shell.
+
+Steps:
+
+cd src
+make
+
+cd ../stochastic
+../../../src/uqtool
+
+Then visualize in matlab.
+
+Do same for combined refinement.
