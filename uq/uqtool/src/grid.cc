@@ -229,6 +229,17 @@ void Grid<dim>::reinit_dof (vector<typename Sample<dim>::Sample>& sample)
       }
 }
 
+// Count number of active elements
+template <int dim>
+int Grid<dim>::n_active_elements ()
+{
+   int n = 0;
+   for(unsigned int i=0; i<element.size(); ++i)
+      if(element[i].active)
+         ++n;
+   return n;
+}
+
 // To avoid linker errors
 template class Sample<1>;
 template class Element<1>;

@@ -72,6 +72,7 @@ class Grid
       Grid () {};
       ~Grid () {};
       void reinit_dof (std::vector<typename Sample<dim>::Sample>& sample);
+      int n_active_elements ();
 
       std::vector<typename Element<dim>::Element> element;
 };

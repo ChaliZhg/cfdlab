@@ -1,9 +1,12 @@
 dim         1
-x2          0.0  1.0  uniform
+x2          0.0  1.0  uniform 
 
 n_moment    1
+tol         1.0e-4
 n_var       1
 n_cell      1
 max_sample  50
 error       stochastic
 refine      adaptive
+order       2
+eno         false

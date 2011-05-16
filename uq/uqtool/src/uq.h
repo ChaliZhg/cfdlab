@@ -25,11 +25,11 @@ class UQProblem
       void read_options ();
       void make_grid ();
       void run_simulations ();
-      void flag_eno_elements ();
+      int  flag_eno_elements ();
       void compute_moments ();
-      void flag_elements ();
+      int  flag_elements ();
       void refine_grid (bool eno_mode);
-      void refine_physical (const unsigned int iter);
+      int  refine_physical (const unsigned int iter);
       void log_result (std::ofstream& fj, std::ofstream& fe);
       void output (const unsigned int iter) const;
 
@@ -39,6 +39,9 @@ class UQProblem
       std::valarray<double> moment;
       std::valarray<double> adj_cor;
       std::valarray<double> RE;
+   
+      std::valarray<double> moment_tol;
+
 
       std::vector<typename Sample<dim>::Sample> sample;
       unsigned int max_sample;

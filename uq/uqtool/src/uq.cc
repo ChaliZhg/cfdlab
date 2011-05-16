@@ -24,7 +24,7 @@ UQProblem<dim>::UQProblem ()
    moment.resize  (n_moment);
    adj_cor.resize (n_moment);
    RE.resize      (n_moment);
-   
+      
    // Copy initial template directory
    sprintf(template_dir, "template_dir_0");
    char command[128];
@@ -85,6 +85,19 @@ void UQProblem<dim>::read_options ()
    fi >> str >> n_moment;
    assert (str == "n_moment");
    assert (n_moment >= 1);
+   
+   // Error tolerance on moments
+   moment_tol.resize (n_moment);
+   
+   fi >> str;
+   assert (str == "tol");
+   
+   for (unsigned int i=0; i<n_moment; ++i)
+   {
+      fi >> moment_tol[i];
+      assert (moment_tol[i] >= 0.0);
+   }
+   
    
    fi >> str >> n_var;
    assert (str == "n_var");
@@ -195,7 +208,7 @@ void UQProblem<dim>::run_simulations ()
 
 // Find stochastic elements that are oscillatory
 template <int dim>
-void UQProblem<dim>::flag_eno_elements ()
+int UQProblem<dim>::flag_eno_elements ()
 {
    Quadrature<dim>  quadrature_formula;
    Interpolate<dim> interpolate_formula (n_var, n_cell);
@@ -203,6 +216,8 @@ void UQProblem<dim>::flag_eno_elements ()
    unsigned int n = n_var * n_cell;
    valarray<double> u_min (n);
    valarray<double> u_max (n);
+   
+   int n_flagged = 0;
    
    for(unsigned int i=0; i<grid.element.size(); ++i)
       if(grid.element[i].status == NEW && grid.element[i].order == 2)
@@ -237,8 +252,13 @@ void UQProblem<dim>::flag_eno_elements ()
          grid.element[i].clear_dof ();
          
          if(is_eno == false)
+         {
             grid.element[i].refine_flag = true;
-      }         
+            ++n_flagged;
+         }
+      }
+   
+   return n_flagged;
 }
 
 // Compute moments and adjoint correction on each new stochastic element
@@ -330,41 +350,77 @@ void UQProblem<dim>::compute_moments ()
 // Find element with largest remaining error and flag it for
 // stochastic refinement
 template <int dim>
-void UQProblem<dim>::flag_elements ()
+int UQProblem<dim>::flag_elements ()
 {
+   int n_flagged = 0;
+   
    // Uniform refinement: flag all active elements
    if(refine_type == UNIFORM)
    {
       for(unsigned int j=0; j<grid.element.size(); ++j)
          if(grid.element[j].active)
+         {
             grid.element[j].refine_flag = true;
+            ++n_flagged;
+         }
    }
    else
    {  // Adaptive refinement
       for(unsigned int i=0; i<n_moment; ++i)
       {
-         unsigned int imax = 0;
+         int imax = -1;
          double max_error = -1.0;
+         
+         double J = moment[i] + adj_cor[i];
+         double element_error = moment_tol[i] * fabs(J) / 
+                                grid.n_active_elements();
          
          // Find stochastic element with largest |RE|
          // Only check active elements
          for(unsigned int j=0; j<grid.element.size(); ++j)
             if(grid.element[j].active &&
+               fabs(grid.element[j].RE[i]) > element_error &&
                fabs(grid.element[j].RE[i]) > max_error)
             {
                imax = j;
                max_error = fabs(grid.element[j].RE[i]);
             }
          
-         grid.element[imax].refine_flag = true;
+         if(imax > -1)
+         {
+            grid.element[imax].refine_flag = true;
+            ++n_flagged;
+         }
       }
    }
+   
+   return n_flagged;
 }
 
 // Refine physical grid
 template <int dim>
-void UQProblem<dim>::refine_physical (const unsigned int iter)
+int UQProblem<dim>::refine_physical (const unsigned int iter)
 {   
+   int n_flagged = 0;
+   vector<int> flag (n_cell, 0);
+         
+   unsigned int c = 0;
+   for(unsigned int i=0; i<n_moment; ++i)
+   {
+      double J = moment[i] + adj_cor[i];
+      double cell_error = moment_tol[i] * fabs(J) / n_cell;
+      
+      for(unsigned int j=0; j<n_cell; ++j, ++c)
+         if(fabs(mesh_error[c]) > cell_error)
+         {
+            flag[j] = 1;
+            ++n_flagged;
+         }
+   }
+   
+   if(n_flagged == 0)
+      return 0;
+   
    // Create name for new_template_dir
    char new_template_dir[64];
    sprintf(new_template_dir, "template_dir_%d", iter);
@@ -377,28 +433,24 @@ void UQProblem<dim>::refine_physical (const unsigned int iter)
    
    // Save mesh_error into file
    // Separate file is created for each moment
-   unsigned int c = 0;
-   for(unsigned int i=0; i<n_moment; ++i)
-   {
-      char filename[64];
-      sprintf(filename, "RESULT/%s/error%d.dat", new_template_dir, i);
-      ofstream fo;
-      fo.open (filename);
-      fo.precision (15);
-      fo.setf (ios::scientific);
-      
-      for(unsigned int j=0; j<n_cell; ++j)
-         fo << mesh_error[c++] << endl;
-      
-      fo.close ();
-   }
+
+   char filename[64];
+   sprintf(filename, "RESULT/%s/error%d.dat", new_template_dir, 0);
+   ofstream fo;
+   fo.open (filename);
+   fo.precision (15);
+   fo.setf (ios::scientific);
+   
+   for(unsigned int j=0; j<n_cell; ++j)
+      fo << flag[j] << endl;
+   
+   fo.close ();
    
    // Call external grid refinement program
    sprintf (command, "./adapt.sh RESULT/%s", new_template_dir);
    system (command);
    
    // Read new number of cells: n_cell
-   char filename[64];
    unsigned int n_cell_old, n_cell_new;
    ifstream fi;
    sprintf(filename, "RESULT/%s/cell_map.dat", new_template_dir);
@@ -436,10 +488,13 @@ void UQProblem<dim>::refine_physical (const unsigned int iter)
    else
    {
       cout << "Physical mesh was not adapted\n";
+      n_flagged = 0;
    }
    
    // Update template dir
    sprintf(template_dir, "%s", new_template_dir);
+   
+   return n_flagged;
 }
 
 // Print messages to screen
@@ -507,21 +562,33 @@ void UQProblem<dim>::run ()
       cout << "Iteration = " << iter << endl;
       cout << "------------------" << endl;
       
+      int element_status, physical_status, eno_status;
+      element_status = physical_status = eno_status = 0;
+      
       if (iter > 0) 
       {
-         flag_elements ();
+         element_status = flag_elements ();
          refine_grid (false);
          grid.reinit_dof (sample);
          if(error_control == COMBINED)
-            refine_physical (iter);
+            physical_status = refine_physical (iter);
       }
+      
       run_simulations ();
+      
       if(eno)
       {
-         flag_eno_elements ();
+         eno_status = flag_eno_elements ();
          refine_grid (true);
          grid.reinit_dof (sample);
       }
+      
+      if(iter > 0 && element_status == 0 && eno_status == 0)
+      {
+         cout << "Specified tolerance level has been reached\n";
+         break;
+      }
+      
       compute_moments ();
 
       log_result (fj, fe);   
