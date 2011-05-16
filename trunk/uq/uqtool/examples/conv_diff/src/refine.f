@@ -1,15 +1,13 @@
       program main
       implicit none
-      integer, parameter :: nc_max = 100
+      integer, parameter :: nc_max = 1000
       real :: xv_h(nc_max)
       real :: xv_hh(nc_max)
       real,allocatable :: error(:)
-      real,allocatable :: error2(:)
       integer :: nc, nc_ref, nc_h, nc_hh
       real,allocatable :: xv(:)
       real :: refine_fraction
       integer :: i, c
-      integer,allocatable :: idx(:)
       logical,allocatable :: to_refine(:)
       real :: dx1, dx2, dx_min
 
@@ -29,7 +27,6 @@ c     Read current grid
       close(10)
 
       allocate(error(nc))
-      allocate(error2(nc))
 
 c     Read error indicator
       open(10,file='error0.dat',status='old')
@@ -38,32 +35,17 @@ c     Read error indicator
       enddo
       close(10)
 
-      error = abs(error)
-      error2 = error
-
 c     Dont refine if upper limit of nc is reached
       if(nc.ge.nc_max) stop
-
-c     Number of cells to refine
-      nc_ref = refine_fraction * nc
-
-c     Find nc_ref cells with largest error
-      allocate(idx(nc))
-      do i=1,nc
-         idx(i) = i
-      enddo
-      call ssort(error, idx, nc, 0)
-
-      print*,idx(:),error(:)
 
 c     Flag nc_ref cells for refinement
       allocate(to_refine(nc))
       to_refine = .FALSE.
-      c = 0
+      nc_ref = 0
       do i=1,nc
-         if(xv(i+1)-xv(i).gt.dx_min .and. c.lt.nc_ref)then
-            to_refine(idx(i)) = .TRUE.
-            c = c + 1
+         if(xv(i+1)-xv(i).gt.dx_min .and. error(i).gt.0)then
+            to_refine(i) = .TRUE.
+            nc_ref = nc_ref + 1
          endif
       enddo
 
@@ -77,7 +59,7 @@ c     Refine grid
          c = c + 1
 
          if(to_refine(i))then
-            print*,'Refining ',i,' error =',error2(i)
+            print*,'Refining ',i
             xv_h(c) = 0.5*(xv(i) + xv(i+1))
             c = c + 1
          endif

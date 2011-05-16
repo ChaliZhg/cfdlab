@@ -18,26 +18,31 @@ h = ccre(:,2);
 cc= ccre(:,3);
 re= ccre(:,4);
 
-J_error = abs(J - Jexact);
-Jc_error= abs(Jc - Jexact);
+J_error = 100 * abs(J - Jexact) / abs(Jexact);
+Jc_error= 100 * abs(Jc - Jexact) / abs(Jexact);
+cc = 100 * cc / abs(Jexact);
+re = 100 * re / abs(Jexact);
 
 figure(1)
 plot(Ns,J,'o-',Ns,Jc,'*--',Ns,ones(size(Ns))*Jexact,'--','LineWidth',1.5)
+set(gca,'FontSize',14)
 xlabel('Number of samples')
 ylabel('Mean functional')
 legend('J','J+CC','Exact')
 
 figure(2)
-loglog(h,J_error,'o--',...
-       h,Jc_error,'*--',...
-       h,cc,...
-       h,re,'LineWidth',1.5);
-xlabel('\Delta\xi')
+loglog(Ns,J_error,'o--',...
+       Ns,Jc_error,'*--',...
+       Ns,cc,...
+       Ns,re,'LineWidth',1.5);
+set(gca,'FontSize',14)
+xlabel('Number of samples')
+ylabel('Percentage error')
 legend('Error in J','Error in J+CC','CC','RE')
 
 % Convergence rates
 ns = length(h);
-x = h(istart:ns);
+x  = Ns(istart:ns);
 
 % for J
 f = J_error(istart:ns);
