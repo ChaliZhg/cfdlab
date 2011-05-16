@@ -1,0 +1,16 @@
+To run this, do following:
+
+cp -r 1var 1var_test
+cp runsolver.sh 1var_test
+cd 1var_test
+../../../src/uqtool
+
+To see convergence plots, Start matlab
+
+>> path(path,'../../../utils')
+>> allplot
+
+You can set tolerance level in uq.in
+If you set 0.0, it refines forever, until sample limit is reached
+
+
