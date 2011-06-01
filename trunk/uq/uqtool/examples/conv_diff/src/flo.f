@@ -4,10 +4,13 @@ c ========== Program to solve u u_x = u_xx + S(x) =================
       include 'param.h'
       real, allocatable :: q(:),xc(:),qexact(:),qold(:),xv(:)
       real, allocatable :: res(:),dx(:),dt(:)
+      real, allocatable :: mmat(:), amat(:), bmat(:), cmat(:)
       integer nc
       integer i, niter, iter,stage, mode
       real :: maxspeed, CFL, factor, xi_1,tol_conv
-      real :: frac,cost,exactcost,residue,alpha
+      real :: frac,cost,exactcost,residue,alpha,residue0
+      real :: dxl, dxr
+      integer :: code
 
       call read_input(mode, xi_1, CFL, niter,tol_conv)
 
@@ -36,7 +39,7 @@ c     Read primal solution, evaluate residual, save to file
          read(10,*) (q(i),i=1,nc)
          close(10)
          res = 0.0
-         call residu(nc, q, res, xc, xv, dx)
+         call residu(nc, q, res, xc, xv, dx, 1)
          call source(nc, q, res, xc, dx, xi_1)
          print*,'Saving primal residual ...'
          open(10, file='p_residual.dat')
@@ -61,26 +64,31 @@ c     initialize conditions
       enddo
       close(10)
 
+c     matrices for TDMA
+      include 'impmat.f'
 
       do iter=1,niter
          qold(1:nc)=q(1:nc)
+          res = 0.0
+          call residu(nc, q, res, xc, xv, dx, 0)
+          call source(nc, q, res, xc, dx, xi_1)
           do i=1,nc
-            dt(i) = CFL * min(dx(i)/1.5, dx(i)**2)
+             res(i) = -res(i) + mmat(i)*q(i)
           enddo
-         do stage=1,3
-            res = 0.0
-            call residu(nc, q, res, xc, xv, dx)
-            call source(nc, q, res, xc, dx, xi_1)
-            residue = sum(abs(res))
-            do i=1,nc
-               q(i) = ark(stage) * qold(i)
-     1              + brk(stage) * (q(i) - (dt(i)/dx(i))*res(i))
-            enddo
+          res(1)  = res(1)  + ql/(xc(1)    - xv(1))
+          res(nc) = res(nc) + qr/(xv(nc+1) - xc(nc))
+          call tridag(amat,bmat,cmat,res,q,nc,code)
+          if(code.ne.0) stop "tridiag failed"
+          residue = 0.0;
+          do i=1,nc
+            residue = residue + ((q(i)-qold(i))/dt(i))**2
          enddo
-c        if(mod(iter,1).eq.0) print*,iter,residue
+         residue = sqrt(residue)
+         if(iter.eq.1) residue0 = residue
+         residue = residue/residue0
+         print*,iter,residue
          if(abs(residue).lt.tol_conv) exit
       enddo
-      print*,iter,residue
 
       open(11, file='flo.dat')
       open(12, file='exact.dat')

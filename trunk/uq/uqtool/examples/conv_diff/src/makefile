@@ -7,10 +7,10 @@ TPN =  ${TAPENADE_HOME}/bin/tapenade -r8
 
 TARGETS=grid flo adj ccre reconstruct refine
 
-FLO = flo.o bc.o residu.o source.o costfun.o read_input.o calc_grad.o
+FLO = flo.o bc.o residu.o source.o costfun.o read_input.o calc_grad.o tridiag.o
 
 ADJ = adj.o bc.o sourceis_ba.o costfun_bq.o residu_bq.o adStack.o adBuffer.o \
-	  	residu.o read_input.o calc_grad.o
+	  	residu.o read_input.o calc_grad.o tridiag.o
 
 REC = reconstruct.o calc_grad.o
 

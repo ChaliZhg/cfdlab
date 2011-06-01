@@ -5,12 +5,15 @@
       real, allocatable :: res(:)
       real, allocatable :: qb(:),qb1(:)
       real, allocatable :: resb(:), resbold(:)
+      real, allocatable :: mmat(:), amat(:), bmat(:), cmat(:)
       integer nc
       integer i, niter,iter, stage, mode
       real :: maxspeed, CFL , alpha
       real :: xi_1, tol_conv
-      real :: cost, costb1,costb,residue
+      real :: cost, costb1,costb,residue,residue0
       real :: q1,res1,resb1,dSdxi_1
+      real :: dxl, dxr
+      integer :: code
 
       call read_input(mode, xi_1, CFL, niter, tol_conv)
 
@@ -47,7 +50,7 @@ c     Set up mesh
          costb = 1.0
          qb    = 0.0
          call costfun_bq(nc, q, qb, cost, costb, dx)
-         call residu_bq(nc, q, qb, res, resb, xc, xv, dx)
+         call residu_bq(nc, q, qb, res, resb, xc, xv, dx, 1)
          print*,'Saving adjoint residual ...'
          open(10, file='a_residual.dat')
          write(10,'(e24.14)') (qb(i), i=1,nc)
@@ -68,7 +71,6 @@ c     initialize conditions
       qb    = 0.0
       call costfun_bq(nc, q, qb, cost, costb, dx)
       resb = 0.0
-      resb(1:nc) = -qb(1:nc)
       qb1(1:nc)  =  qb(1:nc)
 
       open(10, file='initadj.dat')
@@ -77,24 +79,29 @@ c     initialize conditions
       enddo
       close(10)
 
-      do i=1,nc
-          dt(i) = CFL * min(dx(i)/1.5, dx(i)**2)
-      enddo
-
+c     matrices for TDMA
+      include 'impmat.f'
 
       do iter=1,niter
          resbold(1:nc)=resb(1:nc)
-         do stage=1,3
-            qb(1:nc)=qb1(1:nc)
-            call residu_bq(nc, q, qb, res, resb, xc, xv, dx)
-            resb(1:nc) = ark(stage) * resbold(1:nc) 
-     1           + brk(stage) * (resb(1:nc) - (dt/dx(1:nc))*qb(1:nc))
-            residue = sum(abs(qb))
+         qb(1:nc)=qb1(1:nc)
+         call residu_bq(nc, q, qb, res, resb, xc, xv, dx, 0)
+         qb(1:nc) = -qb(1:nc)
+         do i=1,nc
+            qb(i) = qb(i) + mmat(i)*resbold(i)
          enddo
-c        if(mod(iter,5000).eq.0) print*,iter,residue
+         call tridag(cmat,bmat,amat,qb,resb,nc,code)
+         if(code.ne.0) stop "tridiag failed"
+         residue = 0.0;
+         do i=1,nc
+            residue = residue + ((resb(i)-resbold(i))/dt(i))**2
+         enddo
+         residue = sqrt(residue)
+         if(iter.eq.1) residue0 = residue
+         residue = residue/residue0
+         print*,iter,residue
          if(abs(residue)<tol_conv) exit
       enddo
-      print*,iter,residue
 
 
       q1=0.0
