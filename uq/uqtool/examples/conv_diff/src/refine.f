@@ -1,6 +1,6 @@
       program main
       implicit none
-      integer, parameter :: nc_max = 1000
+      integer, parameter :: nc_max = 10000
       real :: xv_h(nc_max)
       real :: xv_hh(nc_max)
       real,allocatable :: error(:)
@@ -14,7 +14,7 @@
 c     Fraction of cells to refine
       refine_fraction = 0.05
 c     Lower bound on cell size
-      dx_min = 1.0/50.0
+      dx_min = 1.0/2000.0
 
 c     Read current grid
       print*,'Reading current grid'

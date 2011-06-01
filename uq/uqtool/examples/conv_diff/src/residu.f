@@ -1,8 +1,8 @@
 c     Finite volume residual
-      subroutine residu(nc, q, res, xc, xv, dx)
+      subroutine residu(nc, q, res, xc, xv, dx, visc)
       implicit none
       include 'param.h'
-      integer :: nc
+      integer :: nc, visc
       real    :: q(nc), res(nc), xc(nc), xv(nc+1), dx(nc)
 
       integer :: i, sndOrder
@@ -10,50 +10,56 @@ c     Finite volume residual
       real :: minmod
       real :: grads(nc)
 
+c     For second order scheme, set to 1
       sndOrder=1
 
       call calc_grad(nc,xc,xv,q,grads)
 
       ! Left flux of first cell 
       qleft = ql 
-      qright= ql
-
+      qright= q(1)
+      if(sndOrder.eq.1) then
+         qright=qright-0.5*dx(1)*grads(1)
+      endif
       call RoeFlux(qleft, qright, f)
       res(1) = res(1) - f
 
-      viscflux = (q(1)-ql)/(xc(1)-xv(1))
-      res(1) = res(1) + viscflux
-
-      ! All cells
-
+      ! All interior cells
       do i=2,nc
         qleft = q(i-1)
         qright =q(i)
 
-      if(sndOrder.eq.1) then
-          qleft =qleft +0.5*dx(i-1)*grads(i-1)
-          qright=qright-0.5*dx(i)*grads(i)
-      endif
+         if(sndOrder.eq.1) then
+            qleft =qleft +0.5*dx(i-1)*grads(i-1)
+            qright=qright-0.5*dx(i)*grads(i)
+         endif
 
-      call RoeFlux(qleft, qright, f)
-      res(i-1) = res(i-1) + f
-      res(i)   = res(i)   - f
-
-      viscflux = 2.0*(q(i) - q(i-1))/(dx(i) + dx(i-1))
-      res(i-1) = res(i-1) - viscflux
-      res(i  ) = res(i  ) + viscflux
+         call RoeFlux(qleft, qright, f)
+         res(i-1) = res(i-1) + f
+         res(i)   = res(i)   - f
       enddo
 
       ! right flux of last cell 
-
-      qleft=qr
+      qleft  = q(nc)
       qright = qr
-
+      if(sndOrder.eq.1) then
+         qleft = qleft + 0.5*dx(nc)*grads(nc)
+      endif
       call RoeFlux(qleft, qright, f)
       res(nc) = res(nc) + f
 
-      viscflux =  (qr-q(nc))/(xv(nc+1)-xc(nc))
-      res(nc) = res(nc) - viscflux
+c     Add viscous contributions
+      if(visc.eq.1)then
+         viscflux = (q(1)-ql)/(xc(1)-xv(1))
+         res(1) = res(1) + viscflux
+         do i=2,nc
+            viscflux = 2.0*(q(i) - q(i-1))/(dx(i) + dx(i-1))
+            res(i-1) = res(i-1) - viscflux
+            res(i  ) = res(i  ) + viscflux
+         enddo
+         viscflux =  (qr-q(nc))/(xv(nc+1)-xc(nc))
+         res(nc) = res(nc) - viscflux
+      endif
 
       return
       end
