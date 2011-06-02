@@ -411,7 +411,12 @@ int UQProblem<dim>::refine_physical (const unsigned int iter)
       double cell_error = moment_tol[i] * fabs(J) / n_cell;
       
       for(unsigned int j=0; j<n_cell; ++j, ++c)
-         if(fabs(mesh_error[c]) > cell_error)
+         if(refine_type == UNIFORM)
+         {
+            flag[j] = 1;
+            ++n_flagged;
+         }
+         else if(fabs(mesh_error[c]) > cell_error)
          {
             flag[j] = 1;
             ++n_flagged;
@@ -419,7 +424,10 @@ int UQProblem<dim>::refine_physical (const unsigned int iter)
    }
    
    if(n_flagged == 0)
+   {
+      cout << "Physical error is below specified tolerance\n";
       return 0;
+   }
    
    // Create name for new_template_dir
    char new_template_dir[64];
@@ -459,7 +467,7 @@ int UQProblem<dim>::refine_physical (const unsigned int iter)
    fi >> n_cell_old >> n_cell_new;
    fi.close ();
    
-   // Just a check
+   // Just a check: THIS IS POINTLESS
    assert (n_cell_old == n_cell_old);
    
    // If grid has been adapted, set sample status to re-run
