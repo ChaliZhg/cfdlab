@@ -1,2 +1,0 @@
-Make local lax-friedrichs flux
-boundary flux: dont use numerical flux, must be exact flux evaluated at boundary state. set left state = right state while calling numerical flux.
