@@ -90,7 +90,7 @@ c     matrices for TDMA
          do i=1,nc
             qb(i) = qb(i) + mmat(i)*resbold(i)
          enddo
-         call tridag(cmat,bmat,amat,qb,resb,nc,code)
+         call tridag(amat,bmat,cmat,qb,resb,nc,code)
          if(code.ne.0) stop "tridiag failed"
          residue = 0.0;
          do i=1,nc
