@@ -143,3 +143,4 @@ void JREvaluator<dim>::execute (const double* x,
 
 // To avoid linker error
 template class JREvaluator<1>;
+template class JREvaluator<2>;

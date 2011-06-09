@@ -21,6 +21,9 @@ public:
    ~Interpolate ();
    void reinit (const Element<dim>& element);
    void execute (const double* x);
+   double lagrange (const unsigned int iorder,
+                    const unsigned int vertex,
+                    const double*      x);
    
    unsigned int order;
    unsigned int n_var;

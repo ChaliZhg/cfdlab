@@ -5,6 +5,7 @@
 #include <cassert>
 #include <cstdlib>
 #include "grid.h"
+#include "misc.h"
 
 using namespace std;
 
@@ -15,6 +16,7 @@ Sample<dim>::Sample(const unsigned int n_var,
                     const unsigned int n_moment,
                     const unsigned int counter)
    :
+   x (dim),
    n_var  (n_var),
    n_cell (n_cell),
    idx    (counter)
@@ -215,6 +217,53 @@ void Element<dim>::load_mesh_error ()
    }
 }
 
+// Find largest edge of a triangular stochastic element
+template <>
+vector<unsigned int> Element<2>::largest_face (const valarray<double>& x0,
+                                               const valarray<double>& x1,
+                                               const valarray<double>& x2)
+{
+   // Find length of three edges
+   valarray<double> dx0 = x1 - x0;
+   double ds0 = norm (dx0);
+   
+   valarray<double> dx1 = x2 - x1;
+   double ds1 = norm (dx1);
+   
+   valarray<double> dx2 = x0 - x2;
+   double ds2 = norm (dx2);
+
+   vector<unsigned int> edge = idof;
+   
+   if (ds1 > ds0)
+   {
+      edge[0] = idof[1];
+      edge[1] = idof[2];
+      edge[2] = idof[0];
+      if(order == 2)
+      {
+         edge[3] = idof[4];
+         edge[4] = idof[5];
+         edge[5] = idof[3];
+      }
+   }
+   
+   if (ds2 > ds1 && ds2 > ds0)
+   {
+      edge[0] = idof[2];
+      edge[1] = idof[0];
+      edge[2] = idof[1];
+      if(order == 2)
+      {
+         edge[3] = idof[5];
+         edge[4] = idof[3];
+         edge[5] = idof[4];
+      }
+   }
+   
+   return edge;
+}
+
 // Set pointer from element.dof to sample
 // This must be done every time sample is modified by push_back,
 // usually after grid refinement
@@ -231,7 +280,7 @@ void Grid<dim>::reinit_dof (vector<typename Sample<dim>::Sample>& sample)
 
 // Count number of active elements
 template <int dim>
-int Grid<dim>::n_active_elements ()
+int Grid<dim>::n_active_elements () const
 {
    int n = 0;
    for(unsigned int i=0; i<element.size(); ++i)
@@ -244,3 +293,6 @@ int Grid<dim>::n_active_elements ()
 template class Sample<1>;
 template class Element<1>;
 template class Grid<1>;
+template class Sample<2>;
+template class Element<2>;
+template class Grid<2>;

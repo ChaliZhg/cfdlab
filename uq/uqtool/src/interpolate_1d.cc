@@ -13,6 +13,33 @@
 
 using namespace std;
 
+// Compute Lagrange basis function
+template<>
+double Interpolate<1>::lagrange (const unsigned int iorder,
+                                 const unsigned int vertex,
+                                 const double* x)
+{
+   unsigned int nv = 0;
+   
+   if(iorder == 1)
+      nv = 2;
+   else
+      nv = 3;
+   
+   
+   double result = 1.0;
+   
+   for(unsigned int i=0; i<nv; ++i)
+      if(i != vertex)
+      {
+         result *= (x[0] - dof[i]->x[0]) / 
+         (dof[vertex]->x[0] - dof[i]->x[0]);
+      }
+   
+   return result;
+}
+
+
 // Lagrange interpolate of primal and adjoint solution in 1-D
 template <>
 void Interpolate<1>::execute (const double* x)

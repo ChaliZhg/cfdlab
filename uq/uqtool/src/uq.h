@@ -5,6 +5,7 @@
 #include <valarray>
 #include "grid.h"
 #include "pdf.h"
+#include "misc.h"
 
 #define STOCHASTIC   1
 #define COMBINED     2
@@ -32,6 +33,7 @@ class UQProblem
       int  refine_physical (const unsigned int iter);
       void log_result (std::ofstream& fj, std::ofstream& fe);
       void output (const unsigned int iter) const;
+      int find_sample (const std::valarray<double>& x);
 
       PDFData<dim> pdf_data;
    
@@ -58,5 +60,16 @@ class UQProblem
       std::valarray<double> mesh_error; // Indicator for physical mesh
       char template_dir[64];
 };
+
+template<int dim>
+inline
+int UQProblem<dim>::find_sample (const std::valarray<double>& x)
+{
+   for(unsigned int i=0; i<sample.size(); ++i)
+      if(norm(sample[i].x - x) < 1.0e-12)
+         return i;
+   
+   return -1;
+}
 
 #endif
