@@ -50,3 +50,4 @@ double PDFData<dim>::get_pdf (const double* x) const
 
 // To avoid linker error
 template class PDFData<1>;
+template class PDFData<2>;

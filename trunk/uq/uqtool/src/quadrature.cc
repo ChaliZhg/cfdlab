@@ -59,3 +59,4 @@ void Quadrature<dim>::allocate_memory ()
 
 // To avoid linker errors
 template class Quadrature<1>;
+template class Quadrature<2>;

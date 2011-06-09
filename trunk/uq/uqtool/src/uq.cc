@@ -613,3 +613,4 @@ void UQProblem<dim>::run ()
 
 // To avoid linker errors
 template class UQProblem<1>;
+template class UQProblem<2>;

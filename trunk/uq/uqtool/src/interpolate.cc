@@ -54,3 +54,4 @@ void Interpolate<dim>::reinit (const Element<dim>& element)
 
 // To avoid linker errors
 template class Interpolate<1>;
+template class Interpolate<2>;

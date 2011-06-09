@@ -20,7 +20,7 @@ class Sample
       void clear ();
       void read ();
 
-      double x[dim];
+      std::valarray<double> x;
       std::valarray<double> J;
       unsigned int n_var, n_cell;
       unsigned int idx;
@@ -45,6 +45,9 @@ class Element
       void clear_dof ();
       void save_mesh_error ();
       void load_mesh_error ();
+      std::vector<unsigned int> largest_face (const std::valarray<double>&,
+                                              const std::valarray<double>&,
+                                              const std::valarray<double>&);
    
       int order;             // order = linear (1) or quadratic (2)
       unsigned int n_moment; // no. of moments
@@ -72,7 +75,7 @@ class Grid
       Grid () {};
       ~Grid () {};
       void reinit_dof (std::vector<typename Sample<dim>::Sample>& sample);
-      int n_active_elements ();
+      int n_active_elements () const;
 
       std::vector<typename Element<dim>::Element> element;
 };
