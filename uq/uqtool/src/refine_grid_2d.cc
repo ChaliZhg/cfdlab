@@ -70,7 +70,19 @@ void UQProblem<2>::refine_grid (bool eno_mode)
          
          vector<unsigned int> e = grid.element[i].largest_face (x0, x1, x2);
          
-         if(grid.element[i].order == 1 && order == 1)
+         if(order == 1 && refine_type == UNIFORM)
+         {
+            // Divide linear element into four linear elements
+            cout << ": dividing P1 element into four P1 elements\n";
+            abort ();
+         }
+         else if(order == 2 && refine_type == UNIFORM)
+         {
+            // Divide quadratic element into four quadratic elements
+            cout << ": dividing P2 element into four P2 elements\n";
+            abort ();
+         }
+         else if(grid.element[i].order == 1 && order == 1)
          {
             // Divide linear element into two linear elements
             cout << ": dividing P1 element into two P1 elements\n";

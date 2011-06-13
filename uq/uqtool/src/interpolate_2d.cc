@@ -103,7 +103,6 @@ void Interpolate<2>::execute (const double* x)
                        a[2] * dof[2]->adjoint[i];
       }
       
-      
       // high order is Quadratic interpolation
       for(unsigned int i=0; i<6; ++i)
          a[i] = lagrange (2, i, x);
