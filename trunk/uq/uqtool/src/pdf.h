@@ -13,7 +13,10 @@
 #include <vector>
 #include <string>
 
-enum PDFType { uniform, normal, lognormal };
+namespace PDFType
+{
+   enum PDFType { uniform, normal, lognormal, beta };
+}
 
 template <int dim>
 class PDFData
@@ -23,9 +26,10 @@ class PDFData
       std::vector<std::string> x_name;
       double x_min[dim];
       double x_max[dim];
-      PDFType type[dim];
+      PDFType::PDFType type[dim];
       double  mean[dim];
       double  variance[dim];
+      double alpha[dim], beta[dim]; // used in beta distribution
    
       double get_pdf (const double* x) const;
 };

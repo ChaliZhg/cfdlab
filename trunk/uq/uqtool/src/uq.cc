@@ -65,15 +65,25 @@ void UQProblem<dim>::read_options ()
          >> pdf_data.x_max[i]
          >> input;
       if(input=="uniform") 
-         pdf_data.type[i] = uniform;
+         pdf_data.type[i] = PDFType::uniform;
       else if(input=="normal")  
       {
-         pdf_data.type[i] = normal;
+         pdf_data.type[i] = PDFType::normal;
          // Mean value is at center of given range
          pdf_data.mean[i] = 0.5 * (pdf_data.x_min[i] + pdf_data.x_max[i]); 
          fi >> input >> pdf_data.variance[i];
          assert (input == "variance");
          assert (pdf_data.variance[i] > 0.0);
+      }
+      else if(input=="beta")  
+      {
+         pdf_data.type[i] = PDFType::beta;
+         fi >> input >> pdf_data.alpha[i];
+         assert (input == "alpha");
+         assert (pdf_data.alpha[i] > 0.0);
+         fi >> input >> pdf_data.beta[i];
+         assert (input == "beta");
+         assert (pdf_data.beta[i] > 0.0);
       }
       else
       {
