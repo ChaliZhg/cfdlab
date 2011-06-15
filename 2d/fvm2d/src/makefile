@@ -2,6 +2,9 @@ include ../makefile.in
 
 PROGRAM=fvm
 
+SRC=$(wildcard *.f)
+OBJ=$(patsubst %.f,%.o,$(SRC))
+
 OBJS=areas.o \
 	  common.o \
 	  conres.o \
@@ -34,11 +37,15 @@ OBJS=areas.o \
      wall_dist.o \
      check_string.o \
      read_input.o \
+     read_grid.o \
+     initialize.o \
+     clcd.o \
+     time_step.o \
 
 .f.o:
 	$(F77) $(CFLAGS) -c $*.f
 
-$(PROGRAM) :$(OBJS)
-	              $(F77) -o $(PROGRAM) $(OBJS)
+$(PROGRAM) :$(OBJ)
+	              $(F77) -o $(PROGRAM) $(OBJ)
 
-clean:;    rm -f $(OBJS) core
+clean:;    rm -f $(OBJ) core

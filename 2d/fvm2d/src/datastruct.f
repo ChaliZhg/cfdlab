@@ -250,8 +250,8 @@ c     check triangle area
          stop
       endif
 
-      print*,'\tMinimum element area     =',minelarea
-      print*,'\tMaximum element area     =',maxelarea
+      print*,'Minimum element area     =',minelarea
+      print*,'Maximum element area     =',maxelarea
 
 c     check cv area
       maxcvarea = 0.0d0
@@ -266,8 +266,8 @@ c     check cv area
          stop
       endif
 
-      print*,'\tMinimum cv area          =',mincvarea
-      print*,'\tMaximum cv area          =',maxcvarea
+      print*,'Minimum cv area          =',mincvarea
+      print*,'Maximum cv area          =',maxcvarea
 
 c     Find minimum/maximum face lengths
       maxflen = 0.0d0
@@ -278,8 +278,8 @@ c     Find minimum/maximum face lengths
          maxflen = dmax1(maxflen, flen)   
          minflen = dmin1(minflen, flen)
       enddo
-      print*,'\tMinimum cv length        =',minflen
-      print*,'\tMaximum cv length        =',maxflen
+      print*,'Minimum cv length        =',minflen
+      print*,'Maximum cv length        =',maxflen
 
       return
       end

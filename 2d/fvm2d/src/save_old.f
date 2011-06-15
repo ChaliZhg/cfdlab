@@ -1,4 +1,6 @@
+C----------------------------------------------------------------------
 C.....Save the current solution into another array
+C----------------------------------------------------------------------
       subroutine save_old(prim, prim_old)
       implicit none
       include 'param.h'

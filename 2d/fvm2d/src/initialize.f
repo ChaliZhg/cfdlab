@@ -1,5 +1,7 @@
+C----------------------------------------------------------------------
 C.....Variables stored are primitive - density, u, v, pressure
 C.....Initialize primitive variables to free stream values
+C----------------------------------------------------------------------
       subroutine initialize(prim, nut, mul, mu)
       implicit none
       include 'param.h'
@@ -35,15 +37,15 @@ c Primitive variables in free-stream
       if(iflow.eq.laminar)  print*,'Laminar Navier-Stokes computation'
       if(iflow.eq.turbulent)print*,'Turbulent Navier-Stokes computation'
       print*,'Free-stream values:'
-      print*,'\t\t Mach number =',mach_inf
-      print*,'\t\t AOA         =',aoa_deg
-      print*,'\t\t u velocity  =',u_inf
-      print*,'\t\t v velocity  =',v_inf
-      print*,'\t\t Pressure    =',p_inf
+      print*,' Mach number =',mach_inf
+      print*,' AOA         =',aoa_deg
+      print*,' u velocity  =',u_inf
+      print*,' v velocity  =',v_inf
+      print*,' Pressure    =',p_inf
 
       if(vortex .eq. yes)then
             print*,'Using point vortex correction for far-field points'
-            print*,'\tVortex center = ',xref, yref
+            print*,'Vortex center = ',xref, yref
       endif
 
 C Runge-Kutta time stepping
@@ -87,8 +89,8 @@ C Runge-Kutta time stepping
             endif
 
       else
-            print*,'Initializing solution to old values from INIT'
-            open(unit=20, file='INIT', status='old')
+            print*,'Initializing solution to old values from SOL'
+            open(unit=20, file='SOL', status='old')
             do j=1,np
                   read(20,*) u1, u2, u3, u4, u5
                   prim(1,j) = u1

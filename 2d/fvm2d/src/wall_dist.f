@@ -79,9 +79,9 @@ c Distance of second layer of points to wall
             wdmax  = dmax1(wdmax,  wd1(i))
       enddo
 
-      print*,'\tNumber of solid faces         =',nbe
-      write(*,10)'\tMin distance of nearest point =',wdmin
-      write(*,10)'\tMax distance of nearest point =',wdmax
+      print*,'Number of solid faces         =',nbe
+      write(*,10)'Min distance of nearest point =',wdmin
+      write(*,10)'Max distance of nearest point =',wdmax
 10    format(a32,e10.3)
 
 c Set distance of solid points to non-zero value, avoids division by

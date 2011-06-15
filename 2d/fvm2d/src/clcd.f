@@ -1,4 +1,6 @@
+C----------------------------------------------------------------------
 C.....Calculate lift and drag coefficients
+C----------------------------------------------------------------------
       subroutine clcd(coord, prim, mu, qx, qy)
       implicit none
       include 'param.h'

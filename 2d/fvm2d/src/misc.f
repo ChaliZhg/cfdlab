@@ -1,9 +1,9 @@
       subroutine banner
 
-      print*,'\t\t************************************************'
-      print*,'\t\t* 2-D Finite Volume Code on Triangular Grids   *'
-      print*,'\t\t*             written by Praveen. C            *'
-      print*,'\t\t************************************************'
+      print*,'************************************************'
+      print*,'* 2-D Finite Volume Code on Triangular Grids   *'
+      print*,'*             written by Praveen. C            *'
+      print*,'************************************************'
 
       return
       end

@@ -92,8 +92,8 @@ C-----------------------------------------------------------------------------
             endif
          enddo
 
-         print*,'\tRemoved ',ne-ecount,' edges which have zero length'
-         print*,'\tFinal numbers of edges   = ',ecount
+         print*,'Removed ',ne-ecount,' edges which have zero length'
+         print*,'Final numbers of edges   = ',ecount
          ne    = ecount
 
       else
