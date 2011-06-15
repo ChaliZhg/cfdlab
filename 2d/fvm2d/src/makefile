@@ -32,6 +32,8 @@ OBJS=areas.o \
      vigie.o \
      viscosity.o \
      wall_dist.o \
+     check_string.o \
+     read_input.o \
 
 .f.o:
 	$(F77) $(CFLAGS) -c $*.f
