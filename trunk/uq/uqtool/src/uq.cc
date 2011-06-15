@@ -601,10 +601,11 @@ void UQProblem<dim>::run ()
          grid.reinit_dof (sample);
       }
       
+      bool stop = false;
       if(iter > 0 && element_status == 0 && eno_status == 0)
       {
-         cout << "Specified tolerance level has been reached\n";
-         break;
+         cout << "*** Specified tolerance level has been reached ***\n";
+         stop = true;
       }
       
       compute_moments ();
@@ -612,6 +613,8 @@ void UQProblem<dim>::run ()
       log_result (fj, fe);   
       output (iter);
       ++iter;
+
+      if(stop) break;
    }
    
    fj.close ();
