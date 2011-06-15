@@ -69,7 +69,7 @@ c     stop
             call write_result(prim, nut, mu, qx, qy, coord, dsb)
             if(iter .ge. MAXITER)then
                print*,'*** Stopping execution ***'
-               print*,'\tMaximum number of iterations reached'
+               print*,'Maximum number of iterations reached'
                goto 100
             endif
          endif
@@ -79,7 +79,7 @@ c     stop
       call write_result(prim, nut, mu, qx, qy, coord, dsb)
 
       print*,'*** Stopping execution ***'
-      print*,'\tResidue has been reduced below MINRES =',MINRESIDUE
+      print*,'Residue has been reduced below MINRES =',MINRESIDUE
 
 100   call finalize(prim, nut, coord)
 

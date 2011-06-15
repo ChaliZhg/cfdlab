@@ -1,4 +1,6 @@
+C----------------------------------------------------------------------
 C.....Definition of some constants
+C----------------------------------------------------------------------
       subroutine math
       implicit none
       include 'param.h'
@@ -40,7 +42,9 @@ c Constants for Spalart-Allmaras model
       return
       end
 
+C----------------------------------------------------------------------
 C.....Rotate a vector (u,v) by angle ang
+C----------------------------------------------------------------------
       subroutine rotate(u, v, ang)
       implicit none
       double precision u, v, ang
@@ -59,7 +63,9 @@ C.....Rotate a vector (u,v) by angle ang
       return
       end
 
+C----------------------------------------------------------------------
 C.....Error function, from Abromovitz and Stegun
+C----------------------------------------------------------------------
       double precision function ERRF(X)
       double precision X,ARG,E,VB,T,tmp1,tmp2,tmp3,tmp4,tmp5,tmp6
 

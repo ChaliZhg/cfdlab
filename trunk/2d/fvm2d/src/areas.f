@@ -144,8 +144,8 @@ C        Control volume area
             enddo
             if(area .lt. 0.0d0)then
                print*,'Area is non-positive'
-               print*,'\t Area         =', area
-               print*,'\t Triangle     =',i
+               print*,' Area         =', area
+               print*,' Triangle     =',i
                stop 'areas'
             endif
             area       = 0.5d0*area

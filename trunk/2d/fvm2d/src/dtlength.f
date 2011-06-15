@@ -1,6 +1,8 @@
+C----------------------------------------------------------------------
 C.....Calculate length used for time step
 C.....For each point find the minimum altitude of all triangles
 C.....surrounding that point
+C----------------------------------------------------------------------
       subroutine dtlength(coord, elarea, elem, drmin)
       implicit none
       include 'param.h'

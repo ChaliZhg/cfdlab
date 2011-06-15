@@ -1,5 +1,7 @@
+C----------------------------------------------------------------------
 C.....Read grid data from a file
 C.....Currently supports only triangular elements
+C----------------------------------------------------------------------
       subroutine read_grid(coord, elem, ptype, spts, fpts, opts, bpts)
       implicit none
       include 'param.h'
@@ -52,10 +54,10 @@ c     Find bounding box
       enddo
 
       print*,'Bounding box:'
-      print*, '\t\txmin = ', xmin
-      print*, '\t\txmax = ', xmax
-      print*, '\t\tymin = ', ymin
-      print*, '\t\tymax = ', ymax
+      print*, '   xmin = ', xmin
+      print*, '   xmax = ', xmax
+      print*, '   ymin = ', ymin
+      print*, '   ymax = ', ymax
 
       nsp = 0
       nfp = 0
