@@ -16,22 +16,55 @@ C.....Read parameters from an input file and set freestream values
       inp = 11
       open(unit=inp, file=inpfile, status='old')
       print*,'Reading parameters from ',inpfile
+
       read(inp,*)sdummy, istart
+      call check_string("Start", sdummy)
+
       read(inp,*)sdummy, iflow
+      call check_string("FlowType", sdummy)
+
       read(inp,*)sdummy, mach_inf
+      call check_string("Mach", sdummy)
+
       read(inp,*)sdummy, aoa_deg
+      call check_string("AOA", sdummy)
+
       read(inp,*)sdummy, Rey
+      call check_string("Reynolds", sdummy)
+
       read(inp,*)sdummy, cfl
+      call check_string("CFL", sdummy)
+
       read(inp,*)sdummy, iterlast
+      call check_string("LastIter", sdummy)
+
       read(inp,*)sdummy, maxiter
+      call check_string("MaxIter", sdummy)
+
       read(inp,*)sdummy, minresidue
+      call check_string("MinRes", sdummy)
+
       read(inp,*)sdummy, saveinterval
+      call check_string("SaveInt", sdummy)
+
       read(inp,*)sdummy, niso
+      call check_string("NoIso", sdummy)
+
       read(inp,*)sdummy, iflux
+      call check_string("Flux", sdummy)
+
       read(inp,*)sdummy, ILIMIT
+      call check_string("Limiter", sdummy)
+
       read(inp,*)sdummy, vortex, xref, yref
+      call check_string("FarBC", sdummy)
+
       read(inp,*)sdummy, cell_type
+      call check_string("CellType", sdummy)
+
       read(inp,*)sdummy, gridfile
+      call check_string("GridFile", sdummy)
+
       close(inp)
 
       inpstatus = yes
