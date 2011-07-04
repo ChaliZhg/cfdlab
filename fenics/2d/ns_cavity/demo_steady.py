@@ -44,3 +44,13 @@ pde.solve(w)
 
 (u,p) = w.split()
 File("velocity.pvd") << u
+
+# Compute vorticity
+r = TrialFunction(Q)
+s = TestFunction(Q)
+a = r*s*dx
+L = (u[0].dx(1) - u[1].dx(0))*s*dx
+vv= VariationalProblem(a, L)
+vort = vv.solve()
+
+File("vorticity.pvd") << vort
