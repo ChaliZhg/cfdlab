@@ -36,6 +36,9 @@ double               d_left, u_left, p_left;
 double               d_right, u_right, p_right;
 double               xmin, xmax, xmid;
 
+const double NIPG = -1.0;
+const double SIPG =  1.0;
+
 // Factor in Maxwell distribution
 double alpha;
 
@@ -56,6 +59,15 @@ double viscosity (const double& T)
    return mu_ref * pow( T/T_ref, 0.8);
 }
 
+double viscosity (const Vector<double>& state)
+{
+   double velocity = state(1) / state(0);
+   double pressure = (gas_gamma - 1.0) * (state(2) - 0.5 * state(1) * velocity);
+   
+   double T   = pressure / state(0) / gas_const;
+   double mu  = viscosity (T);
+   return mu;
+}
 //------------------------------------------------------------------------------
 // minmod of three numbers
 //------------------------------------------------------------------------------
@@ -139,6 +151,8 @@ private:
     unsigned int         n_rk_stages;
     FluxType             flux_type;
     ViscScheme           visc_scheme;
+    double               ip_scheme;
+    double               CIP;
 
 
     Triangulation<dim>   triangulation;
@@ -185,6 +199,8 @@ NSProblem<dim>::NSProblem (unsigned int degree, TestCase test_case) :
 
    n_rk_stages = 3;
    flux_type = kfvs;
+   ip_scheme = SIPG;
+   CIP = 10.0;
    
    if(test_case == sod)
    {
@@ -220,7 +236,7 @@ NSProblem<dim>::NSProblem (unsigned int degree, TestCase test_case) :
       xmid    = 0.5 * ( xmin + xmax );
       final_time = 0.5;
       min_residue= 1.0e-8;
-      cfl = 0.05;
+      cfl = 0.025;
       
       gas_gamma = 5.0/3.0;
       gas_const = 0.5;
@@ -240,7 +256,7 @@ NSProblem<dim>::NSProblem (unsigned int degree, TestCase test_case) :
       mu_ref= 0.0005;
       T_ref = p_left / d_left / gas_const;
       
-      visc_scheme = avg;
+      visc_scheme = split;
    }
    else
    {
@@ -868,10 +884,18 @@ void NSProblem<dim>::assemble_rhs ()
        Vector<double> lf_left_entropy = entropy_var (lf_left_state);
        Vector<double> lf_right_entropy = entropy_var (lf_right_state);
        Vector<double> lf_entropy_jump(n_var);
+       Vector<double> lf_state_jump(n_var);
        for(unsigned int i=0; i<n_var; ++i)
+       {
           lf_entropy_jump(i) = lf_right_entropy(i) - lf_left_entropy(i);
+          lf_state_jump (i) = lf_right_state (i) - lf_left_state (i);
+       }
        std::vector<double> lf_left_prim = con2prim(lf_left_state);
        std::vector<double> lf_right_prim = con2prim(lf_right_state);
+       
+       double lf_left_nu = viscosity (lf_left_state) / lf_left_state(0);
+       double lf_right_nu = viscosity (lf_right_state) / lf_right_state(0);
+       double lf_nu = 0.5*(lf_left_nu + lf_right_nu);
 
        
        // right face flux
@@ -929,11 +953,19 @@ void NSProblem<dim>::assemble_rhs ()
        Vector<double> rf_left_entropy = entropy_var (rf_left_state);
        Vector<double> rf_right_entropy = entropy_var (rf_right_state);
        Vector<double> rf_entropy_jump(n_var);
+       Vector<double> rf_state_jump(n_var);
        for(unsigned int i=0; i<n_var; ++i)
+       {
           rf_entropy_jump(i) = rf_right_entropy(i) - rf_left_entropy(i);
+          rf_state_jump (i) = rf_right_state (i) - rf_left_state (i);
+       }
        std::vector<double> rf_left_prim = con2prim(rf_left_state);
        std::vector<double> rf_right_prim = con2prim(rf_right_state);
 
+       double rf_left_nu = viscosity (rf_left_state) / rf_left_state(0);
+       double rf_right_nu = viscosity (rf_right_state) / rf_right_state(0);
+       double rf_nu = 0.5*(rf_left_nu + rf_right_nu);
+       
         // Add flux at cell boundaries
         for (unsigned int i=0; i<dofs_per_cell; ++i)
         {
@@ -1002,16 +1034,40 @@ void NSProblem<dim>::assemble_rhs ()
                  for(unsigned int k=0; k<n_var; ++k)
                     right_stab += flux_p_right[k] * rf_entropy_jump(k);
                  
+                 double lf_delta = CIP * lf_nu / dx;
+                 double rf_delta = CIP * rf_nu / dx;
+                 
                  if(j==0)
                  {
-                    cell_rhs_density(i) += - left_stab - right_stab;
+                    cell_rhs_density(i) += ip_scheme * (left_stab + right_stab);
+                    cell_rhs_density(i) += -lf_delta * 
+                                            lf_state_jump(0) *
+                                            fe_values.shape_value(i, 0)
+                                            +
+                                            rf_delta *
+                                            rf_state_jump(0) *
+                                            fe_values.shape_value(i,n_q_points-1);
                  }
                  else if(j==1)
                  {
-                    cell_rhs_momentum(i) += - left_stab - right_stab;
+                    cell_rhs_momentum(i) += ip_scheme * (left_stab + right_stab);
+                    cell_rhs_momentum(i) += -lf_delta * 
+                                             lf_state_jump(1) *
+                                             fe_values.shape_value(i, 0)
+                                             +
+                                             rf_delta *
+                                             rf_state_jump(1) *
+                                             fe_values.shape_value(i,n_q_points-1);
                  }else
                  {
-                    cell_rhs_energy(i) += - left_stab - right_stab;
+                    cell_rhs_energy(i) += ip_scheme * (left_stab + right_stab);
+                    cell_rhs_energy(i) += -lf_delta * 
+                                           lf_state_jump(2) *
+                                           fe_values.shape_value(i, 0)
+                                           +
+                                           rf_delta *
+                                           rf_state_jump(2) *
+                                           fe_values.shape_value(i,n_q_points-1);
                  }
               }
            }
@@ -1237,19 +1293,22 @@ void NSProblem<dim>::output_results () const
     std::ofstream output ("solution.gpl");
     data_out.write_gnuplot (output);
    
-   // compute shear stress and heat flux at cell center
-   // use midpoint quadtrature to get cell center values
-   QMidpoint<dim> quadrature;
+   // compute shear stress and heat flux
+   QIterated<dim>  quadrature = (fe.degree==1) ?
+                                QIterated<dim>(QMidpoint<1>(),1)
+                                :
+                                QIterated<dim>(QTrapez<1>(),fe.degree-1);
+
    FEValues<dim> fe_values (fe, quadrature, update_quadrature_points |
                             update_values   | update_gradients);
-   const unsigned int   dofs_per_cell = fe.dofs_per_cell;   
-   std::vector<unsigned int> local_dof_indices (dofs_per_cell);
-   std::vector<double> density_values (1);
-   std::vector<double> momentum_values (1);
-   std::vector<double> energy_values (1);
-   std::vector< Tensor<1,dim> >  density_grad (1);
-   std::vector< Tensor<1,dim> >  momentum_grad (1);
-   std::vector< Tensor<1,dim> >  energy_grad (1);
+   const unsigned int   dofs_per_cell = fe.dofs_per_cell;
+   const unsigned int   n_q_points = quadrature.size();
+   std::vector<double> density_values (n_q_points);
+   std::vector<double> momentum_values (n_q_points);
+   std::vector<double> energy_values (n_q_points);
+   std::vector< Tensor<1,dim> >  density_grad (n_q_points);
+   std::vector< Tensor<1,dim> >  momentum_grad (n_q_points);
+   std::vector< Tensor<1,dim> >  energy_grad (n_q_points);
 
    
    typename DoFHandler<dim>::active_cell_iterator 
@@ -1274,21 +1333,25 @@ void NSProblem<dim>::output_results () const
       fe_values.get_function_gradients (momentum, momentum_grad);
       fe_values.get_function_gradients (energy,   energy_grad);
       
-      state(0) = density_values [0];
-      state(1) = momentum_values[0];
-      state(2) = energy_values  [0];
-      
-      grad(0) = density_grad [0][0];
-      grad(1) = momentum_grad[0][0];
-      grad(2) = energy_grad  [0][0];
-      
-      compute_nsterms (state, grad, tau, q);
-      
-      double pressure = (gas_gamma-1.0)*(energy_values[0] - 
-                                         0.5 * pow(momentum_values[0],2) / density_values[0]);
-      
-      fo << fe_values.quadrature_point (0)(0) << " " 
-         << tau/(2.0*pressure) << "  " << q/pressure << endl;
+      for(unsigned int i=0; i<n_q_points; ++i)
+      {
+         state(0) = density_values [i];
+         state(1) = momentum_values[i];
+         state(2) = energy_values  [i];
+         
+         grad(0) = density_grad [i][0];
+         grad(1) = momentum_grad[i][0];
+         grad(2) = energy_grad  [i][0];
+         
+         compute_nsterms (state, grad, tau, q);
+         
+         double pressure = (gas_gamma-1.0)*(energy_values[i] - 
+                                            0.5 * pow(momentum_values[i],2) / density_values[i]);
+         
+         fo << fe_values.quadrature_point (i)(0) << " " 
+            << tau << "  " << q << endl;
+      }
+      fo << endl;
 
    }
    
