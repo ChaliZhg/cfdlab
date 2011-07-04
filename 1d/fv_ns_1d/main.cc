@@ -45,6 +45,21 @@ double minmod (const double& a,
 }
 
 //------------------------------------------------------------------------------
+// vanleer limiter
+//------------------------------------------------------------------------------
+double vanleer (const double& a,
+                const double& b)
+{
+   double du;
+
+   if(fabs(a*b) > 0.0)
+      du = (SIGN(a)+SIGN(b))*fabs(a)*fabs(b)/(fabs(a) + fabs(b));
+   else
+      du = 0.0;
+
+   return du;
+}
+//------------------------------------------------------------------------------
 // Reconstruct left state of right face
 //------------------------------------------------------------------------------
 vector<double> muscl (const vector<double>& ul,
@@ -54,13 +69,14 @@ vector<double> muscl (const vector<double>& ul,
    unsigned int n = ul.size();
    vector<double> result (n);
    double dul, duc, dur;
-   const double beta = 1.5;
+   const double beta = 2.0;
    
    for(unsigned int i=0; i<n; ++i)
    {
       dul = uc[i] - ul[i];
       dur = ur[i] - uc[i];
       duc = (ur[i] - ul[i])/2.0;
+      //result[i] = uc[i] + 0.5 * vanleer (dul, dur);
       result[i] = uc[i] + 0.5 * minmod (beta*dul, duc, beta*dur);
    }
    
@@ -90,6 +106,12 @@ class FVProblem
                             const double& q,
                             const int sign,
                             vector<double>& flux) const;
+      void split_U (const vector<double>& prim,
+                    const int sign,
+                    vector<double>& U) const;
+      void rkfvs (const vector<double>&,
+                  const vector<double>&,
+                        vector<double>&) const;
       void num_flux (const vector<double>&,
                      const vector<double>&,
                      const double&         tau_left,
@@ -165,8 +187,8 @@ FVProblem::FVProblem ()
       // shock structure case
       GAMMA = 5.0/3.0;
       gas_const = 0.5;
-      final_time = 100.0;
-      n_cell = 200;
+      final_time = 200.0;
+      n_cell = 100;
       cfl    = 0.1;
 
       xmin   = -0.25;
@@ -374,6 +396,53 @@ void FVProblem::kfvs_split_flux (const vector<double>& prim,
 }
 
 //------------------------------------------------------------------------------
+// KFVS split conserved variables: 
+//------------------------------------------------------------------------------
+void FVProblem::split_U (const vector<double>& prim,
+                         const int sign,
+                         vector<double>& U) const
+{
+   double beta, s, A, B, E, fact;
+
+   beta = 0.5 * prim[0] / prim[2];
+   s    = prim[1] * sqrt(beta);
+   A    = 0.5 * (1.0 + sign * erf(s));
+   B    = sign * 0.5 * exp(-s * s) / sqrt(beta * M_PI);
+   E    = prim[2]/(GAMMA-1.0) + 0.5 * prim[0] * pow(prim[1], 2);
+   fact = prim[1] * A + B;
+   
+   // inviscid flux
+   U[0] = prim[0] * A;
+   U[1] = prim[0] * fact;
+   U[2] = E * A + 0.5 * prim[0] * prim[1] * B;
+}
+
+//------------------------------------------------------------------------------
+//------------------------------------------------------------------------------
+void FVProblem::rkfvs(const vector<double>& left,
+                      const vector<double>& right,
+                            vector<double>& flux) const
+{
+   vector<double> Up(n_var);
+   vector<double> Um(n_var);
+   vector<double> U(n_var);
+
+   split_U(left,  +1,  Up);
+   split_U(right, -1, Um);
+
+   for(unsigned int i=0; i<n_var; ++i)
+      U[i] = Up[i] + Um[i];
+
+   double rho = U[0];
+   double u   = U[1] / U[0];
+   double p   = (GAMMA-1.0) * (U[2] - 0.5 * rho * u * u);
+
+   flux[0] = rho * u;
+   flux[1] = p + rho * u * u;
+   flux[2] = (U[2] + p) * u;
+}
+
+//------------------------------------------------------------------------------
 // Numerical flux function
 //------------------------------------------------------------------------------
 void FVProblem::num_flux(const vector<double>& left,
@@ -384,6 +453,8 @@ void FVProblem::num_flux(const vector<double>& left,
                          const double&         q_right,
                          vector<double>&       flux) const
 {
+   //rkfvs(left, right, flux); return;
+
    vector<double> flux_pos(n_var);
    vector<double> flux_neg(n_var);
    

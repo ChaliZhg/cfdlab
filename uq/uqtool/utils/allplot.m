@@ -1,8 +1,15 @@
 % Program to find and plot convergence rate of CC and RE
-% Ignore first iskip data points
-function allplot (istart)
+% dim = no. of random variables
+% If istart given, then first istart points are not used for finding
+% convergence rate.
+function allplot (dim, istart)
 
 if nargin==0
+   dim = 1;
+   istart=1;
+end
+
+if nargin==1
    istart=1;
 end
 
@@ -41,8 +48,10 @@ ylabel('Percentage error')
 legend('Error in J','Error in J+CC','CC','RE')
 
 % Convergence rates
+% This is meaningful only for uniform refinement
 ns = length(h);
 x  = Ns(istart:ns);
+x  = x.^(1/dim);
 
 % for J
 f = J_error(istart:ns);
