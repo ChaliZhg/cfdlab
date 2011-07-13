@@ -7,6 +7,14 @@
 %
 % N1, N2 are powers for LE/TE definition : (psi)^N1 * (1-psi)^N2
 % degl, degu : degree of bezier curves
+%
+%
+% Trying to make first coefficient for upper/lower surface same
+% This is desirable when N1=0.5 since the first coefficient in that
+% case is sqrt(2*RLE/c)
+%
+% DOES NOT WORK: FIRST COEFFICIENT IS COMING ALMOST ZERO
+%
 function fit_kulfan(N1, N2, degl, degu)
 
 assert(nargin==4, 'Specify four arguments, type help fit_kulfan')
@@ -140,9 +148,6 @@ for j=2:nl-1
       Al(j-1,k+1) = bernstein(degl,k,psil(j));
    end
 end
-Cl = inv(Al' * Al) * Al' * Sl
-errl = sqrt(sum((Al*Cl - Sl).^2)/(nl-2));
-fprintf('Shape fun lower surface error = %e\n', errl)
 
 % Upper curve
 Au = zeros(nu-2,degu+1);
@@ -151,7 +156,19 @@ for j=2:nu-1
       Au(j-1,k+1) = bernstein(degu,k,psiu(j));
    end
 end
-Cu = inv(Au' * Au) * Au' * Su
+
+% Combine least squares for upper and lower
+A = [Au, zeros(nu-2,degl); ...
+     Al(:,1), zeros(nl-2,degu), Al(:,2:degl+1)];
+b = [Su; Sl];
+coef = pinv(A'*A)*(A'*b);
+
+Cu = coef(1:degu+1)
+Cl = [coef(1); coef(degu+2:degu+degl+1)]
+
+errl = sqrt(sum((Al*Cl - Sl).^2)/(nl-2));
+fprintf('Shape fun lower surface error = %e\n', errl)
+
 erru = sqrt(sum((Au*Cu - Su).^2)/(nu-2));
 fprintf('Shape fun upper surface error = %e\n', erru)
 
