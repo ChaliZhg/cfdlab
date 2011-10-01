@@ -6,7 +6,7 @@ for cylinder in channel problem using Taylor-Hood elements.
 """
 
 # Set parameter values
-Re   = 80
+Re   = 200
 D    = 0.1
 Uinf = 1.0
 nu   = D * Uinf / Re
@@ -56,6 +56,7 @@ pde = VariationalProblem(F, dF, bc)
 itsolver = pde.parameters["solver"]["newton_solver"]
 itsolver["absolute_tolerance"] = 1.0e-10
 itsolver["relative_tolerance"] = 1.0e-6
+File("steady.xml") >> w.vector()
 pde.solve(w)
 
 # Save steady solution
