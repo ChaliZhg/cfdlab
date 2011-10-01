@@ -6,7 +6,7 @@ for cylinder in channel problem using Taylor-Hood elements.
 """
 
 # Set parameter values
-Re   = 200
+Re   = 80
 D    = 0.1
 Uinf = 1.0
 nu   = D * Uinf / Re
@@ -49,15 +49,22 @@ F =   inner(grad(u)*u, v)*dx \
 dw = TrialFunction(W)
 dF = derivative(F, w, dw)
 
-pde = VariationalProblem(F, dF, bc)
-#info(pde.parameters, True)
-#quit()
+problem = NonlinearVariationalProblem(F, w, bc, dF)
+solver  = NonlinearVariationalSolver(problem)
 # Set linear solver parameters
-itsolver = pde.parameters["solver"]["newton_solver"]
+itsolver = solver.parameters["newton_solver"]
 itsolver["absolute_tolerance"] = 1.0e-10
 itsolver["relative_tolerance"] = 1.0e-6
-File("steady.xml") >> w.vector()
-pde.solve(w)
+
+# To see various solver options, uncomment following line
+#info(solver.parameters, True); quit()
+
+# If you want to initialize solution from previous computation
+# then uncomment following line
+#File("steady.xml") >> w.vector()
+
+# Solve the problem
+solver.solve()
 
 # Save steady solution
 File("steady.xml") << w.vector()
@@ -72,6 +79,6 @@ r = TrialFunction(Q)
 s = TestFunction(Q)
 a = r*s*dx
 L = (u[0].dx(1) - u[1].dx(0))*s*dx
-vv= VariationalProblem(a, L)
-vort = vv.solve()
+vort = Function(Q)
+solve(a == L, vort)
 File("vorticity.pvd") << vort
