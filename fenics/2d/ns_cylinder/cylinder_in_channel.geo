@@ -1,10 +1,11 @@
-r    =  1;
+D    = 0.1;   // diameter
+r    = D/2.0; // radius
 
-h1   =  0.1;
-h2   =  0.1;
-xmin = -5;
-xmax =  20;
-H    =  5;
+h1   =  0.01; // on cylinder
+h2   =  0.02; // on boundary
+xmin = -1.5;  // left end
+xmax =  2.2;  // right end
+H    =  0.2;  // half channel height
 
 Point(1) = {xmin, 0, 0, h2};
 Point(2) = {-r,   0, 0, h1};
@@ -16,7 +17,7 @@ Point(7) = {xmin, H, 0, h2};
 
 Point(8) = {0, 0, 0, h1};
 
-Line(1) = {1, 2};
+Line(1)   = {1, 2};
 Circle(2) = {2, 8, 3};
 Circle(3) = {3, 8, 4};
 Line(4)   = {4, 5};

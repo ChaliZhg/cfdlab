@@ -8,9 +8,9 @@ import math
 set_log_level(1)
 
 # These values must be same as those in cylinder_in_channel.geo file
-xmin = -5
-xmax = 20
-H    =  5
+xmin = -1.5
+xmax = 2.2
+H    =  0.4
 
 # Sub domain for no-slip (mark whole boundary, inflow and outflow will overwrite)
 class Noslip(SubDomain):
