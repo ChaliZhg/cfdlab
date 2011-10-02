@@ -5,8 +5,18 @@ for cylinder in channel problem using Taylor-Hood elements.
    www   : http://math.tifrbng.res.in/~praveen
 """
 
+import sys, math
+
+if len(sys.argv) < 2:
+   sys.exit("Must specify Reynolds number; restart is optional")
+
+# Whether to use previous solution as initial condition
+restart = "no"
+if len(sys.argv) == 3:
+   restart = sys.argv[2]
+
 # Set parameter values
-Re   = 80
+Re   = float(sys.argv[1])
 D    = 0.1
 Uinf = 1.0
 nu   = D * Uinf / Re
@@ -60,8 +70,9 @@ itsolver["relative_tolerance"] = 1.0e-6
 #info(solver.parameters, True); quit()
 
 # If you want to initialize solution from previous computation
-# then uncomment following line
-#File("steady.xml") >> w.vector()
+if restart == "yes":
+   print "Setting initial condition from file ..."
+   File("steady.xml") >> w.vector()
 
 # Solve the problem
 solver.solve()
