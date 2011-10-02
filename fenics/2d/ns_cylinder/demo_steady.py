@@ -41,9 +41,10 @@ w     = Function(W)
 
 # Define boundary conditions
 uinlet = Expression(("(1.0 - (x[1]/0.2)*(x[1]/0.2))", "0"))
-noslip = DirichletBC(W.sub(0), (0, 0), sub_domains, 0)
+cyl    = DirichletBC(W.sub(0), (0, 0), sub_domains, 0)
 inlet  = DirichletBC(W.sub(0), uinlet, sub_domains, 1)
-bc     = [noslip, inlet]
+noslip = DirichletBC(W.sub(0), (0, 0), sub_domains, 3)
+bc     = [noslip, inlet, cyl]
 
 # Stress tensor
 T = nu*(grad(u) + grad(u).T) - p*Identity(2)
@@ -93,3 +94,9 @@ L = (u[0].dx(1) - u[1].dx(0))*s*dx
 vort = Function(Q)
 solve(a == L, vort)
 File("vorticity.pvd") << vort
+
+# Compute force on cylinder
+drag = -T[0,j]*n[j]*ds(0)
+lift = -T[1,j]*n[j]*ds(0)
+print "Drag =", assemble(drag)
+print "Lift =", assemble(lift)
