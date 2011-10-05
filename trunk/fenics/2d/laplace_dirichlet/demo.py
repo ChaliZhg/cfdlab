@@ -38,11 +38,13 @@ a = dot(grad(u), grad(v))*dx
 L = f*v*dx
 
 # Solve PDE
-problem = VariationalProblem(a, L, bc)
-u = problem.solve()
+w = Function(V)
+problem = LinearVariationalProblem(a, L, w, bc)
+solver  = LinearVariationalSolver(problem)
+solver.solve()
 
 # Plot solution
-plot(u, interactive=True)
+plot(w, interactive=True)
 
 # Save solution to file
-File("u.pvd") << u
+File("u.pvd") << w
