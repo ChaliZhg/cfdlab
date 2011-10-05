@@ -1,12 +1,17 @@
 """
 This demo program solves the steady incompressible Navier-Stokes equations
-for lid-driven cavity problem using Taylor-Hood elements
+for lid-driven cavity problem using Taylor-Hood elements.
+Author: Praveen. C
+www   : http://math.tifrbng.res.in/~praveen
 """
 
 from dolfin import *
 
+n = 100
+Re= 100
+
 # Load mesh from file
-mesh = UnitSquare(20,20)
+mesh = UnitSquare(n,n,"crossed")
 
 # Define function spaces (P2-P1)
 V = VectorFunctionSpace(mesh, "CG", 2)
@@ -21,7 +26,7 @@ w     = Function(W)
 (u,p) = (as_vector((w[0], w[1])), w[2])
 
 # Set parameter values
-nu = 0.01
+nu = 1.0/Re
 
 # Define boundary conditions
 noslip  = DirichletBC(W.sub(0), (0, 0), "x[0] < DOLFIN_EPS || x[0] > 1.0 - DOLFIN_EPS || x[1] < DOLFIN_EPS")
@@ -34,23 +39,33 @@ bc = [noslip, lid, pref]
 F =   inner(grad(u)*u, v)*dx \
     + nu*inner(grad(u), grad(v))*dx \
     - div(v)*p*dx \
-    + q*div(u)*dx
+    - q*div(u)*dx
 
 dw = TrialFunction(W)
 dF = derivative(F, w, dw)
 
-pde= VariationalProblem(F, dF, bc)
-pde.solve(w)
+nsproblem = NonlinearVariationalProblem(F, w, bc, dF)
+solver = NonlinearVariationalSolver(nsproblem)
+solver.solve()
 
 (u,p) = w.split()
-File("velocity.pvd") << u
+File("velocity.pvd", "compressed") << u
+File("pressure.pvd", "compressed") << p
 
-# Compute vorticity
+# Compute vorticity by L2 projection
 r = TrialFunction(Q)
 s = TestFunction(Q)
 a = r*s*dx
 L = (u[0].dx(1) - u[1].dx(0))*s*dx
-vv= VariationalProblem(a, L)
-vort = vv.solve()
+vort = Function(Q)
+solve(a == L, vort)
+File("vorticity.pvd", "compressed") << vort
 
-File("vorticity.pvd") << vort
+# Compute stream function
+# Laplace(psi) = -vort
+a = inner(grad(r), grad(s))*dx
+L = vort*s*dx
+psi = Function(Q)
+wall = DirichletBC(Q, 0, "on_boundary")
+solve(a == L, psi, wall)
+File("stream.pvd", "compressed") << psi
