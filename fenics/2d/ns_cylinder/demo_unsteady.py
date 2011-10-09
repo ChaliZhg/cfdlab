@@ -6,7 +6,7 @@ for cylinder in channel problem using Taylor-Hood elements.
 """
 
 # Set parameter values
-Re   = 200
+Re   = 80
 D    = 0.1
 Uinf = 1.0
 nu   = D * Uinf / Re
@@ -37,7 +37,7 @@ hmin = mesh.hmin()
 print "hmin =", hmin
 dt = cfl * hmin / Uinf
 print "dt   =", dt
-tf = 500*dt
+tf = 2000*dt
 
 # Define function spaces (P2-P1)
 V = VectorFunctionSpace(mesh, "CG", 2)
@@ -55,9 +55,10 @@ wold  = Function(W)
 
 # Define boundary conditions
 uinlet = Expression(("F*(1.0 - (x[1]/0.2)*(x[1]/0.2))", "0"), F=1)
-noslip = DirichletBC(W.sub(0), (0, 0), sub_domains, 0)
+cyl    = DirichletBC(W.sub(0), (0, 0), sub_domains, 0)
 inlet  = DirichletBC(W.sub(0), uinlet, sub_domains, 1)
-bc     = [noslip, inlet]
+noslip = DirichletBC(W.sub(0), (0, 0), sub_domains, 3)
+bc     = [noslip, inlet, cyl]
 
 # Stress tensor
 T    = nu*(grad(u) + grad(u).T) - p*Identity(2)
@@ -87,13 +88,19 @@ itsolver["relative_tolerance"] = 1.0e-6
 # To see various solver options, uncomment following line
 #info(solver.parameters, True); quit()
 
+# Compute force on cylinder
+drag = -T[0,j]*n[j]*ds(0)
+lift = -T[1,j]*n[j]*ds(0)
+
 # Initial condition is steady solution from file
 File("steady.xml") >> w.vector()
 
 fv   = File("velocity.pvd", "compressed")
+fp   = File("pressure.pvd", "compressed")
 t    = 0.0
 iter = 0
 
+ffile = open('force.dat', 'w')
 while t < tf:
    uinlet.F = 1.0 + f(t+dt)
    wold.assign(w)
@@ -101,6 +108,12 @@ while t < tf:
    if iter % 10 == 0:
       (u1,p1) = w.split()
       fv << u1
+      fp << p1
    t    = t + dt
    iter = iter + 1
-   print "iter =", iter, "          t =", t
+   # Compute lift/drag and store in arrays
+   cl = assemble(lift)
+   cd = assemble(drag)
+   force=str(iter)+" "+str(t)+" "+str(cl)+" "+str(cd)+"\n"
+   ffile.write(force)
+   print "iter =", iter, ",  t =", t, ",cl =", cl, ", cd =", cd
