@@ -1,7 +1,7 @@
 """
 2-D oil reservoir problem using DGFEM and DFLU flux
 Author: Praveen. C
-DOES NOT WORL YET
+DOES NOT WORK YET
 """
 
 from dolfin import *
@@ -36,11 +36,10 @@ def dflu1(sl, sr, cl, cr, vn):
    if vn > 0.0:
       m_w = mobility_water (sl)
       m_o = mobility_oil (sl)
-      return vn * m_w / (m_w + m_o)
    else:
       m_w = mobility_water (sr)
       m_o = mobility_oil (sr)
-      return vn * m_w / (m_w + m_o)
+   return vn * m_w / (m_w + m_o)
 
 def dflu2(sl, sr, cl, cr, vn):
    flux = dflu1(sl, sr, cl, cr, vn)
@@ -52,7 +51,7 @@ def dflu2(sl, sr, cl, cr, vn):
 # Numerical parameters
 np    = 50
 theta = 0.5
-dt    = 0.001
+dt    = 0.0001
 
 mesh = UnitSquare(np, np)
 n    = FacetNormal(mesh)
@@ -111,18 +110,20 @@ F  = v*f
 cF = ctheta*F
 H  = dflu1(stheta('+'), stheta('-'), ctheta('+'), ctheta('-'), vn)
 cH = dflu2(stheta('+'), stheta('-'), ctheta('+'), ctheta('-'), vn)
-Hi = dflu1(sinlet, sinlet, cinlet, cinlet, vn)
-cHi= dflu2(sinlet, sinlet, cinlet, cinlet, vn)
+
+vnb= dot(v,n)
+Hi = dflu1(sinlet, sinlet, cinlet, cinlet, vnb)
+cHi= dflu2(sinlet, sinlet, cinlet, cinlet, vnb)
 
 dss = Measure("ds")[sub_domains]
 
 L = (1/dt)*(s - sold)*ts*dx + (1/dt)*(s*c - sold*cold)*tc*dx \
     - inner(F, grad(ts))*dx - inner(cF, grad(tc))*dx \
     + H*jump(ts)*dS + cH*jump(tc)*dS \
+    + Hi*ts*dss(0) + cHi*tc*dss(0) \
     + inner(F, n)*ts*dss(1) + inner(cF, n)*tc*dss(1)
 
 #   + inner(F, n)*ts*dss(0) + inner(cF, n)*tc*dss(0) \
-#    + Hi*ts*dss(0) + cHi*tc*dss(0) \
 
 sbc = DirichletBC(W.sub(0), sinlet, sub_domains, 0, "geometric")
 cbc = DirichletBC(W.sub(1), cinlet, sub_domains, 0, "geometric")
@@ -131,17 +132,29 @@ bc  = [sbc, cbc]
 dz  = TrialFunction(W)
 dL  = derivative(L, z, dz)
 
-problem = NonlinearVariationalProblem(L, z, bc, dL)
+problem = NonlinearVariationalProblem(L, z, [], dL)
 solver  = NonlinearVariationalSolver(problem)
+solver.parameters["linear_solver"] = "gmres"
+#itsolver= solver.parameters["newton_solver"]
+#info(solver.parameters, True)
+#quit()
+
+fp = File("p.pvd", "compressed")
+fs = File("s.pvd", "compressed")
+fc = File("c.pvd", "compressed")
 
 t = 0
-T = dt
+T = 100*dt
+iter = 0
 while t < T:
    zold.assign(z)
    solve(pa == pL, p, pbc)
-   File("p.pvd") << p
-   #AA = assemble(L)
-   #print AA.norm("l2")
-   #quit()
    solver.solve()
    t = t + dt
+   iter = iter + 1
+   print "iter =", iter, ", t =", t
+   if iter % 10 == 0:
+      fp << p
+      s1, c1 = z.split()
+      fs << s1
+      fc << c1
