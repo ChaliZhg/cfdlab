@@ -1,7 +1,7 @@
 D    = 0.1;   // diameter
 r    = D/2.0; // radius
 
-h1   =  0.01; // on cylinder
+h1   =  0.001; // on cylinder
 h2   =  0.02; // on boundary
 xmin = -1.5;  // left end
 xmax =  2.2;  // right end
