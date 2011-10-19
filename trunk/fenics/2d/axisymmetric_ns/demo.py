@@ -18,7 +18,7 @@ Tbc   = 300 # Boundary temperature
 npr   = 20
 npy   = 40
 dt    = 0.0001
-Tf    = 100*dt
+Tf    = 1000*dt
 
 def Boundary(x, on_boundary):
    return on_boundary
@@ -136,8 +136,9 @@ Ay = as_matrix([ \
       ])
 
 RES   = as_vector(r*Ao[i,j]*(v[j]-vo[j])/dt + Dx(r*F[i,j],j) - Dx(G[i,j],j) - S[i], i)
-PSUP  = as_vector(Ar[i,j]*Dx(w[j],0) + Ay[i,j]*Dx(w[j],1), i)
 
+# Ar and Ay must be transposed
+PSUP  = as_vector(Ar[j,i]*Dx(w[j],0) + Ay[j,i]*Dx(w[j],1), i)
 delta = h/(sqrt(ur**2 + uy**2) + sqrt(gamma*R*T))
 PSUP  = delta*PSUP
 
