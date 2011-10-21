@@ -46,12 +46,13 @@ u = interpolate(uinit, Vh)
 
 ut = 0.5*(uo + v)
 tau= h/(2*abs(c))
+s  = mu*Dx(ut,0)
 
 R =   (1/dt)*(v-uo)*w*dx \
     + c*Dx(ut,0)*w*dx             \
     + mu*Dx(ut,0)*Dx(w,0)*dx      \
     - mu*Dx(ut,0)*w*ds(1) + mu*Dx(ut,0)*w*ds(0) \
-    + c*Dx(w,0)*tau*((v-uo)/dt + c*Dx(ut,0))*dx
+    + c*Dx(w,0)*tau*((v-uo)/dt + c*Dx(ut,0) - Dx(s,0))*dx
 
 a = lhs(R)
 L = rhs(R)
@@ -65,6 +66,9 @@ ff << u
 t = 0
 it= 0
 while t < T:
+   # Adjust dt so that we exactly reach T
+   if t+dt > T:
+      dt = T - t
    uo.assign(u)
    solve(a == L, u, bc)
    t = t + dt
