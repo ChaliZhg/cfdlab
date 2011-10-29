@@ -9,7 +9,7 @@ Cp    = gamma*R/(gamma-1)
 k     = mu*Cp/Pr
 gamma1= gamma/(gamma-1)
 
-omg   = 10  # angular speed in rad/sec
+omg   = 100 # angular speed in rad/sec
 r1    = 1   # Radius of inner cylinder
 r2    = 2   # Radius of outer cylinder
 ht    = 2   # Height of cylinder
@@ -28,6 +28,7 @@ mesh = Mesh("annulus.xml")
 
 n    = FacetNormal(mesh)
 h    = CellSize(mesh)
+hmin = mesh.hmin()
 
 V = FunctionSpace(mesh, "CG", 1)
 Vh= MixedFunctionSpace([V, V, V, V, V])
@@ -40,6 +41,7 @@ w = TestFunction(Vh)
 # Initial condition
 v_init = Expression(("1", "0", "0", "omg*x[0]", "Tbc"), omg=omg, Tbc=Tbc)
 v = interpolate(v_init, Vh)
+vo.assign(v)
 
 rho = v[0]
 ur  = v[1]
@@ -50,6 +52,9 @@ T   = v[4]
 p   = rho*R*T
 e   = p/(gamma-1) + 0.5*rho*(ur**2 + uy**2 + ut**2)
 H   = gamma1*R*T + 0.5*(ur**2 + uy**2 + ut**2)
+
+U   = as_vector([rho, rho*ur, rho*uy, rho*ut, e])
+Uo  = replace(U, {v:vo})
 
 r   = Expression("x[0]", element=V.ufl_element())
 
@@ -103,17 +108,8 @@ S = as_vector([0,                      \
                -rho*ur*ut + tau_tr,    \
                0])
 
-Ao = as_matrix([ \
-     [1,     0,      0,      0,      0               ], \
-     [ur,    rho,    0,      0,      0               ], \
-     [uy,    0,      rho,    0,      0               ], \
-     [ut,    0,      0,      rho,    0               ], \
-     [e/rho, rho*ur, rho*uy, rho*ut, rho*R/(gamma-1) ]  \
-     ])
-Ao = replace(Ao, {v:vo})
-
 # Weak form
-B_GAL = (1/dt)*r*inner(Ao*(v-vo),w)*dx \
+B_GAL = (1/dt)*r*inner(U-Uo,w)*dx \
         - r*F[i,j]*Dx(w[i], j)*dx      \
         + G[i,j]*Dx(w[i], j)*dx        \
         - S[i]*w[i]*dx
@@ -135,26 +131,20 @@ Ay = as_matrix([ \
       [H*uy,      rho*uy*ur, rho*(H+uy**2), rho*uy*ut, gamma1*R*rho*uy] \
       ])
 
-RES   = as_vector(r*Ao[i,j]*(v[j]-vo[j])/dt + Dx(r*F[i,j],j) - Dx(G[i,j],j) - S[i], i)
+RES   = as_vector(r*(U[i]-Uo[i])/dt + Dx(r*F[i,j],j) - Dx(G[i,j],j) - S[i], i)
 
 # Ar and Ay must be transposed
 PSUP  = as_vector(Ar[j,i]*Dx(w[j],0) + Ay[j,i]*Dx(w[j],1), i)
 delta = h/(sqrt(ur**2 + uy**2) + sqrt(gamma*R*T))
 PSUP  = delta*PSUP
+PSUP  = replace(PSUP, {v:vo})
 
 # For derivative, we consider SUPG terms as constant
-#PSUP  = replace(PSUP, {v:vo})
-#B_SUP = PSUP[i]*RES[i]*dx
-#B_SUP = replace(B_SUP, {v:vo})
-#B     = B_GAL + B_BCS + B_SUP
-B     = B_GAL + B_BCS
+B_SUP = PSUP[i]*RES[i]*dx
+B     = B_GAL + B_BCS + B_SUP
 
 dv = TrialFunction(Vh)
 dB = derivative(B, v, dv)
-
-# Now replace v0 with v
-#dB = replace(dB, {v0:v})
-#B  = replace(B, {v0:v})
 
 # Boundary condition
 ur_bc_value = Expression("0")
