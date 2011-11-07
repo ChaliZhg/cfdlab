@@ -26,6 +26,7 @@ from dolfin import *
 # Load mesh from file
 mesh = Mesh("cylinder_in_channel.xml")
 sub_domains = MeshFunction("uint", mesh, "subdomains.xml")
+dss = Measure("ds")[sub_domains]
 
 # Define function spaces (P2-P1)
 V = VectorFunctionSpace(mesh, "CG", 2)
@@ -46,14 +47,10 @@ inlet  = DirichletBC(W.sub(0), uinlet, sub_domains, 1)
 noslip = DirichletBC(W.sub(0), (0, 0), sub_domains, 3)
 bc     = [noslip, inlet, cyl]
 
-# Stress tensor
-T = nu*(grad(u) + grad(u).T) - p*Identity(2)
-# Face normals
-n = FacetNormal(mesh)
-
 # Weak form
-F =   inner(grad(u)*u, v)*dx \
-    + inner(T, grad(v))*dx   \
+F =   inner(grad(u)*u, v)*dx        \
+    + nu*inner(grad(u), grad(v))*dx \
+    - p*div(v)*dx                   \
     - q*div(u)*dx
 
 # Derivative of weak form
@@ -65,7 +62,7 @@ solver  = NonlinearVariationalSolver(problem)
 # Set linear solver parameters
 itsolver = solver.parameters["newton_solver"]
 itsolver["absolute_tolerance"] = 1.0e-10
-itsolver["relative_tolerance"] = 1.0e-6
+itsolver["relative_tolerance"] = 1.0e-10
 
 # To see various solver options, uncomment following line
 #info(solver.parameters, True); quit()
@@ -95,8 +92,13 @@ vort = Function(Q)
 solve(a == L, vort)
 File("vorticity.pvd") << vort
 
+# Stress tensor
+T = nu*(grad(u) + grad(u).T) - p*Identity(2)
+# Face normals
+n = FacetNormal(mesh)
+
 # Compute force on cylinder
-drag = -T[0,j]*n[j]*ds(0)
-lift = -T[1,j]*n[j]*ds(0)
+drag = -T[0,j]*n[j]*dss(0)
+lift = -T[1,j]*n[j]*dss(0)
 print "Drag =", assemble(drag)
 print "Lift =", assemble(lift)
