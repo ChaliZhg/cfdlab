@@ -1,3 +1,7 @@
+"""
+Axisymmetric incompressible NS equations with swirl
+See Batchelor appendix for the equations
+"""
 from dolfin import *
 
 mu    = 0.01
@@ -10,74 +14,54 @@ sub_domains = MeshFunction("uint", mesh, "subdomains.xml")
 n    = FacetNormal(mesh)
 h    = CellSize(mesh)
 
-Vry = VectorFunctionSpace(mesh, "CG", 2)
-Vt  = FunctionSpace(mesh, "CG", 2)
-Q   = FunctionSpace(mesh, "CG", 1)
+# Taylor-Hood element
+udeg = 3
+pdeg = udeg - 1
+
+Vry = VectorFunctionSpace(mesh, "CG", udeg)
+Vt  = FunctionSpace(mesh, "CG", udeg)
+Q   = FunctionSpace(mesh, "CG", pdeg)
 X   = MixedFunctionSpace([Vry, Vt, Q])
 
-v = Function(X)
-w = TestFunction(X)
+V = Function(X)
+W = TestFunction(X)
 
 # Initial condition
-v_init = Expression(("0", "0", "omg*x[0]", "0"), omg=omg)
-v = interpolate(v_init, X)
+V_init = Expression(("0", "0", "omg*x[0]", "0"), omg=omg)
+V = interpolate(V_init, X)
 
-ur  = v[0]
-uy  = v[1]
-ut  = v[2]
-p   = v[3]
+ur  = V[0]
+uy  = V[1]
+ut  = V[2]
+p   = V[3]
 
-wr  = w[0]
-wy  = w[1]
-wt  = w[2]
-q   = w[3]
-
-W   = as_vector([w[0], w[1], w[2]])
+wr  = W[0]
+wy  = W[1]
+wt  = W[2]
+q   = W[3]
 
 r   = Expression("x[0]", element=Vt.ufl_element())
 
-# Inviscid flux matrix
-F = as_matrix([[ur**2, ur*uy], \
-               [ur*uy, uy**2], \
-               [ur*ut, uy*ut]])
-
 # Divergence
-rdivu   = ur   + r*ur.dx(0) + r*uy.dx(1)
-rdivw   = wr   + r*wr.dx(0) + r*wy.dx(1)
-
-# Stress tensor
-rtau_rr = 2.0*mu*r*ur.dx(0)
-rtau_ry = mu*r*(ur.dx(1) + uy.dx(0))
-rtau_yr = rtau_ry
-rtau_yy = 2.0*mu*r*uy.dx(1)
-rtau_tt = 2.0*mu*ur
-rtau_tr = mu*r*ut.dx(0) - mu*ut
-rtau_rt = rtau_tr
-rtau_ty = mu*r*ut.dx(1)
-rtau_yt = rtau_ty
-
-tau_tt = 2.0*mu*ur/r
-tau_tr = mu*ut.dx(0) - mu*ut/r
-
-# Viscous flux matrix, includes radius
-G = as_matrix([[rtau_rr, rtau_ry], \
-               [rtau_yr, rtau_yy], \
-               [rtau_tr, rtau_ty]])
-
-# Source term
-S = as_vector([ut**2 + tau_tt, \
-               0,                      \
-               -ur*ut + tau_tr])
+rdivu = ur + r*ur.dx(0) + r*uy.dx(1)
+rdivw = wr + r*wr.dx(0) + r*wy.dx(1)
 
 # Weak form
-B =  Dx(r*F[i,j],j)*W[i]*dx  \
-   + G[i,j]*Dx(W[i], j)*dx  \
-   - S[i]*W[i]*dx           \
-   - p*rdivw*dx             \
+B =  r*(ur*Dx(ur,0) + uy*Dx(ur,1))*wr*dx \
+   - ut**2*wr*dx                         \
+   + mu*r*inner(grad(ur), grad(wr))*dx   \
+   + (mu/r)*ur*wr*dx                     \
+   + r*(ur*Dx(uy,0) + uy*Dx(uy,1))*wy*dx \
+   + mu*r*inner(grad(uy), grad(wy))*dx   \
+   + r*(ur*Dx(ut,0) + uy*Dx(ut,1))*wt*dx \
+   + ur*ut*wt*dx                         \
+   + mu*r*inner(grad(ut), grad(wt))*dx   \
+   + (mu/r)*ut*wt*dx                     \
+   - p*rdivw*dx                          \
    - q*rdivu*dx
 
-dv = TrialFunction(X)
-dB = derivative(B, v, dv)
+dV = TrialFunction(X)
+dB = derivative(B, V, dV)
 
 # Boundary condition
 ut_bc_value = Expression("omg*x[0]", omg=omg)
@@ -98,7 +82,7 @@ bc    = [ury_inner_bc, ury_outer_bc, ury_bottom_bc, ury_top_bc, \
          ut_inner_bc, ut_outer_bc, ut_bottom_bc, ut_top_bc, \
          p_bc]
 
-problem = NonlinearVariationalProblem(B, v, bc, dB)
+problem = NonlinearVariationalProblem(B, V, bc, dB)
 solver  = NonlinearVariationalSolver(problem)
 
 #solver.parameters["linear_solver"] = "gmres"
@@ -110,7 +94,7 @@ fut  = File("ut.pvd",  "compressed")
 fp   = File("p.pvd",   "compressed")
 
 solver.solve()
-ury,ut,p = v.split()
+ury,ut,p = V.split()
 fury << ury
 fut  << ut
 fp   << p
