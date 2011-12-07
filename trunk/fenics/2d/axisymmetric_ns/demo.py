@@ -35,7 +35,6 @@ Vh= MixedFunctionSpace([V, V, V, V, V])
 
 v = Function(Vh)
 vo= Function(Vh)
-v0= Function(Vh)
 w = TestFunction(Vh)
 
 # Initial condition
@@ -73,17 +72,17 @@ rdivu   = ur   + r*ur.dx(0) + r*uy.dx(1)
 divu    = ur/r + ur.dx(0)   + uy.dx(1)
 
 # Stress tensor
-rtau_rr = 2*mu*r*ur.dx(0) - (2/3)*mu*rdivu
+rtau_rr = 2.0*mu*r*ur.dx(0) - (2.0/3.0)*mu*rdivu
 rtau_ry = mu*r*(ur.dx(1) + uy.dx(0))
 rtau_yr = rtau_ry
-rtau_yy = 2*mu*r*uy.dx(1) - (2/3)*mu*rdivu
-rtau_tt = 2*mu*ur - (2/3)*mu*rdivu
+rtau_yy = 2.0*mu*r*uy.dx(1) - (2.0/3.0)*mu*rdivu
+rtau_tt = 2.0*mu*ur - (2.0/3.0)*mu*rdivu
 rtau_tr = mu*r*ut.dx(0) - mu*ut
 rtau_rt = rtau_tr
 rtau_ty = mu*r*ut.dx(1)
 rtau_yt = rtau_ty
 
-tau_tt = 2*mu*ur/r - (2/3)*mu*divu
+tau_tt = 2.0*mu*ur/r - (2.0/3.0)*mu*divu
 tau_tr = mu*ut.dx(0) - mu*ut/r
 
 # Heat flux vector
@@ -108,6 +107,15 @@ S = as_vector([0,                      \
                -rho*ur*ut + tau_tr,    \
                0])
 
+Ao = as_matrix([ \
+     [1,     0,      0,      0,      0               ], \
+     [ur,    rho,    0,      0,      0               ], \
+     [uy,    0,      rho,    0,      0               ], \
+     [ut,    0,      0,      rho,    0               ], \
+     [e/rho, rho*ur, rho*uy, rho*ut, rho*R/(gamma-1) ]  \
+     ])
+Ao = replace(Ao, {v:vo})
+
 # Weak form
 B_GAL = (1/dt)*r*inner(U-Uo,w)*dx \
         - r*F[i,j]*Dx(w[i], j)*dx      \
@@ -131,7 +139,7 @@ Ay = as_matrix([ \
       [H*uy,      rho*uy*ur, rho*(H+uy**2), rho*uy*ut, gamma1*R*rho*uy] \
       ])
 
-RES   = as_vector(r*(U[i]-Uo[i])/dt + Dx(r*F[i,j],j) - Dx(G[i,j],j) - S[i], i)
+RES   = as_vector(r*Ao[i,j]*(v[j]-vo[j])/dt + Dx(r*F[i,j],j) - Dx(G[i,j],j) - S[i], i)
 
 # Ar and Ay must be transposed
 PSUP  = as_vector(Ar[j,i]*Dx(w[j],0) + Ay[j,i]*Dx(w[j],1), i)
