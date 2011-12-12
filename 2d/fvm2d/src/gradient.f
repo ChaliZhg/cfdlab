@@ -12,7 +12,6 @@
          do j=1,nvar
             qx(j,i) = 0.0d0
             qy(j,i) = 0.0d0
-            prim(j,i) = 1.0d0 + coord(1,i) + 2.0d0*coord(2,i)
          enddo
       enddo
 
