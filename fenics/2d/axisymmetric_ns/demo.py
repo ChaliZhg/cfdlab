@@ -1,6 +1,7 @@
 """
 Based on primitive variables (p, u, T)
-Ref: Pars Pesch, "Discontinuous Galerkin Finite Element Methods for the Navier–Stokes Equations in Entropy Variable Formulation", PhD Thesis
+Ref: Lars Pesch, "Discontinuous Galerkin Finite Element Methods for the
+Navier-Stokes Equations in Entropy Variable Formulatio", PhD Thesis
 """
 from dolfin import *
 
@@ -18,9 +19,6 @@ k     = mu*Cp/Pr
 gamma1= gamma/(gamma-1)
 
 omg   = 10  # angular speed in rad/sec
-r1    = 1   # Radius of inner cylinder
-r2    = 2   # Radius of outer cylinder
-ht    = 2   # Height of cylinder
 Tbc   = 300 # Boundary temperature
 
 # Initial pressure
