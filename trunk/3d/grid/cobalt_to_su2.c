@@ -94,9 +94,15 @@ int main(int argc, char *argv[]){
    }
 
    face = (FACE*)malloc(nfaces*sizeof(FACE));
-   for(i=0; i<nfaces; i++){
+   for(i=0; i<nfaces; i++)
+   {
       fscanf(fp,"%d%d%d%d%d%d",&idummy,&face[i].vert[0],&face[i].vert[1],
             &face[i].vert[2],&face[i].lcell,&face[i].rcell);
+      if(idummy != 3)
+      {
+         printf("Found a non-triangular face with %d vertices\n", idummy);
+         exit(0);
+      }
    }
    fclose(fp);
 
