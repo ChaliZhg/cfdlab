@@ -45,19 +45,22 @@ for j in range(5):
 
    file << w
    error_L2 = errornorm(ue, w, norm_type='L2', degree=3)
-   conv.append([mesh.hmax(), error_L2])
+   conv.append([V.dim(), mesh.hmax(), error_L2])
 
    # refine the mesh
    mesh = refine(mesh)
 
 
 print "---------------------------------------"
+f = open('conv.dat','w')
 for j in range(5):
    if j==0:
-      fmt='{0:14.6e} {1:14.6e}'
-      print fmt.format(conv[j][0], conv[j][1])
+      fmt='{0:6d} {1:14.6e} {2:14.6e}'
+      print fmt.format(conv[j][0], conv[j][1], conv[j][2])
    else:
-      rate_L2 = log(conv[j-1][1]/conv[j][1])/log(2)
-      fmt='{0:14.6e} {1:14.6e} {2:10.3f}'
-      print fmt.format(conv[j][0], conv[j][1], rate_L2)
+      rate_L2 = log(conv[j-1][2]/conv[j][2])/log(2)
+      fmt='{0:6d} {1:14.6e} {2:14.6e} {3:10.3f}'
+      print fmt.format(conv[j][0], conv[j][1], conv[j][2], rate_L2)
+   f.write(str(conv[j][0])+' '+str(conv[j][1])+' '+str(conv[j][2])+'\n')
 print "---------------------------------------"
+f.close()
