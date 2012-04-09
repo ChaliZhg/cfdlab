@@ -20,7 +20,7 @@ v = TestFunction(V)
 a = inner(grad(u), grad(v))*dx
 
 # Linear functional
-f = Expression('4*pi*pi*sin(2*pi*x[0])*cos(2*pi*x[1])')
+f = Expression('8*pi*pi*sin(2*pi*x[0])*cos(2*pi*x[1])')
 L = f*v*dx
 
 # Dirichlet bc
