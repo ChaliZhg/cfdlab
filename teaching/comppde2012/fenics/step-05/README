@@ -1,0 +1,5 @@
+On terminal, type
+
+make
+
+This will run gmsh to generate the mesh and then runs dolfin-convert to convert msh file to xml file. See inside makefile for the commands.
