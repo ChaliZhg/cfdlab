@@ -5,19 +5,19 @@
 from dolfin import *
 from math import atan2, log
 
-def Boundary(x, on_boundary):
-   return x[1] > DOLFIN_EPS and on_boundary
-
 def BottomLeft(x, on_boundary):
    return near(x[1],0) and x[0] < DOLFIN_EPS and on_boundary
 
 def BottomRight(x, on_boundary):
    return near(x[1],0) and x[0] > DOLFIN_EPS and on_boundary
 
+# Remaining part of boundary
+def Boundary(x, on_boundary):
+   return x[1] > DOLFIN_EPS and on_boundary
+
 # Exact solution
 ue = Expression('(1.0/pi)*atan2(x[1], x[0])')
 
-#mesh = Rectangle(-0.5, 0, +0.5, 1.0, 20, 20)
 mesh = Mesh('mesh.xml')
 
 nstep= 5
