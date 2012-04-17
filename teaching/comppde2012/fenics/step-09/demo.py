@@ -1,6 +1,13 @@
 """
 -Laplace(u) = 0                 in [-1/2,+1/2] x [0,1]
          u  = (1/pi)*atan2(y,x) on boundary
+Expeiments to try:
+   1) Set nstep=5 and refine_type='uniform' and run the code. See the solution
+      using paraview. Copy conv.dat to conv1.dat
+   2) Set nstep=20 and refine_type='adaptive' and run the code. See the solution
+      using paraview. Copy conv.dat to conv3.dat
+   3) Start matlab and run the matlab code conv.m to see the convergence of L2
+      error wrt no. of degrees of freedom.
 """
 from dolfin import *
 import numpy
