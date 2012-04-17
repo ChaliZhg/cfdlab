@@ -6,7 +6,6 @@ mu = mu1 for x^2 + y^2 < 0.5^2
      mu2 otherwise
 """
 from dolfin import *
-from math import atan2
 import numpy
 
 # Characteristic function for dirichlet boundary
