@@ -43,5 +43,9 @@ step-08:
    max error using numpy
 
 step-09:
-   Laplace equation on unit square (same as in step-06)
+   Laplace equation (same as in step-06)
+   grid adaptation using a-posteriori error indicator
+
+step-10:
+   Laplace equation with discontinuous coefficient
    grid adaptation using a-posteriori error indicator
