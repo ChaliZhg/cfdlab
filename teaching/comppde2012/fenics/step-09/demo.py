@@ -3,7 +3,6 @@
          u  = (1/pi)*atan2(y,x) on boundary
 """
 from dolfin import *
-from math import atan2
 import numpy
 
 # Characteristic function for dirichlet boundary

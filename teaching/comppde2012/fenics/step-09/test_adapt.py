@@ -2,7 +2,6 @@
 Test grid adaptation
 """
 from dolfin import *
-import numpy
 
 # Initial mesh
 n = 10
