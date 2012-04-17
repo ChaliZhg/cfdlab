@@ -41,3 +41,7 @@ step-08:
    project gradient
    interpolate
    max error using numpy
+
+step-09:
+   Laplace equation on unit square (same as in step-06)
+   grid adaptation using a-posteriori error indicator
