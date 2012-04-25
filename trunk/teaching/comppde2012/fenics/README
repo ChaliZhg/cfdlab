@@ -49,3 +49,15 @@ step-09:
 step-10:
    Laplace equation with discontinuous coefficient
    grid adaptation using a-posteriori error indicator
+
+step-11:
+   Heat equation in 1-d
+   demo1.py:
+      With time dependent source term
+      Homogeneous Dirichlet bc
+   demo2.py:
+      With time dependent Dirichlet bc
+
+step-12:
+   Steady scalar advection in unit square: a . grad(u) = 0
+   Galerkin, SUPG and DG scheme
