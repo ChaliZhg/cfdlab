@@ -1,0 +1,7 @@
+To run
+
+python demo.py linear
+
+or
+
+python demo.py adjoint

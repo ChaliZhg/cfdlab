@@ -1,5 +1,11 @@
 from dolfin import *
 import numpy
+import sys
+
+if len(sys.argv) < 2:
+   sys.exit("Specify gradient method: linear or adjoint")
+
+mode = sys.argv[1]
 
 set_log_level(100)
 
@@ -85,8 +91,11 @@ LA = -CHAR_A()*inner(grad(un), grad(v))*dx
 LB = -CHAR_B()*inner(grad(un), grad(v))*dx
 LC = -CHAR_C()*inner(grad(un), grad(v))*dx
 
+# Linear functional for adjoint
+L_adj = - (un - ud)*v*dx
+
 # Gradient of objective function
-def dJ(K):
+def dJ_lin(K):
    kappa._A = K[0]
    kappa._B = K[1]
    kappa._C = K[2]
@@ -101,6 +110,28 @@ def dJ(K):
    G[1] = assemble((un-ud)*dub*dx)
    G[2] = assemble((un-ud)*duc*dx)
    return G
+
+# Gradient of objective function using adjoint equation
+def dJ_adj(K):
+   kappa._A = K[0]
+   kappa._B = K[1]
+   kappa._C = K[2]
+   phi = Function(V)
+   solve(a==L_adj, phi, DirichletBC(V, 0, Boundary))
+   G = numpy.array([0.0, 0.0, 0.0])
+   G[0] = assemble( CHAR_A()*inner(grad(un), grad(phi))*dx )
+   G[1] = assemble( CHAR_B()*inner(grad(un), grad(phi))*dx )
+   G[2] = assemble( CHAR_C()*inner(grad(un), grad(phi))*dx )
+   return G
+
+# Compute gradient
+def dJ(K):
+   if mode == 'linear':
+      return dJ_lin(K)
+   elif mode == 'adjoint':
+      return dJ_adj(K)
+   else:
+      print "Unknown option = ", mode
 
 # Initial guess
 K=numpy.array([0, 0, 0])
