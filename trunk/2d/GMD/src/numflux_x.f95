@@ -16,6 +16,10 @@ subroutine numflux_x(conjm1, conj, conjp1, conjp2, flux, dflux)
       call roe_flux(1.0, 0.0, conl, conr, flux, dflux)
    else if(fluxtype == irusanov)then
       call rusanov_flux(1.0, 0.0, conl, conr, flux, dflux)
+   else if(fluxtype == iadv)then
+      call adv_flux(1.0, 0.0, conl, conr, flux, dflux)
+   else if(fluxtype == icusp)then
+      call cusp_flux(1.0, 0.0, conl, conr, flux, dflux)
    else
       write(*,*)'Uknown flux type fluxtype =', fluxtype
       stop

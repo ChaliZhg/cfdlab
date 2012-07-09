@@ -23,8 +23,8 @@ subroutine saveprim(t, rho, vex, vey, pre)
 
    do j=1,ny
       do i=1,nx
-         x = xmin + (i-1)*dx
-         y = ymin + (j-1)*dy
+         x = xmin + (i-1)*dx + 0.5*dx
+         y = ymin + (j-1)*dy + 0.5*dy
 
          write(10,'(6E24.14)') x, y, rho(i,j), vex(i,j), vey(i,j), pre(i,j)
 

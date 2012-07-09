@@ -20,8 +20,8 @@ subroutine savevort(t, omg)
    ! vorticity is computed at vertices (not at cell centers)
    do j=1,ny+1
       do i=1,nx+1
-         x = xmin + (i-1)*dx - 0.5*dx
-         y = ymin + (j-1)*dy - 0.5*dy
+         x = xmin + (i-1)*dx
+         y = ymin + (j-1)*dy
 
          write(10,'(3E24.14)') x, y, omg(i,j)
 

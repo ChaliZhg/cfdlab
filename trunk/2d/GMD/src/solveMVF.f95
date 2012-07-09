@@ -1,4 +1,4 @@
-subroutine solveFVM(rho, vex, vey, pre, omg, co0, co1, res)
+subroutine solveMVF(rho, vex, vey, pre, omg, co0, co1, res)
 
    use comvar
 
@@ -15,6 +15,8 @@ subroutine solveFVM(rho, vex, vey, pre, omg, co0, co1, res)
    real :: fd(4,nx+1,ny+1)
    real :: gd(4,nx+1,ny+1)
 
+   real :: p(nx+1, ny+1)
+
    real :: vcx(-1:nx+2, -1:ny+2)
    real :: vcy(-1:nx+2, -1:ny+2)
 
@@ -27,9 +29,12 @@ subroutine solveFVM(rho, vex, vey, pre, omg, co0, co1, res)
    real    :: etax, etay, neta, kx, ky, omg0, ep, cv, maxcv
    real    :: ane, ase, anw, asw
    real    :: bne, bse, bnw, bsw
-   real    :: S2, S3, k2
+   real    :: S2, S3, k2, p_avg
    logical :: tostop
 
+
+   ! Flux function is only one choice
+   fluxtype = iadv
 
    ! set initial condition
    call init_cond(rho, vex, vey, pre)
@@ -62,11 +67,22 @@ subroutine solveFVM(rho, vex, vey, pre, omg, co0, co1, res)
          maxcv = 0.0
          res = 0.0
 
+         call cons2prim(co1,rho,vex,vey,pre)
+
+         ! Pressure at vertices
+         do i=1,nx+1
+            do j=1,ny+1
+               p(i,j) = (pre(i-1,j-1) + pre(i,j-1) + pre(i,j) + pre(i-1,j))/4.0
+            enddo
+         enddo
+
          ! x fluxes
          do i=0,nx
             do j=1,ny
+               p_avg    = 0.5*( p(i,j) + p(i,j+1) )
                call numflux_x(co1(:,i-1,j), co1(:,i,j), co1(:,i+1,j), &
                               co1(:,i+2,j), xflux, dxflux)
+               xflux(2)     = xflux(2) + p_avg
                res(:,i,j)   = res(:,i,j)   + dy*xflux(:)
                res(:,i+1,j) = res(:,i+1,j) - dy*xflux(:)
                fd(:,i+1,j)  = dxflux(:)
@@ -76,8 +92,10 @@ subroutine solveFVM(rho, vex, vey, pre, omg, co0, co1, res)
          ! y fluxes
          do j=0,ny
             do i=1,nx
+               p_avg    = 0.5*( p(i,j) + p(i+1,j) )
                call numflux_y(co1(:,i,j-1), co1(:,i,j), co1(:,i,j+1), &
                               co1(:,i,j+2), yflux, dyflux)
+               yflux(3)     = yflux(3) + p_avg
                res(:,i,j)   = res(:,i,j)   + dx*yflux(:)
                res(:,i,j+1) = res(:,i,j+1) - dx*yflux(:)
                gd(:,i,j+1)  = dyflux(:)
@@ -86,15 +104,23 @@ subroutine solveFVM(rho, vex, vey, pre, omg, co0, co1, res)
 
          ! add vorticity confinement terms
          if(vconf==yes)then
-            call cons2prim(co1,rho,vex,vey,pre)
             call vorticity(rho, vex, vey, pre, omg)
 
             do i=1,nx
                do j=1,ny
-                  etax = 0.5*( (abs(omg(i+1,j)) + abs(omg(i+1,j+1))) - &
-                               (abs(omg(i  ,j)) + abs(omg(i  ,j+1))) )/dx
-                  etay = 0.5*( (abs(omg(i,j+1)) + abs(omg(i+1,j+1))) - &
-                               (abs(omg(i  ,j)) + abs(omg(i+1,j  ))) )/dy
+                  etax = -0.5*( (abs(omg(i+1,j)) + abs(omg(i+1,j+1))) - &
+                                (abs(omg(i  ,j)) + abs(omg(i  ,j+1))) )/dx
+                  etay = -0.5*( (abs(omg(i,j+1)) + abs(omg(i+1,j+1))) - &
+                                (abs(omg(i  ,j)) + abs(omg(i+1,j  ))) )/dy
+
+                  neta = sqrt(etax**2 + etay**2)
+                  if(neta > 0.0)then
+                     etax = etax/neta
+                     etay = etay/neta
+                  else
+                     etax = 0.0
+                     etay = 0.0
+                  endif
 
                   ! x velocity at vertices
                   ane = 0.25*(vex(i,j) + vex(i+1,j) + vex(i,j+1) + vex(i+1,j+1))
@@ -112,12 +138,13 @@ subroutine solveFVM(rho, vex, vey, pre, omg, co0, co1, res)
                   omg0= 0.5*((bne + bse) - (bnw + bsw))/dx - &
                         0.5*((anw + ane) - (asw + ase))/dy
 
-                  ! k = cv * h^2 * rho * (n x w)
-                  cv = 1.00
-                  kx = +cv*dx*dy*rho(i,j)*etay*omg0
-                  ky = -cv*dx*dy*rho(i,j)*etax*omg0
-                  k2 = kx**2 + ky**2
+                  !cv = 1.0
+                  !kx = -cv*rho(i,j)*etay*omg0
+                  !ky = +cv*rho(i,j)*etax*omg0
 
+                  kx = -rho(i,j)*etay*omg0
+                  ky = +rho(i,j)*etax*omg0
+                  k2 = kx**2 + ky**2
                   ! Scheme I
                   !S2 = (fd(2,i+1,j) - fd(2,i,j))/dx + (gd(2,i,j+1) - gd(2,i,j))/dy
                   !S3 = (fd(3,i+1,j) - fd(3,i,j))/dx + (gd(3,i,j+1) - gd(3,i,j))/dy
@@ -125,26 +152,26 @@ subroutine solveFVM(rho, vex, vey, pre, omg, co0, co1, res)
                   !S2 = -(fd(3,i+1,j) - fd(3,i,j))/dx - (gd(3,i,j+1) - gd(3,i,j))/dy
                   !S3 = -(fd(2,i+1,j) - fd(2,i,j))/dx - (gd(2,i,j+1) - gd(2,i,j))/dy
                   ! Scheme III
-                  S2 =  (fd(2,i+1,j) - fd(2,i,j))/dx - (fd(3,i+1,j) - fd(3,i,j))/dx
-                  S3 = -(gd(2,i,j+1) - gd(2,i,j))/dy + (gd(3,i,j+1) - gd(3,i,j))/dy
+                  !S2 =  (fd(2,i+1,j) - fd(2,i,j))/dx - (fd(3,i+1,j) - fd(3,i,j))/dx
+                  !S3 = -(gd(2,i,j+1) - gd(2,i,j))/dy + (gd(3,i,j+1) - gd(3,i,j))/dy
                   if(k2 > 0.0)then
                      cv = (S2*kx + S3*ky)/k2
                      cv = max(0.0, cv)
-                     !cv = min(0.5, cv)
+                  !   !cv = min(0.5, cv)
                   else
                      cv = 0.0
                   endif
-                  kx = cv*kx
-                  ky = cv*ky
-                  maxcv = max(maxcv, cv)
+                  !kx = cv*kx
+                  !ky = cv*ky
+                  !maxcv = max(maxcv, cv)
 
                   ! For debugging
-                  !rho(i,j)=omg0
-                  !vcx(i,j)=S2
-                  !vcy(i,j)=S3
-                  !pre(i,j)=cv
-                  !kx=0
-                  !ky=0
+                  rho(i,j)=omg0
+                  vcx(i,j)=kx
+                  vcy(i,j)=ky
+                  pre(i,j)=cv
+                  kx=0
+                  ky=0
 
                   res(2,i,j) = res(2,i,j) - kx*(dx*dy)
                   res(3,i,j) = res(3,i,j) - ky*(dx*dy)
@@ -181,7 +208,6 @@ subroutine solveFVM(rho, vex, vey, pre, omg, co0, co1, res)
          call cons2prim(co1,rho,vex,vey,pre)
          call saveprim(time, rho, vex, vey, pre)
          !call saveprim(time, rho, vcx, vcy, pre)
-         !stop
          call vorticity(rho, vex, vey, pre, omg)
          call savevort(time, omg)
       endif
@@ -189,4 +215,4 @@ subroutine solveFVM(rho, vex, vey, pre, omg, co0, co1, res)
    enddo ! time iteration loop
 
 
-end subroutine solveFVM
+end subroutine solveMVF

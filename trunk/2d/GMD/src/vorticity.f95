@@ -9,14 +9,11 @@ subroutine vorticity(rho, vex, vey, pre, omg)
    real    :: omg( 1:nx+1,  1:ny+1)
 
    integer :: i, j
-   real    :: x, y, v_x, u_y
+   real    :: v_x, u_y
 
    ! vorticity is computed at vertices (not at cell centers)
    do i=1,nx+1
       do j=1,ny+1
-         x = xmin + (i-1)*dx - 0.5*dx
-         y = ymin + (j-1)*dy - 0.5*dy
-
          v_x = 0.5*(vey(i,j-1) + vey(i,j)) - 0.5*(vey(i-1,j-1) + vey(i-1,j))
          v_x = v_x/dx
 
