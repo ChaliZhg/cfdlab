@@ -17,6 +17,14 @@ subroutine init_cond2(rho, vex, vey, pre)
    real    :: Uc, Rc, R0, A, B
    real    :: x, y, r, theta, utheta
 
+   xmin = 0.0
+   xmax = 1.0
+   ymin = 0.0
+   ymax = 1.0
+
+   dx = (xmax - xmin)/nx
+   dy = (ymax - ymin)/ny
+
    machinf = 0.5
    uinf    = 1.0
    cinf    = uinf/machinf
@@ -32,8 +40,8 @@ subroutine init_cond2(rho, vex, vey, pre)
 
    do i=-1,nx+2
       do j=-1,ny+2
-         x = xmin + (i-1)*dx
-         y = ymin + (j-1)*dy
+         x = xmin + (i-1)*dx + 0.5*dx - 0.5
+         y = ymin + (j-1)*dy + 0.5*dy - 0.5
 
          r    = sqrt(x**2 + y**2)
          theta= atan2(y, x)

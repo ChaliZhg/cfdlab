@@ -33,6 +33,7 @@ subroutine solveGMD(rho, vex, vey, pre, omg, co0, co1, phi, psi, &
    real    :: minmod
    real    :: v_xb, v_xc, v_xf, v_x
    real    :: u_yb, u_yc, u_yf, u_y
+   logical :: tostop
 
 
    ! set initial condition
@@ -45,14 +46,23 @@ subroutine solveGMD(rho, vex, vey, pre, omg, co0, co1, phi, psi, &
    call savevort(0.0, omg)
    call timestep(rho, vex, vey, pre)
 
-   lambda = dt/dx/dy
    time   = 0.0
+   it     = 0
 
-   do it=1,itmax
+   do while(time < final_time .and. it < itmax)
+
+      ! Exactly match final time
+      tostop = .false.
+      if(time + dt > final_time)then
+         dt = final_time - time
+         tostop = .true.
+      endif
+
+      lambda = dt/dx/dy
 
       co0(:,:,:) = co1(:,:,:)
 
-      do rks=1,3
+      do rks=1,nrk
 
          call cons2prim(co1,rho,vex,vey,pre)
          call vorticity(rho, vex, vey, pre, omg)
@@ -219,6 +229,8 @@ subroutine solveGMD(rho, vex, vey, pre, omg, co0, co1, phi, psi, &
 
       enddo ! Rk stage loop
 
+      it   = it + 1
+
       if(it==1)then
          resid1 = resid
       endif
@@ -226,7 +238,7 @@ subroutine solveGMD(rho, vex, vey, pre, omg, co0, co1, phi, psi, &
       time = time + dt
       write(*,'(I6,F10.2,4E12.4)')it,time,resid(:)/resid1(:)
 
-      if(mod(it,itsave)==0)then
+      if(mod(it,itsave)==0 .or. it==itmax .or. tostop)then
          call cons2prim(co1,rho,vex,vey,pre)
          call saveprim(time, rho, vex, vey, pre)
          call vorticity(rho, vex, vey, pre, omg)

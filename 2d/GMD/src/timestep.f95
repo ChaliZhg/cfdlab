@@ -20,7 +20,12 @@ subroutine timestep(rho, vex, vey, pre)
       enddo
    enddo
 
-   dt = cfl*dx/speed
+   dt = dx/speed
+   if(mu > 0.0)then
+      dt = min(dt, dx**2/mu)
+   endif
+
+   dt = cfl*dt
 
    write(*,*)'Time step =', dt
 
