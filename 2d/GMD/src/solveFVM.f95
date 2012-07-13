@@ -27,7 +27,7 @@ subroutine solveFVM(rho, vex, vey, pre, omg, co0, co1, res)
    real    :: etax, etay, neta, kx, ky, omg0, ep, cv, maxcv
    real    :: ane, ase, anw, asw
    real    :: bne, bse, bnw, bsw
-   real    :: S2, S3, k2
+   real    :: S2, S3, k2, ke, entropy
    logical :: tostop
 
 
@@ -171,11 +171,18 @@ subroutine solveFVM(rho, vex, vey, pre, omg, co0, co1, res)
 
       it = it + 1
       if(it==1)then
-         resid1 = resid
+         resid1 = 1.0
+         if(resid(1) > 0.0) resid1(1) = resid(1)
+         if(resid(2) > 0.0) resid1(2) = resid(2)
+         if(resid(3) > 0.0) resid1(3) = resid(3)
+         if(resid(4) > 0.0) resid1(4) = resid(4)
       endif
 
+      call cons2prim(co1,rho,vex,vey,pre)
+      call global_quantities(rho,vex,vey,pre,ke,entropy)
+
       time = time + dt
-      write(*,'(I6,F10.2,5E12.4)')it,time,resid(:)/resid1(:),maxcv
+      write(*,'(I6,F10.2,7E12.4)')it,time,resid(:)/resid1(:),maxcv,ke,entropy
 
       if(mod(it,itsave)==0 .or. it==itmax .or. tostop)then
          call cons2prim(co1,rho,vex,vey,pre)

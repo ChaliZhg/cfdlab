@@ -40,6 +40,7 @@ subroutine solveKEP(rho, vex, vey, pre, omg, co0, co1, phi, psi, &
    real    :: p_avg, sxx_avg, sxy_avg, syy_avg, u_avg, v_avg, mx_avg, my_avg, H_avg
    real    :: Tx_avg, Ty_avg
    real    :: resid(4), resid1(4)
+   real    :: ke, entropy
    logical :: tostop
 
    ! set initial condition
@@ -162,11 +163,13 @@ subroutine solveKEP(rho, vex, vey, pre, omg, co0, co1, phi, psi, &
          resid1 = resid
       endif
 
+      call cons2prim(co1,rho,vex,vey,pre)
+      call global_quantities(rho,vex,vey,pre,ke,entropy)
+
       time = time + dt
-      write(*,'(I6,F10.4,4E12.4)')it,time,resid(:)/resid1(:)
+      write(*,'(I6,F10.4,6E12.4)')it,time,resid(:)/resid1(:),ke,entropy
 
       if(mod(it,itsave)==0 .or. it==itmax .or. tostop)then
-         call cons2prim(co1,rho,vex,vey,pre)
          call saveprim(time, rho, vex, vey, pre)
          call vorticity(rho, vex, vey, pre, omg)
          call savevort(time, omg)

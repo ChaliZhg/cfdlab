@@ -12,6 +12,8 @@ subroutine init_cond_multvortdiff(time, rho, vex, vey, pre)
    real    :: x, y, r2, Temp, circ, circ1, circ2
    real    :: vx0, vy0
 
+   final_time = 10.0
+
    xmin = 0.0
    xmax = 2.0*M_PI
    ymin = 0.0
@@ -28,7 +30,7 @@ subroutine init_cond_multvortdiff(time, rho, vex, vey, pre)
          rho(i,j) =  1.0
          vex(i,j) = -cos(x) * sin(y) * exp(-2.0 * mu * time)
          vey(i,j) =  sin(x) * cos(y) * exp(-2.0 * mu * time)
-         pre(i,j) =  50.0 - 0.25 * (cos(2.0*x) + cos(2.0*y)) * exp(-4.0 * mu * time)
+         pre(i,j) =  500.0 - 0.25 * (cos(2.0*x) + cos(2.0*y)) * exp(-4.0 * mu * time)
       enddo
    enddo
 
