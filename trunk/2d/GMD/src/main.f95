@@ -11,16 +11,18 @@ program main
 
    integer :: fid
 
-   nx = 100
-   ny = 100
+   nx = 32*2
+   ny = 32*2
 
+   ! Default value, modified in initial condition function
    final_time = 10.0
+
    itmax = 50000
-   itsave= 25
+   itsave= 200
 
    ! Material properties
    gas_const = 1.0
-   mu        = 0.01
+   mu        = 0.0
    Prandtl   = 2.0/3.0
    Cp        = gamma * gas_const / (gamma - 1.0)
    kth       = mu * Cp / prandtl
@@ -29,11 +31,12 @@ program main
    xperiod = yes
    yperiod = yes
 
-   ! options: iroe, irusanov
-   fluxtype = iroe
+   ! options: iroe, irusanov, ikep
+   fluxtype = ikepes
+   ikepes_diss = yes
 
    ! limiter: ford, muscl3, mmod
-   limtype = muscl3
+   limtype = ford
 
    ! fvm or gmd or kep or mvf
    scheme = fvm
@@ -45,7 +48,7 @@ program main
    fileid_sol = 0
    fileid_omg = 0
 
-   cfl = 0.75
+   cfl = 0.1
 
    nrk    = 3
 

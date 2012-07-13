@@ -19,7 +19,9 @@ module comvar
    integer :: fileid_sol, fileid_omg
 
    integer :: fluxtype
-   integer :: iroe=1, irusanov=2, iadv=3, icusp=4
+   integer :: iroe=1, irusanov=2, iadv=3, icusp=4, ikep=5, ikepes=6
+
+   integer :: ikepes_diss
 
    integer :: limtype
    integer :: ford=0, muscl3=1, mmod=2

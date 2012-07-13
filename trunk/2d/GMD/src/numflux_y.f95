@@ -20,9 +20,18 @@ subroutine numflux_y(conjm1, conj, conjp1, conjp2, flux, dflux)
       call adv_flux(0.0, 1.0, conl, conr, flux, dflux)
    else if(fluxtype == icusp)then
       call cusp_flux(0.0, 1.0, conl, conr, flux, dflux)
+   else if(fluxtype == ikep)then
+      call kep_flux(0.0, 1.0, conl, conr, flux, dflux)
+   else if(fluxtype == ikepes)then
+      call kepes_flux(0.0, 1.0, conl, conr, flux, dflux)
    else
       write(*,*)'Uknown flux type fluxtype =', fluxtype
       stop
+   endif
+
+   if(ikepes_diss == yes)then
+      call kepes_diss(0.0, 1.0, conjm1, conj, conjp1, conjp2, dflux)
+      flux = flux - dflux
    endif
 
 end subroutine numflux_y

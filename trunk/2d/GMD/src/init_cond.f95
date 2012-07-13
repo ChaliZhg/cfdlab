@@ -8,8 +8,8 @@ subroutine init_cond(rho, vex, vey, pre)
    real    :: pre(-1:nx+2, -1:ny+2)
 
 
-   !call init_cond_isen(rho, vex, vey, pre)
-   call init_cond_multvortdiff(0.0, rho, vex, vey, pre)
+   call init_cond_isen(rho, vex, vey, pre)
+   !call init_cond_multvortdiff(0.0, rho, vex, vey, pre)
    !call init_cond2(rho, vex, vey, pre)
 
 end subroutine init_cond

@@ -8,36 +8,45 @@ subroutine init_cond_isen(rho, vex, vey, pre)
    real    :: pre(-1:nx+2, -1:ny+2)
 
    integer :: i, j
-   real    :: x, y, r2, Temp, circ, circ1, circ2
-   real    :: vx0, vy0
+   real    :: x, y, r2, Temp, circ, circ1, circ2, mach_inf
+   real    :: x0, y0, theta
+
+   final_time = 50.0
 
    xmin =-5.0
    xmax = 5.0
    ymin =-5.0
    ymax = 5.0
 
+   xmin =-10.0
+   xmax = 10.0
+   ymin =-10.0
+   ymax = 10.0
+
    dx = (xmax - xmin)/nx
    dy = (ymax - ymin)/ny
 
+   x0 = 0.0
+   y0 = 0.0
+   mach_inf = 0.5
+   theta = 0.0
    circ = 5.0
-   circ1= (gamma-1.0)*circ**2/(8.0*gamma*M_PI**2)
+
+   theta= theta*M_PI/180.0
+   circ1= (gamma-1.0)*circ**2*mach_inf**2/(8.0*M_PI**2)
    circ2= circ/(2.0*M_PI)
-   ! Translation velocity of vortex
-   vx0  = 0.0
-   vy0  = 0.0
 
    do i=-1,nx+2
       do j=-1,ny+2
          x = xmin + (i-1)*dx + 0.5*dx
          y = ymin + (j-1)*dy + 0.5*dy
 
-         r2   = x**2 + y**2
-         Temp = 1.0 - circ1*exp(1.0-r2)
+         r2   = (x-x0)**2 + (y-y0)**2
 
-         rho(i,j) =  Temp**(1.0/(gamma-1.0))
-         vex(i,j) = -circ2*y*exp(0.5*(1.0-r2)) + vx0
-         vey(i,j) =  circ2*x*exp(0.5*(1.0-r2)) + vy0
-         pre(i,j) =  rho(i,j)*Temp
+         rho(i,j) = (1.0 - circ1*exp(1.0-r2))**(1.0/(gamma-1.0))
+         vex(i,j) = mach_inf * (cos(theta) - circ2*(y-y0)*exp(0.5*(1.0-r2)))
+         vey(i,j) = mach_inf * (sin(theta) + circ2*(x-x0)*exp(0.5*(1.0-r2)))
+         pre(i,j) = rho(i,j)**gamma / gamma
       enddo
    enddo
 
