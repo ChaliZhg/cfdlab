@@ -5,15 +5,13 @@ program main
    implicit none
 
    real, dimension(:), allocatable :: rho, vex, vey, vez, pre, co0, co1, res
-   real, dimension(:), allocatable :: phi, psi
-   real, dimension(:), allocatable :: phid, psid
    real, dimension(:), allocatable :: omg
 
    integer :: fid
 
-   nx = 32
-   ny = 32
-   nz = 32
+   nx = 32*2
+   ny = 32*2
+   nz = 32*2
 
    ! Default value, modified in initial condition function
    final_time = 10.0
@@ -34,7 +32,7 @@ program main
 
    ! options: iroe, irusanov, ikep
    fluxtype = ikepes
-   ikepes_diss = no
+   ikepes_diss = yes
 
    ! limiter: ford, muscl3, mmod
    limtype = ford
