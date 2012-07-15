@@ -19,7 +19,7 @@ subroutine solveFVM(rho, vex, vey, vez, pre, omg, co0, co1, res)
    real    :: xflux(nvar), yflux(nvar), zflux(nvar)
    real    :: time
    real    :: resid(nvar), resid1(nvar)
-   real    :: S2, S3, k2, ke, entropy
+   real    :: ke, entropy, ke0, entropy0
    logical :: tostop
 
 
@@ -106,18 +106,20 @@ subroutine solveFVM(rho, vex, vey, vez, pre, omg, co0, co1, res)
 
       enddo ! Rk stage loop
 
+      call cons2prim(co1,rho,vex,vey,vez,pre)
+      call global_quantities(rho,vex,vey,vez,pre,ke,entropy)
+
       it = it + 1
       if(it==1)then
          resid1 = resid
+         ke0 = ke
+         entropy0 = entropy
       endif
-
-      call cons2prim(co1,rho,vex,vey,vez,pre)
-      call global_quantities(rho,vex,vey,vez,pre,ke,entropy)
 
       time = time + dt
       !write(*,'(I6,F10.2,7E12.4)')it,time,resid(:)/resid1(:),ke,entropy
       !write(*,'(I6,F10.2,7E12.4)')it,time,resid(:),ke,entropy
-      write(*,'(I6,4E18.8)')it,dt,time,ke,entropy
+      write(*,'(I6,4E18.8)')it,dt,time,ke/ke0,entropy/entropy0
 
       if(mod(it,itsave)==0 .or. it==itmax .or. tostop)then
          call saveprim(time, rho, vex, vey, vez, pre)

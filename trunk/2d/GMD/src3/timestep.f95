@@ -31,6 +31,8 @@ subroutine timestep(rho, vex, vey, vez, pre)
 
    dt = cfl*dt
 
+   dt = 0.004
+
    write(*,*)'Time step =', dt
 
 end subroutine timestep
