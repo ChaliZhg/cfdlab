@@ -14,6 +14,12 @@ subroutine solveFVM(rho, vex, vey, vez, pre, omg, co0, co1, res)
    real :: co1(nvar, -1:nx+2, -1:ny+2, -1:nz+2)
    real :: res(nvar,0:nx+1,0:ny+1,0:nz+1)
 
+   real    :: sxx(1:nx+1, 1:ny+1, 1:nz+1)
+   real    :: syy(1:nx+1, 1:ny+1, 1:nz+1)
+   real    :: szz(1:nx+1, 1:ny+1, 1:nz+1)
+   real    :: sxy(1:nx+1, 1:ny+1, 1:nz+1)
+   real    :: sxz(1:nx+1, 1:ny+1, 1:nz+1)
+   real    :: syz(1:nx+1, 1:ny+1, 1:nz+1)
    integer :: it, i, j, k, rks
    real    :: lambda
    real    :: xflux(nvar), yflux(nvar), zflux(nvar)
@@ -21,6 +27,13 @@ subroutine solveFVM(rho, vex, vey, vez, pre, omg, co0, co1, res)
    real    :: resid(nvar), resid1(nvar)
    real    :: ke, entropy, ke0, entropy0
    logical :: tostop
+   real    :: vertex_gradient_x
+   real    :: ux, uy, uz
+   real    :: vx, vy, vz
+   real    :: wx, wy, wz
+   real    :: div
+   real    :: vertex_gradient_y
+   real    :: vertex_gradient_z
 
 
    ! set initial condition
@@ -52,6 +65,30 @@ subroutine solveFVM(rho, vex, vey, vez, pre, omg, co0, co1, res)
       do rks=1,nrk
 
          res = 0.0
+
+         ! Shear stress at vertices
+         do i=1,nx+1
+            do j=1,ny+1
+               do k=1,nz+1
+                  ux = vertex_gradient_x (i, j, k, vex) / dx
+                  vx = vertex_gradient_x (i, j, k, vey) / dx
+                  wx = vertex_gradient_x (i, j, k, vez) / dx
+                  uy = vertex_gradient_y (i, j, k, vex) / dy
+                  vy = vertex_gradient_y (i, j, k, vey) / dy
+                  wy = vertex_gradient_y (i, j, k, vez) / dy
+                  uz = vertex_gradient_z (i, j, k, vex) / dz
+                  vz = vertex_gradient_z (i, j, k, vey) / dz
+                  wz = vertex_gradient_z (i, j, k, vez) / dz
+                  div = ux + vy + wz
+                  sxx(i,j,k) = 2.0*mu*ux - mu*div/3.0
+                  syy(i,j,k) = 2.0*mu*vy - mu*div/3.0
+                  szz(i,j,k) = 2.0*mu*wz - mu*div/3.0
+                  sxy(i,j,k) = mu*(uy + vx)
+                  sxz(i,j,k) = mu*(uz + wx)
+                  syz(i,j,k) = mu*(vz + wy)
+               enddo
+            enddo
+         enddo
 
          ! x fluxes
          do i=0,nx
