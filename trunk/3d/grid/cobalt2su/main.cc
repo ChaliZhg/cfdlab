@@ -1,3 +1,17 @@
+/* Convert cobalt mesh file to su2 format
+ * Author: Praveen. C
+ *         http://math.tifrbng.res.in/~praveen
+ *
+ * Elements supported: tetrahedron, wedge, pyramid, triangle, quadrilateral
+ * Usage: Compile the code
+ *        c++ main.cc -o cobalt2su
+ * You need the two cobalt files, e.g
+ *        foo
+ *        foo.bc
+ * Run the converter as:
+ *        cobalt2su foo
+ * This creates the file foo.su2 and a vtk file mesh.vtk
+*/
 #include <iostream>
 #include <cstdlib>
 #include <cassert>
@@ -11,8 +25,11 @@
 #define TRI  0
 #define QUAD 1
 
-#define WEDGE 0 // prism with triangular base, has 2 triangles, 3 quadrilateral
-#define TETRA 1 // tetrahedron
+// VTK element types
+#define TETRA   10 // tetrahedron
+#define WEDGE   13 // prism with triangular base, 
+                   // has 2 triangles, 3 quadrilateral
+#define PYRAMID 14 // pyramid: 4 triangle, 1 quadrilateral
 
 #define NFACE_TYPE_MAX   1000
 
@@ -35,6 +52,7 @@ struct Cell
 
 void find_tetra_vertex(Cell& cell, const vector<Face>& face);
 void find_wedge_vertex(Cell& cell, const vector<Face>& face);
+void find_pyramid_vertex(Cell& cell, const vector<Face>& face);
 int find_in_v1_notin_v2(const vector<int>& v1, const vector<int>& v2);
 
 int main(int argc, char *argv[])
@@ -47,17 +65,31 @@ int main(int argc, char *argv[])
 
    fc >> dummy >> dummy >> dummy;
    fc >> nvertex >> nface >> ncell;
-   cout << "ncell=" << ncell << " nface=" << nface << " nvertex=" << nvertex
+   cout << "ncell = " << ncell 
+        << " nface = " << nface 
+        << " nvertex = " << nvertex
         << "\n";
    fc >> dummy >> dummy;
 
    cout << "Reading coordinates ...";
    vector<double> x(nvertex), y(nvertex), z(nvertex);
+   double xmin, ymin, zmin, xmax, ymax, zmax;
+   xmin = ymin = zmin = +1e20;
+   xmax = ymax = zmax = -1e20;
    for(unsigned int i=0; i<nvertex; ++i)
    {
       fc >> x[i] >> y[i] >> z[i];
+      xmin = min(xmin, x[i]);
+      xmax = max(xmax, x[i]);
+      ymin = min(ymin, y[i]);
+      ymax = max(ymax, y[i]);
+      zmin = min(zmin, z[i]);
+      zmax = max(zmax, z[i]);
    }
    cout << "Done\n";
+   cout << "x min, max = " << xmin << "  " << xmax << endl;
+   cout << "y min, max = " << ymin << "  " << ymax << endl;
+   cout << "z min, max = " << zmin << "  " << zmax << endl;
 
    cout << "Reading faces ...";
    vector<Face> face(nface);
@@ -72,14 +104,17 @@ int main(int argc, char *argv[])
       unsigned int n_face_points;
       fc >> n_face_points;
       assert(n_face_points==3 || n_face_points==4);
-      for(unsigned int j=0; j<n_face_points; ++j)
+      face[i].vertex.resize(n_face_points);
+      //for(unsigned int j=0; j<n_face_points; ++j)
+      for(int j=n_face_points-1; j>=0; --j)
       {
          int p;
          fc >> p;
          min_vertex_no = min(min_vertex_no, p);
          max_vertex_no = max(max_vertex_no, p);
          --p;
-         face[i].vertex.push_back(p);
+         //face[i].vertex.push_back(p);
+         face[i].vertex[j] = p;
       }
       fc >> face[i].lcell >> face[i].rcell;
       assert(face[i].lcell > 0);
@@ -116,8 +151,8 @@ int main(int argc, char *argv[])
    cout << "Minimum cell   number = " << min_cell_no << "\n";
    cout << "Maximum cell   number = " << max_cell_no << "\n";
 
-   cout << "Number of triangular    faces =" << n_tri_face << "\n";
-   cout << "Number of quadrilateral faces =" << n_quad_face << "\n";
+   cout << "Number of triangular    faces = " << n_tri_face << "\n";
+   cout << "Number of quadrilateral faces = " << n_quad_face << "\n";
 
    cout << "Adding faces to cells ...";
    vector<Cell> cell(ncell);
@@ -134,7 +169,7 @@ int main(int argc, char *argv[])
    cout << "Done\n";
 
    cout << "Finding cell type ...";
-   int n_wedge=0, n_tetra=0;
+   int n_wedge=0, n_tetra=0, n_pyramid=0;
    for(unsigned int i=0; i<ncell; ++i)
    {
       int ntri=0, nquad=0;
@@ -164,59 +199,48 @@ int main(int argc, char *argv[])
          ++n_wedge;
          find_wedge_vertex(cell[i], face);
       }
+      else if(ntri==4 && nquad==1)
+      {
+         cell[i].type = PYRAMID;
+         ++n_pyramid;
+         find_pyramid_vertex(cell[i], face);
+      }
       else
       {
          cout << "Unknown cell type, cell = " << i << "\n";
-         cout << "ntri  =" << ntri  << "\n";
-         cout << "nquad =" << nquad << "\n";
+         cout << "ntri  = " << ntri  << "\n";
+         cout << "nquad = " << nquad << "\n";
          exit(0);
       }
    }
    cout << "Done\n";
 
-   cout << "Number of tetrahedra = " << n_tetra << "\n";
-   cout << "Number of wedge      = " << n_wedge << "\n";
+   cout << "Number of tetrahedra = " << n_tetra   << "\n";
+   cout << "Number of wedge      = " << n_wedge   << "\n";
+   cout << "Number of pyramid    = " << n_pyramid << "\n";
 
    int minp=+100000;
    int maxp=-1;
    for(unsigned int i=0; i<ncell; ++i)
-      if(cell[i].type==TETRA)
-         for(unsigned int j=0; j<4; ++j)
-         {
-            minp = min(minp, cell[i].vertex[j]);
-            maxp = max(maxp, cell[i].vertex[j]);
-         }
-      else
-         for(unsigned int j=0; j<6; ++j)
-         {
-            minp = min(minp, cell[i].vertex[j]);
-            maxp = max(maxp, cell[i].vertex[j]);
-         }
-    cout << "Min vertex no in cell =" << minp << "\n";
-    cout << "Max vertex no in cell =" << maxp << "\n";
+      for(unsigned int j=0; j<cell[i].vertex.size(); ++j)
+      {
+         minp = min(minp, cell[i].vertex[j]);
+         maxp = max(maxp, cell[i].vertex[j]);
+      }
+
+    cout << "Min vertex no in cell = " << minp << "\n";
+    cout << "Max vertex no in cell = " << maxp << "\n";
 
    int minf=+100000;
    int maxf=-1;
    for(unsigned int i=0; i<nface; ++i)
-      if(face[i].type==TRI)
-         for(unsigned int j=0; j<3; ++j)
-         {
-            minf = min(minf, face[i].vertex[j]);
-            maxf = max(maxf, face[i].vertex[j]);
-         }
-      else if(face[i].type==QUAD)
-         for(unsigned int j=0; j<4; ++j)
-         {
-            minf = min(minf, face[i].vertex[j]);
-            maxf = max(maxf, face[i].vertex[j]);
-         }
-      else
+      for(unsigned int j=0; j<face[i].vertex.size(); ++j)
       {
-         cout << "Unknown face type =" << face[i].type << endl;
-         exit(0);
+         minf = min(minf, face[i].vertex[j]);
+         maxf = max(maxf, face[i].vertex[j]);
       }
-    cout << "Min vertex no in face =" << minf << "\n";
-    cout << "Max vertex no in face =" << maxf << "\n";
+   cout << "Min vertex no in face = " << minf << "\n";
+   cout << "Max vertex no in face = " << maxf << "\n";
 
    // Read the bc file
    char bc_names[NFACE_TYPE_MAX][1024];
@@ -274,16 +298,24 @@ int main(int argc, char *argv[])
    // reset to zero
    for(unsigned int i=0; i<NFACE_TYPE_MAX; i++) facecount[i]=0;
 
+   int n_bd_tri = 0;
+   int n_bd_quad= 0;
    for(unsigned int i=0; i<nface; i++)
    {
       if(face[i].rcell < 0)
       {
          nmark_face[-face[i].rcell][facecount[-face[i].rcell]] = i;
          ++facecount[-face[i].rcell];
+         if(face[i].type == TRI)  ++n_bd_tri;
+         if(face[i].type == QUAD) ++n_bd_quad;
       }
    }
+   cout << "No of boundary triangles      = " << n_bd_tri  << endl;
+   cout << "No of boundary quadrilaterals = " << n_bd_quad << endl;
 
+   //----------------------------------------------------------------
    // Now save to su2 file
+   //----------------------------------------------------------------
    char su2_file[1024];
    strcpy(su2_file, argv[1]);
    strcat(su2_file, ".su2");
@@ -296,23 +328,9 @@ int main(int argc, char *argv[])
    fprintf(fo,"NELEM= %d\n", ncell);
    for(unsigned int i=0; i<ncell; i++)
    {
-      if(cell[i].type == TETRA)
-      {
-         fprintf(fo, "10  "); // VTK type for tetrahedra
-         for(unsigned int j=0; j<4; j++)
-            fprintf(fo, "%d ", cell[i].vertex[j]);
-      }
-      else if(cell[i].type == WEDGE)
-      {
-         fprintf(fo, "13  "); // VTK type for tetrahedra
-         for(unsigned int j=0; j<6; j++)
-            fprintf(fo, "%d ", cell[i].vertex[j]);
-      }
-      else
-      {
-         cout << "Unknown cell type = " << cell[i].type << endl;
-         exit(0);
-      }
+      fprintf(fo, "%d  ", cell[i].type); // VTK type for tetrahedra
+      for(unsigned int j=0; j<cell[i].vertex.size(); j++)
+         fprintf(fo, "%d ", cell[i].vertex[j]);
       fprintf(fo, "%d\n", i);
    }
 
@@ -324,7 +342,12 @@ int main(int argc, char *argv[])
    // Save point coordinates
    fprintf(fo,"NPOIN= %d\n", nvertex);
    for(unsigned int i=0; i<nvertex; i++)
-      fprintf(fo, "%24.14e %24.14e %24.14e %d\n", sfactor*x[i], sfactor*y[i], sfactor*z[i], i);
+   {
+      x[i] *= sfactor;
+      y[i] *= sfactor;
+      z[i] *= sfactor;
+      fprintf(fo, "%24.14e %24.14e %24.14e %d\n", x[i], y[i], z[i], i);
+   }
 
    fprintf(fo,"NMARK= %d\n", nmark);
    // Save boundary faces
@@ -359,6 +382,38 @@ int main(int argc, char *argv[])
          }
       }
    fprintf(fo, "NCHUNK= 0\n");
+
+   //----------------------------------------------------------------
+   // write vtk file
+   //----------------------------------------------------------------
+   ofstream vtk;
+   vtk.open("mesh.vtk");
+   vtk << "# vtk DataFile Version 3.0" << endl;
+   vtk << "su2 converted mesh" << endl;
+   vtk << "ASCII" << endl;
+   vtk << "DATASET UNSTRUCTURED_GRID" << endl;
+   vtk << "POINTS  " << nvertex << "  float" << endl;
+
+   for(unsigned int i=0; i<nvertex; i++)
+      vtk << x[i] << " " << y[i] << " " << z[i] << endl;
+
+   int ncell_data = 5 * n_tetra + 6 * n_pyramid + 7 * n_wedge;
+   vtk << "CELLS  " << ncell << "  " << ncell_data << endl;
+
+   for(unsigned int i=0; i<ncell; i++)
+   {
+      vtk << cell[i].vertex.size() << " ";
+      for(unsigned int j=0; j<cell[i].vertex.size(); ++j)
+         vtk << cell[i].vertex[j] << " ";
+      vtk << endl;
+   }
+
+   vtk << "CELL_TYPES " << ncell << endl;
+   for(unsigned int i=0; i<ncell; i++)
+      vtk << cell[i].type << endl;
+
+   vtk.close();
+   cout << "Wrote vtk file mesh.vtk\n";
 
    return 0;
 }
@@ -470,6 +525,53 @@ void find_wedge_vertex(Cell& cell, const vector<Face>& face)
       assert(found && c<3);
       cell.vertex.push_back(face[f2].vertex[c]);
    }
+
+}
+
+//-----------------------------------------------------------------------------
+// Find vertices belonging to pyramid cell
+//-----------------------------------------------------------------------------
+void find_pyramid_vertex(Cell& cell, const vector<Face>& face)
+{
+   vector<int> tri_face;
+   vector<int> quad_face;
+   for(unsigned int i=0; i<5; ++i)
+   {
+      if(face[cell.face_id[i]].type == TRI) 
+         tri_face.push_back( i );
+      else if(face[cell.face_id[i]].type == QUAD) 
+         quad_face.push_back( i );
+   }
+   assert( tri_face.size()  == 4);
+   assert( quad_face.size() == 1);
+
+   // Take quad face
+   const int f    = cell.face_id[ quad_face[0] ];
+   const int floc = quad_face[0];
+   if(cell.face_pos[floc] == LEFT)
+   {
+      // Numbering of vertices is cw; we add in reverse order
+      for(int j=3; j>=0; --j)
+         cell.vertex.push_back(face[f].vertex[j]);
+   }
+   else
+   {
+      // Numbering of vertices is ccw; we add in same order
+      for(unsigned int j=0; j<=3; ++j)
+         cell.vertex.push_back(face[f].vertex[j]);
+   }
+
+   // We have four vertices, need to find fifth
+   // Take first triangular face
+   const int f2   = cell.face_id[ tri_face[0] ];
+
+   // Collect vertices belonging to f2
+   vector<int> v;
+   for(unsigned int k=0; k<3; ++k)
+      v.push_back(face[f2].vertex[k]);
+
+   // Find fourth vertex
+   cell.vertex.push_back( find_in_v1_notin_v2(v, cell.vertex) );
 
 }
 
