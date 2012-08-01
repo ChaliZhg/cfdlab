@@ -80,9 +80,9 @@ subroutine solveFVM(rho, vex, vey, vez, pre, omg, co0, co1, res)
                   vz = vertex_gradient_z (i, j, k, vey) / dz
                   wz = vertex_gradient_z (i, j, k, vez) / dz
                   div = ux + vy + wz
-                  sxx(i,j,k) = 2.0*mu*ux - mu*div/3.0
-                  syy(i,j,k) = 2.0*mu*vy - mu*div/3.0
-                  szz(i,j,k) = 2.0*mu*wz - mu*div/3.0
+                  sxx(i,j,k) = 2.0*mu*ux - 2.0*mu*div/3.0
+                  syy(i,j,k) = 2.0*mu*vy - 2.0*mu*div/3.0
+                  szz(i,j,k) = 2.0*mu*wz - 2.0*mu*div/3.0
                   sxy(i,j,k) = mu*(uy + vx)
                   sxz(i,j,k) = mu*(uz + wx)
                   syz(i,j,k) = mu*(vz + wy)
