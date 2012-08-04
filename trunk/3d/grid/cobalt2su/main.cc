@@ -335,7 +335,7 @@ int main(int argc, char *argv[])
    }
 
    double sfactor;
-   cout << "Scaling for coordinates = ";
+   cout << "Scaling for coordinates (x,y,z multiplied by this factor) = ";
    cin >> sfactor;
    assert(sfactor>0.0);
 
