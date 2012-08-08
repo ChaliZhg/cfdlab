@@ -493,7 +493,7 @@ void numerical_flux (const FluxType& flux_type,
          break;
          
       default:
-         cout << "Unknown flux_type !!!\n";
+         std::cout << "Unknown flux_type !!!\n";
          abort ();
    }
 }
@@ -910,7 +910,7 @@ void ORProblem<dim>::run ()
        if(iter==0)
        {
           std::cout << "Initial residual = " << residual[0] << " "
-                    << residual[1] << endl;
+                    << residual[1] << std::endl;
           for(unsigned int i=0; i<n_var; ++i)
              residual0[i] = residual[i];
        }
@@ -924,7 +924,7 @@ void ORProblem<dim>::run ()
        
       std::cout << "Iter = " << iter << " time = " << time 
                 << " Res =" << residual[0] << " "
-                << residual[1] << endl;
+                << residual[1] << std::endl;
     }
     output_results ();
 }
