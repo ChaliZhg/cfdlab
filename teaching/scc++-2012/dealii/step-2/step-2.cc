@@ -1,8 +1,7 @@
 /* Author: Wolfgang Bangerth, University of Heidelberg, 1999 */
 /*    @f$Id: @ref step_2 "step-2".cc 25560 2012-05-29 19:16:36Z bangerth @f$ */
-/*                                                                */
-/*    Copyright (C) 1999, 2000, 2001, 2002, 2003, 2006, 2008, 2009, 2010, 2011, 
-/*                                    2012 by the deal.II authors */
+/*    Copyright (C) 1999, 2000, 2001, 2002, 2003, 2006, 2008, 2009, */
+/*                  2010, 2011, 2012 by the deal.II authors       */
 /*                                                                */
 /*    This file is subject to QPL and may not be  distributed     */
 /*    without copyright and license information. Please refer     */
