@@ -1,8 +1,7 @@
 /* Author: Wolfgang Bangerth, 1999, Guido Kanschat, 2011 */
 /*    @f$Id: @ref step_3 "step-3".cc 25840 2012-08-09 20:22:00Z bangerth @f$ */
-/*                                                                */
-/*    Copyright (C) 1999, 2000, 2001, 2002, 2003, 2004, 2006, 2007, 2008, 2010, 
-/*                              2011, 2012 by the deal.II authors */
+/*    Copyright (C) 1999, 2000, 2001, 2002, 2003, 2004, 2006, 2007, 2008, */
+/*                  2010, 2011, 2012 by the deal.II authors */
 /*                                                                */
 /*    This file is subject to QPL and may not be  distributed     */
 /*    without copyright and license information. Please refer     */
