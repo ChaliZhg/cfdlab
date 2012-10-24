@@ -52,6 +52,8 @@ private:
    void assemble_system ();
    void solve ();
    void output_results () const;
+   void compute_mean_value_1 ();
+   void compute_mean_value_2 ();
    Triangulation<2>     triangulation;
    FE_Q<2>              fe;
    DoFHandler<2>        dof_handler;
@@ -160,6 +162,65 @@ void Step3::output_results () const
    data_out.write_gnuplot (output);
 }
 
+// We ourselves compute solution at quadrature points, then do quadrature
+void Step3::compute_mean_value_1 ()
+{
+   QGauss<2>  quadrature_formula(2);
+   FEValues<2> fe_values (fe, quadrature_formula,
+                          update_values | update_JxW_values);
+   const unsigned int   dofs_per_cell = fe.dofs_per_cell;
+   const unsigned int   n_q_points    = quadrature_formula.size();
+   std::vector<unsigned int> local_dof_indices (dofs_per_cell);
+   double mean_value = 0.0;
+   double volume = 0.0;
+   
+   DoFHandler<2>::active_cell_iterator
+      cell = dof_handler.begin_active(),
+      endc = dof_handler.end();
+   for (; cell!=endc; ++cell)
+   {
+      fe_values.reinit (cell);
+      cell->get_dof_indices (local_dof_indices);
+
+      for (unsigned int q_point=0; q_point<n_q_points; ++q_point)
+      {
+         double value = 0;
+         for (unsigned int i=0; i<dofs_per_cell; ++i)
+            value += fe_values.shape_value(i, q_point) * solution(local_dof_indices[i]);
+         mean_value += value * fe_values.JxW(q_point);
+      }
+      volume += cell->measure();
+   }
+   mean_value /= volume;
+   std::cout << "mean_value_1 = " << mean_value << std::endl;
+}
+
+// We use get_function_values to compute solution at quadrature points
+void Step3::compute_mean_value_2 ()
+{
+   QGauss<2>  quadrature_formula(2);
+   FEValues<2> fe_values (fe, quadrature_formula,
+                          update_values | update_JxW_values);
+   const unsigned int   n_q_points    = quadrature_formula.size();
+   std::vector<double>  values(n_q_points);
+   double mean_value = 0.0;
+   double volume = 0.0;
+   
+   DoFHandler<2>::active_cell_iterator
+      cell = dof_handler.begin_active(),
+      endc = dof_handler.end();
+   for (; cell!=endc; ++cell)
+   {
+      fe_values.reinit (cell);
+      fe_values.get_function_values (solution, values);      
+      for (unsigned int q_point=0; q_point<n_q_points; ++q_point)
+         mean_value += values[q_point] * fe_values.JxW(q_point);
+      volume += cell->measure();
+   }
+   mean_value /= volume;
+   std::cout << "mean_value_2 = " << mean_value << std::endl;
+}
+
 void Step3::run ()
 {
    make_grid ();
@@ -167,6 +228,14 @@ void Step3::run ()
    assemble_system ();
    solve ();
    output_results ();
+   compute_mean_value_1 ();
+   compute_mean_value_2 ();
+   std::cout << "Mean value: "
+             << VectorTools::compute_mean_value (dof_handler,
+                                                 QGauss<2>(2),
+                                                 solution,
+                                                 0)
+             << std::endl;
 }
 
 int main ()
