@@ -97,10 +97,7 @@ void Coefficient<dim>::value_list (const std::vector<Point<dim> > &points,
    const unsigned int n_points = points.size();
    for (unsigned int i=0; i<n_points; ++i)
    {
-      if (points[i].square() < 0.5*0.5)
-         values[i] = 20;
-      else
-         values[i] = 1;
+      values[i] = value(points[i]);
    }
 }
 

@@ -36,6 +36,8 @@
 #include <deal.II/lac/compressed_sparsity_pattern.h>
 #include <deal.II/lac/solver_cg.h>
 #include <deal.II/lac/precondition.h>
+#include <deal.II/lac/sparse_ilu.h>
+#include <deal.II/lac/sparse_direct.h>
 
 #include <fstream>
 #include <iostream>
@@ -190,13 +192,31 @@ void Step4<dim>::assemble_system ()
 template <int dim>
 void Step4<dim>::solve ()
 {
+   // Uncomment only one preconditioner below
+   // -----Incomple LU
+   //SparseILU<double> preconditioner;
+   //preconditioner.initialize(system_matrix);
+   // -----SSOR
+   //PreconditionSSOR<> preconditioner;
+   //preconditioner.initialize(system_matrix, 1.0);
+   // -----Jacobi
+   PreconditionJacobi<> preconditioner;
+   preconditioner.initialize(system_matrix);
+
    SolverControl           solver_control (1000, 1e-12);
    SolverCG<>              solver (solver_control);
    solver.solve (system_matrix, solution, system_rhs,
-                 PreconditionIdentity());
+                 preconditioner);
    std::cout << "   " << solver_control.last_step()
              << " CG iterations needed to obtain convergence."
              << std::endl;
+
+   // Direct solution: comment everything above and uncomment below
+   /*
+   SparseDirectUMFPACK solver;
+   solver.solve(system_matrix, system_rhs);
+   solution = system_rhs;
+   */
 }
 
 template <int dim>
