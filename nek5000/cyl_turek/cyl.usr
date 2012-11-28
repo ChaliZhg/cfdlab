@@ -87,7 +87,6 @@ c     save initial condition
       else if(mod(istep,iostep).eq.0)then
          call comp_vort3(vort,w1,w2,vx,vy,vz)
          call copy(t(1,1,1,1,k),vort,n)
-         call outpost(vx,vy,vz,pr,t,'   ')
       endif
 
       return
@@ -181,7 +180,9 @@ c-----------------------------------------------------------------------
             t0  = t1
             t1  = tlast + (tcurr-tlast)*(vlast-0)/(vlast-vcurr)
             per = t1-t0
-            if (per.gt.0) st = 1./per
+c           st = D f / U, here U = mean vel = 1.0
+            diameter = 0.1
+            if (per.gt.0) st = diameter/per
          endif
       endif
 
