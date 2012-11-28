@@ -1,0 +1,13 @@
+cylinder in channel test case
+
+This is testcase 2D-2 (Re = 100) taken from
+
+Benchmark Computations of Laminar Flow Around a Cylinder
+M. Schafer and S. Turek
+http://www.mathematik.tu-dortmund.de/lsiii/cms/papers/SchaeferTurek1996.pdf
+
+To run this in serial, you may need to increase lelt to about 1900. 
+
+To see strouhal number, do
+
+grep Strou cyl.log
