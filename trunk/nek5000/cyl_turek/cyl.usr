@@ -61,7 +61,7 @@ c-----------------------------------------------------------------------
       include 'TOTAL'
 
       parameter(lt=lx1*ly1*lz1*lelv)
-      common /scrns/ vort(lt*lelv,3),w1(lt),w2(lt)
+      common /scrns/ vort(lt,3),w1(lt),w2(lt)
 
       real x0(3)
       save x0
