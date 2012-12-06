@@ -1,7 +1,19 @@
-1. genbox
+Note: Set parameters in input.rea since this is used to generate box.rea
+
+1. genbox (requires input.rea)
    < box.box
+
+   output file: box.rea
 
 2. genmap
    < box
    < 0.2
 
+   output file: box.map
+
+2/3 aliasing rule: lx1 = (2/3)*lxd
+
+Grid   lx1   lxd   lelt   lp
+
+50^3    8     12   521    240
+14^3   10     15   50     60
