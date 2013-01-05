@@ -1,0 +1,19 @@
+#!/bin/bash
+#PBS -l nodes=10:ppn=12
+#PBS -l walltime=1000:00:00
+cd $PBS_O_WORKDIR
+echo box > SESSION.NAME
+echo `pwd`'/' >> SESSION.NAME
+rm -f box.his1
+rm -f box.sch1
+rm -f box.log1
+mv box.log box.log1
+mv box.his box.his1
+mv box.sch box.sch1
+rm -f logfile
+rm -f ioinfo
+sleep 5
+mpirun nek5000 > box.log
+sleep 5
+ln box.log logfile
+exit 0;

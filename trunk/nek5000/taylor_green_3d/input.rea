@@ -66,7 +66,7 @@
    0.00000     p062 >0 --> force byte_swap for output
    0.00000     p063 =8 --> force 8-byte output
    0.00000     p064 =1 --> perturbation restart
-   1.00000     p065 #iofiles (eg, 0 or 64); <0 --> sep. dirs
+  -2.00000     p065 #iofiles (eg, 0 or 64); <0 --> sep. dirs
    4.00000     p066 output : <0=ascii, else binary
    4.00000     p067 restart: <0=ascii, else binary
    0.00000     p068 iastep: freq for avg_all (0=iostep)
@@ -104,7 +104,7 @@
    0.00000     p100 
    0.00000     p101 Number of additional modes to filter
    1.00000     p102 Dump out divergence at each time step
-   0.00000     p103 weight of stabilizing filter (.01)
+   0.05000     p103 weight of stabilizing filter (.01)
    0.00000     p104 
    0.00000     p105 
    0.00000     p106 
@@ -184,7 +184,7 @@ C
            6  SPECIFICATIONS FOLLOW
  F       COORDINATES
  T       VELOCITY
- T       PRESSURE
+ F       PRESSURE
  F       TEMPERATURE
  F       TEMPERATURE GRADIENT
            0       PASSIVE SCALARS

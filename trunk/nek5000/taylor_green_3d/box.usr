@@ -89,7 +89,7 @@ c     Compute total kinetic energy and enstrophy
          total_ke = 0.5*(xke + yke + zke)
          total_ke = total_ke / vol
          if(nid.eq.0) write(6,1) istep, time, total_ke
-    1    format(4x,i7,1p2e14.6,' Totalke')
+    1    format(i6,1p2e14.6,' Totalke')
 c        Compute vorticity if it was not computed above
          if (mod(istep,iostep).gt.0)then
             call comp_vort3(vort,w1,w2,vx,vy,vz)
@@ -100,7 +100,7 @@ c        Compute vorticity if it was not computed above
          enstrophy = 0.5*(xens+yens+zens)/vol
          diss_rate = 2.0*visc*enstrophy
          if(nid.eq.0) write(6,2) istep, time, diss_rate
-    2    format(4x,i7,1p2e14.6,' diss_rate')
+    2    format(i6,1p2e14.6,' diss_rate')
       endif
 
       return
