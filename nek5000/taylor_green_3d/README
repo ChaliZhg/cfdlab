@@ -13,14 +13,10 @@ Note: Set parameters in input.rea since this is used to generate box.rea
 
 2/3 aliasing rule: lx1 = (2/3)*lxd
 
-Grid   lx1   lxd   lelt   lp
-
-50^3    8     12   521    240
-14^3   10     15   50     60
-
-
 Reference data is in "ref_data" directory. Untar it inside that directory to use it for comparison. To generate KE and dissipation plots, do
 
 ./globals.sh
 gv ke.eps &
 gv diss.eps &
+
+ref_data contains sample plots of kinetic energy and dissipation rate for 32^3 elements case.
