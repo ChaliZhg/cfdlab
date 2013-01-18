@@ -1,0 +1,179 @@
+c-----------------------------------------------------------------------
+C
+C  USER SPECIFIED ROUTINES:
+C
+C     - boundary conditions
+C     - initial conditions
+C     - variable properties
+C     - local acceleration for fluid (a)
+C     - forcing function for passive scalar (q)
+C     - general purpose routine for checking errors etc.
+C
+c-----------------------------------------------------------------------
+      subroutine uservp (ix,iy,iz,eg)
+      include 'SIZE'
+      include 'TOTAL'
+      include 'NEKUSE'
+
+      integer e,f,eg
+c     e = gllel(eg)
+
+      udiff =0.
+      utrans=0.
+      return
+      end
+c-----------------------------------------------------------------------
+      subroutine userf  (ix,iy,iz,eg)
+      include 'SIZE'
+      include 'TOTAL'
+      include 'NEKUSE'
+
+      integer e,f,eg
+c     e = gllel(eg)
+
+
+c     Note: this is an acceleration term, NOT a force!
+c     Thus, ffx will subsequently be multiplied by rho(x,t).
+
+
+      ffx = 0.0
+      ffy = 0.0
+      ffz = 0.0
+
+      return
+      end
+c-----------------------------------------------------------------------
+      subroutine userq  (ix,iy,iz,eg)
+      include 'SIZE'
+      include 'TOTAL'
+      include 'NEKUSE'
+
+      integer e,f,eg
+c     e = gllel(eg)
+
+      qvol   = 0.0
+
+      return
+      end
+c------------------------------------------------------------------------------
+      subroutine useric(ix,iy,iz,ieg)
+      include 'SIZE'
+      include 'TOTAL'
+      include 'NEKUSE'
+
+      ux = 0.0
+      uy = 0.0
+      temp = 0.0
+
+      return
+      end
+c------------------------------------------------------------------------------
+      real function omega(x, y)
+      real U, a, ak, r, theta, x0, y0
+      parameter(U=1.0, a=1.0, ak=3.83170597020751/a)
+      parameter(x0=0.0, y0=-3.0)
+
+      r = sqrt((x-x0)**2 + (y-y0)**2)
+      theta = atan2(y-y0, x-x0)
+      if(r.lt.a)then
+         omega = U * ak**2 * BesJ1(ak*r) * cos(theta)
+      else
+         omega = 0.0
+      endif
+
+      return
+      end
+c------------------------------------------------------------------------------
+      subroutine userchk
+      include 'SIZE'
+      include 'TOTAL'
+      parameter(delta=1.0e-2, delta2=delta**2)
+      parameter(two_pi = 8.0*atan(1.0))
+      parameter(lt=lx1*ly1*lz1*lelv)
+      real vort(lt,3), w1(lt), w2(lt)
+      real dx(lx1,ly1,lz1,lelv)
+      real dy(lx1,ly1,lz1,lelv)
+      real dr2(lx1,ly1,lz1,lelv)
+      real a (lx1,ly1,lz1,lelv)
+      real f (lx1,ly1,lz1,lelv)
+
+      n = nx1*ny1*nz1*nelv
+
+c     store vorticity in temperature
+      do i=1,n
+         t(i,1,1,1,1) = omega(xm1(i,1,1,1), ym1(i,1,1,1))
+      enddo
+
+      do i=1,n
+         x0 = xm1(i,1,1,1)
+         y0 = ym1(i,1,1,1)
+         dx = xm1 - x0
+         dy = ym1 - y0
+         dr2 = dx*dx + dy*dy + 1e-12
+         f   = (1.0 - exp(-dr2/delta2)) / two_pi
+c        To prevent division by zero
+         dr2(i,1,1,1) = 1.0
+         a  = -(dy*f)/dr2
+         vx(i,1,1,1) = glsc3(a, bm1, t, n)
+         a  = (dx*f)/dr2
+         vy(i,1,1,1) = glsc3(a, bm1, t, n)
+      enddo
+
+c     save velocity to file
+      ifxyo = .true.
+      ifto  = .true.
+      call outpost(vx,vy,vz,pr,t,'   ')
+
+c     for checking, now compute vorticity from velocity
+      ifxyo = .true.
+      ifto  = .true.
+      call comp_vort3(vort,w1,w2,vx,vy,vz)
+      call copy(t(1,1,1,1,1),vort,n)
+      call outpost(vx,vy,vz,pr,t,'vrt')
+
+      call exitt
+
+      return
+      end
+c-----------------------------------------------------------------------
+      subroutine userbc (ix,iy,iz,iside,ieg)
+      include 'SIZE'
+      include 'TOTAL'
+      include 'NEKUSE'
+
+      ucent = 1.5
+      ux = (ucent/0.205**2)*(y+0.2)*(0.21-y)
+      uy = 0.0
+      uz = 0.0
+      temp=0.0
+
+      return
+      end
+c-----------------------------------------------------------------------
+      subroutine usrdat
+      include 'SIZE'
+      include 'TOTAL'
+
+c     call platform_timer(0) ! not too verbose
+c     call platform_timer(1) ! mxm, ping-pong, and all_reduce timer
+
+      return
+      end
+c-----------------------------------------------------------------------
+      subroutine usrdat2
+      include 'SIZE'
+      include 'TOTAL'
+
+      param(66) = 4.   ! These give the std nek binary i/o and are 
+      param(67) = 4.   ! good default values
+
+      return
+      end
+c-----------------------------------------------------------------------
+      subroutine usrdat3
+      include 'SIZE'
+      include 'TOTAL'
+c
+      return
+      end
+c-----------------------------------------------------------------------
