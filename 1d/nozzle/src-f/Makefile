@@ -7,7 +7,8 @@ TPN  = ${TAPENADE_HOME}/bin/tapenade
 # fortran flags
 #
  
-FC = ${F77}
+FC = gfortran
+CC = gcc
 RM = /bin/rm
 FFLAGS   = -O3
 FFLAGS2  = -DCOMPLEX
@@ -201,6 +202,13 @@ costfunc_bq.o:	routines.f
 		       -difffuncname "_bq"   \
 		        routines.f;
 		${FC} ${FFLAGS} -c costfunc_bq.f;
+
+#-----------------------------------------------------------------------------
+adBuffer.o:	$(TAPENADE_HOME)/ADFirstAidKit/adBuffer.f
+		${FC} ${FFLAGS} -c $<
+
+adStack.o:	$(TAPENADE_HOME)/ADFirstAidKit/adStack.c
+		${CC} ${FFLAGS} -c $<
 
 ##############################################################################
 # clean things up
