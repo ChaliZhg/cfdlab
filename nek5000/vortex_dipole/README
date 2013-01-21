@@ -1,0 +1,33 @@
+This test case is taken from
+
+The initial condition is computed from initial vorticity using Biot-Savart 
+formula. The kernel regularization of Beale-Majda is used.
+
+Note: "<" indicates input that you have to give.
+
+1. $ genbox
+   < initcond.box
+
+2. $ mv box.rea initcond.rea
+
+3. $ genmap
+   < initcond
+
+4. $ makenek initcond
+
+5. $ nek initcond
+   This should create initcond.fld01 file and vrtinitcond.fld01 file. Check them
+   for correctness of initial condition.
+
+6. $ cp initcond.rea dipole.rea
+   $ cp initcond.map dipole.map
+
+7. Modify dipole.rea to read initial condition from file. It should look like
+   this.
+
+           1  PRESOLVE/RESTART OPTIONS  *****
+initcond.fld01   U V W
+
+8. $ makenek dipole
+
+9. $ nek dipole

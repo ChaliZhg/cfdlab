@@ -104,7 +104,7 @@
    0.00000     p100 
    0.00000     p101 Number of additional modes to filter
    1.00000     p102 Dump out divergence at each time step
-  0.000000     p103 weight of stabilizing filter (.01)
+   0.050000    p103 weight of stabilizing filter (.01)
    0.00000     p104 
    0.00000     p105 
    0.00000     p106 
