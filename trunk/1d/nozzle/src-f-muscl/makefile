@@ -7,8 +7,8 @@ TPN  = ${TAPENADE_HOME}/bin/tapenade
 # fortran flags
 #
  
-FC = ${F77}
-FC = ifort
+FC = gfortran
+CC = gcc
 RM = /bin/rm
 FFLAGS   = -O3
 FFLAGS2  = -DCOMPLEX
@@ -302,6 +302,13 @@ residu_bq.o:	residu.f
 				 -output residu \
 		        residu.f;
 		${FC} ${FFLAGS} -c residu_bq.f;
+
+#-----------------------------------------------------------------------------
+adBuffer.o:	$(TAPENADE_HOME)/ADFirstAidKit/adBuffer.f
+		${FC} ${FFLAGS} -c $<
+
+adStack.o:	$(TAPENADE_HOME)/ADFirstAidKit/adStack.c
+		${CC} ${FFLAGS} -c $<
 
 ##############################################################################
 # clean things up
