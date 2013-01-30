@@ -1,0 +1,172 @@
+C-----------------------------------------------------------------------
+C
+C  USER SPECIFIED ROUTINES:
+C
+C     - boundary conditions
+C     - initial conditions
+C     - variable properties
+C     - forcing function for fluid (f)
+C     - forcing function for passive scalar (q)
+C     - general purpose routine for checking errors etc.
+C
+C-----------------------------------------------------------------------
+      subroutine uservp (ix,iy,iz,ieg)
+
+C Set user variable properties
+
+      include 'SIZE'
+      include 'TOTAL'
+      include 'NEKUSE'
+
+      return
+      end
+
+C=======================================================================
+
+      subroutine userf  (ix,iy,iz,ieg)
+
+C Set user forcing function for the momentum
+
+      include 'SIZE'
+      include 'TOTAL'
+      include 'NEKUSE'
+
+      FFY = 0.0
+      FFX = 0.0
+      FFZ = 0.0
+
+      return
+      end
+C=======================================================================
+      subroutine userq  (ix,iy,iz,ieg)
+
+C Set user forcing function for scalars
+
+      include 'SIZE'
+      include 'TOTAL'
+      include 'NEKUSE'
+
+      qvol = 0.0
+
+      return
+      end
+C=======================================================================
+      subroutine userchk
+
+      include 'SIZE'
+      include 'TOTAL'
+
+      parameter(lt=lx1*ly1*lz1*lelv)
+      common /scrns/ vort(lt,3),w1(lt),w2(lt)
+
+c     save initial condition
+      ifxyo = .false.
+      ifto  = .true.
+      n = nx1*ny1*nz1*nelv
+      k = 1
+      if(istep.eq.0)then
+         call comp_vort3(vort,w1,w2,vx,vy,vz)
+         call copy(t(1,1,1,1,k),vort,n)
+         ifxyo = .true.
+         call outpost(vx,vy,vz,pr,t,'   ')
+      else if(mod(istep,iostep).eq.0)then
+         call comp_vort3(vort,w1,w2,vx,vy,vz)
+         call copy(t(1,1,1,1,k),vort,n)
+      endif
+
+      return
+      end
+C=======================================================================
+      subroutine userbc (ix,iy,iz,iside,ieg)
+
+C  Set user boundary conditions
+
+      include 'SIZE'
+      include 'TOTAL'
+      include 'NEKUSE'
+
+      ux = 1.0
+      uy = 0.0
+
+      return
+      end
+C=======================================================================
+      subroutine useric (ix,iy,iz,ieg)
+
+C   Set initial conditions
+
+      include 'SIZE'
+      include 'TOTAL'
+      include 'NEKUSE'
+
+      ux = 1.0
+      uy = 0.0
+
+      return
+      end
+C=======================================================================
+      subroutine usrdat
+
+      return
+      end
+C=======================================================================
+      subroutine usrdat2
+
+      include 'SIZE'
+      include 'TOTAL'
+
+      parameter(XTOL=1e-10)
+      character*3 cbv
+      integer e, f
+      real xmin, xmax, ymax, xf(4), yf(4)
+
+      xmin = -5.0
+      xmax = +10.0
+      ymax =  3.0
+
+      iin = 0
+      iout= 0
+      iwall=0
+      isym = 0
+
+c set velocity boundary conditions
+      do e = 1,nelv
+         xf(1) = 0.5*(xm1(1,  1,  1,e) + xm1(nx1,1,  1,e))
+         xf(2) = 0.5*(xm1(nx1,1,  1,e) + xm1(nx1,ny1,1,e))
+         xf(3) = 0.5*(xm1(1,  ny1,1,e) + xm1(nx1,ny1,1,e))
+         xf(4) = 0.5*(xm1(1,  ny1,1,e) + xm1(1,  1,  1,e))
+         yf(1) = 0.5*(ym1(1,  1,  1,e) + ym1(nx1,1,  1,e))
+         yf(2) = 0.5*(ym1(nx1,1,  1,e) + ym1(nx1,ny1,1,e))
+         yf(3) = 0.5*(ym1(1,  ny1,1,e) + ym1(nx1,ny1,1,e))
+         yf(4) = 0.5*(ym1(1,  ny1,1,e) + ym1(1,  1,  1,e))
+         do f = 1,2*ndim
+            cbv = cbc(f,e,1)
+            if (cbv.ne.'E  ') then       ! This is boundary edge
+               if(abs(xf(f)-xmin).lt.XTOL)then
+                   cbc(f,e,1) = 'v  '   ! inlet
+                   iin = iin + 1
+               else if(abs(xf(f)-xmax).lt.XTOL)then
+                   cbc(f,e,1) = 'O  '   ! outlet
+                   iout = iout + 1
+               else if(abs(yf(f)-ymax).lt.XTOL)then
+                   cbc(f,e,1) = 'SYM'   ! top wall
+                   isym = isym + 1
+               else
+                   cbc(f,e,1) = 'W  '   ! bottom wall
+                   iwall = iwall + 1
+               endif
+            endif
+         enddo
+      enddo
+
+      print*,iin,iout,iwall,isym
+c     call exitt
+
+      return
+      end
+C=======================================================================
+      subroutine usrdat3
+
+      return
+      end
+C=======================================================================
