@@ -16,7 +16,7 @@ C
       parameter (ly3=ly1)
       parameter (lz3=lz1)
 
-      parameter (lp =   12  )    ! upper limit for number of CPUs
+      parameter (lp =   24  )    ! upper limit for number of CPUs
       parameter (lelg = 5000)    ! upper limit for total number of elements
 c
 c     parameter (lpelv=lelv,lpelt=lelt,lpert=3)  ! perturbation

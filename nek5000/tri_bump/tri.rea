@@ -3,7 +3,7 @@
            2  DIMENSIONAL RUN
          118  PARAMETERS FOLLOW
    1.00000     p001 DENSITY
-  -1.00000E+02 p002 VISCOS
+  -1.00000E+03 p002 VISCOS
    0.00000     p003 
    0.00000     p004 
    0.00000     p005 
@@ -11,12 +11,12 @@
    1.00000     p007 RHOCP
   0.100000E-01 p008 CONDUCT
    0.00000     p009 
-   1.00000     p010 FINTIME
-   1.00000E+03 p011 NSTEPS
+   14.0000     p010 FINTIME
+   0.00000     p011 NSTEPS
   0.100000E-03 p012 DT
    0.00000     p013 IOCOMM
    0.00000     p014 IOTIME
-   10.0000     p015 IOSTEP
+   2.00000E+03 p015 IOSTEP
    0.00000     p016 PSSOLVER: 0=default
    0.00000     p017 
   0.500000E-01 p018 GRID < 0 --> # cells on screen
@@ -104,7 +104,7 @@
    0.00000     p100 
    0.00000     p101 Number of additional modes to filter
    1.00000     p102 Dump out divergence at each time step
-   0.00000     p103 weight of stabilizing filter (.01)
+   0.05000     p103 weight of stabilizing filter (.01)
    0.00000     p104 
    0.00000     p105 
    0.00000     p106 

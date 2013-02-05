@@ -85,7 +85,7 @@ C  Set user boundary conditions
       include 'TOTAL'
       include 'NEKUSE'
 
-      ux = 1.0
+      ux = y
       uy = 0.0
 
       return
@@ -99,7 +99,7 @@ C   Set initial conditions
       include 'TOTAL'
       include 'NEKUSE'
 
-      ux = 1.0
+      ux = y
       uy = 0.0
 
       return
