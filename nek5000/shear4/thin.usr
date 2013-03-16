@@ -177,26 +177,6 @@ c     rho   =  30.         ! thick shear layer case
       endif
       uy =  delta*sin(2.*pi*x)
 
-      if (ifield.gt.1) then          ! set up passive scalar
-         rho  = 50.*ifield
-         if (y.le.0.5) then
-            tmp  =  tanh(rho*(y-0.25))
-         else
-            tmp  =  tanh(rho*(0.75-y))
-         endif
-
-         if (x.le.0.5) then
-            tmp  =  tmp  + tanh(rho*(x-0.25))
-         else
-            tmp  =  tmp  + tanh(rho*(0.75-x))
-         endif
-         temp = tmp*sin(2.*pi*ifield*x)
-         ps1  = tmp
-         ps2  = tmp
-         ps3  = tmp
-         ps4  = tmp
-      endif
-
       return
       end
 c-----------------------------------------------------------------------
