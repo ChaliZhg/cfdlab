@@ -1,9 +1,12 @@
 This test case is taken from
 
+P. Orlandi: Vortex dipole rebound from a wall, POF A 2 (8), 1990
+
 The initial condition is computed from initial vorticity using Biot-Savart 
 formula. The kernel regularization of Beale-Majda is used.
 
 Note: "<" indicates input that you have to give.
+      "$" denotes the shell prompt in the terminal.
 
 1. $ genbox
    < initcond.box
