@@ -66,7 +66,7 @@ c------------------------------------------------------------------------------
       r1 = (x-x1)**2 + (y-y1)**2
       r2 = (x-x2)**2 + (y-y2)**2
       ux = -0.5*domge*(y-y1)*exp(-r1/r0) + 0.5*domge*(y-y2)*exp(-r2/r0)
-      uy = -0.5*domge*(x-x1)*exp(-r1/r0) + 0.5*domge*(x-x2)*exp(-r2/r0)
+      uy = +0.5*domge*(x-x1)*exp(-r1/r0) - 0.5*domge*(x-x2)*exp(-r2/r0)
       temp = 0.0
 
       return
@@ -106,7 +106,7 @@ c        Compute vorticity if it was not computed above
          endif
          xens = glsc3(vort(1,1), vort(1,1), bm1, n)
          yens = glsc3(vort(1,2), vort(1,2), bm1, n)
-         enstrophy = 0.5*(xens+yens)
+         enstrophy = 0.5*(xens + yens)
          if(nid.eq.0) write(6,2) istep, time, enstrophy
     2    format(i6,1p2e14.6,' enstrophy')
       endif
