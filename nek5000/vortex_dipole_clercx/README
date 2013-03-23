@@ -17,3 +17,9 @@ H J H Clercz and C H Bruneau: The normal and oblique collision of a dipole with 
 
 5. $ nek dipole
    (You may want to run this in parallel.)
+
+Total KE and entropy are written into the log files. To make plots of them 
+
+./global.sh
+
+Then see the ke.eps and enstrophy.eps file. You can obtain the data in the ke.dat and enstrophy.dat files.

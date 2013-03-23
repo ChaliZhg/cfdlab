@@ -104,9 +104,7 @@ c        Compute vorticity if it was not computed above
          if (mod(istep,iostep).gt.0)then
             call comp_vort3(vort,w1,w2,vx,vy,vz)
          endif
-         xens = glsc3(vort(1,1), vort(1,1), bm1, n)
-         yens = glsc3(vort(1,2), vort(1,2), bm1, n)
-         enstrophy = 0.5*(xens + yens)
+         enstrophy = 0.5*glsc3(vort(1,1), vort(1,1), bm1, n)
          if(nid.eq.0) write(6,2) istep, time, enstrophy
     2    format(i6,1p2e14.6,' enstrophy')
       endif
