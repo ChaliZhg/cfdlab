@@ -3,6 +3,7 @@ This test case is taken from
 H J H Clercz and C H Bruneau: The normal and oblique collision of a dipole with a no-slip boundary, Comp. Fluids., 35 (2006) 245-279
 
 "$" denotes the shell prompt where you enter the commands.
+"<" denotes input that you have to provide.
 
 1. $ genbox
    < domain.box
