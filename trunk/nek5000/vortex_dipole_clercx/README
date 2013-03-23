@@ -1,0 +1,18 @@
+This test case is taken from
+
+H J H Clercz and C H Bruneau: The normal and oblique collision of a dipole with a no-slip boundary, Comp. Fluids., 35 (2006) 245-279
+
+"$" denotes the shell prompt where you enter the commands.
+
+1. $ genbox
+   < domain.box
+
+2. $ mv box.rea dipole.rea
+
+3. $ genmap
+   < dipole
+
+4. $ makenek dipole
+
+5. $ nek dipole
+   (You may want to run this in parallel.)
