@@ -1,31 +1,34 @@
 clear all
 
-a = 0; b = 1; ni = 100; mu = 1/60; alpha = 0.4 + pi^2*mu;
+a     = 0; 
+b     = 1; 
+ni    = 100; 
+mu    = 1/60; 
+alpha = 0.4 + pi^2*mu;
 
 n = ni - 1;
 h = (b-a)/ni;
 
 % Generate the system matrices
-[M,A,B,C,D,N] = matrix_fem(ni,mu,alpha);
+[M,A,B,Q] = matrix_fem(ni,mu,alpha);
 
 % uncontrolled eigenvalues
-eo=eig(full(A));
+eo=eig(full(A),full(M));
 
 R = speye(size(B,2));
-K = schur_fem(M,A,B,C,R,D,N);
+K = compute_feedback_matrix(M,A,B,Q);
 A=A-B*sparse(K); 
 
 % eigenvalues with feedback control
-ec=eig(full(A));
+ec=eig(full(A),full(M));
 
 figure(2)
 plot(real(eo),imag(eo),'o',real(ec),imag(ec),'*')
+title('Eigenvalues')
 legend('Original','With feedback')
 
-pause
-
 % Function to compute energy
-compute_energy = @(z) h*z'*z;
+compute_energy = @(z) z'*M*z;
 
 nT=800; dt=0.1; t=0:dt:nT*dt;
 
@@ -44,7 +47,8 @@ energy(i) = compute_energy(z(1:n,i));
 u(i) = -K*z(1:n,i);
 figure(3)
 plot(x,z(1:n,i),'o-')
-pause(0.5)
+title('Initial condition')
+xlabel('x')
 
 % First time step: use BDF1 (Backward Euler)
 beta = 1; a1   = -1;
@@ -56,9 +60,8 @@ rhs = -(a1/(beta*dt))*M*z(:,i-1);
 z(:,i) = Q1 * (U1 \ (L1 \ (P1 * rhs)));
 energy(i) = compute_energy(z(1:n,i));
 u(i) = -K*z(1:n,i);
-figure(3)
+figure(4)
 plot(x,z(1:n,i),'o-')
-pause(0.5)
 
 % Remaining time steps: use BDF2
 beta = 2/3; a1 = -4/3; a2 = 1/3;
@@ -71,12 +74,16 @@ for i=3:nT+1
    energy(i) = compute_energy(z(1:n,i));
    u(i) = -K*z(1:n,i);
    if mod(i,10)==0
-      figure(3)
-      subplot(1,3,1), plot(x,z(1:n,i),'-','LineWidth',2)
+      figure(4)
+      xx=[a,x,b]; zz=[0,z(1:n,i)',u(i)];
+      subplot(1,3,1), plot(xx,zz,'-','LineWidth',2)
       title('Solution')
+      xlabel('x'); ylabel('z')
       subplot(1,3,2), semilogy(1:i,energy(1:i),'-','LineWidth',2)
       title('Energy')
+      xlabel('Time step')
       subplot(1,3,3), plot(1:i, u(1:i), 'LineWidth', 2)
       title('Control')
+      xlabel('Time step')
    end
 end
