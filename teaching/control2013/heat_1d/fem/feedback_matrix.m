@@ -1,15 +1,13 @@
-function K = compute_feedback_matrix(M,A,B,Q)
-% méthode de Schur pour résoudre l'ARE avec schéma EF
+function K = feedback_matrix(M,A,B,Q)
 
 npts = size(B,1);
 n = npts+1;
 h = 1/n;
 
-% avec lqr
 [K,X] = lqr(full(M\A), full(M\B), full(Q), 1);
 K = real(K)/M;
 
-% noyau sur [0,1]
+% plot control operator
 k_EF = [0 K 0];
 x = 0:h:1;
 figure(1),
