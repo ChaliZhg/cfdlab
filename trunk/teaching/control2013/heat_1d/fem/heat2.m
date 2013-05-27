@@ -1,3 +1,6 @@
+% Heat equation using FEM and BDF
+% Feedback control
+
 clear all
 
 a     = 0; 
@@ -16,7 +19,7 @@ h = (b-a)/ni;
 eo=eig(full(A),full(M));
 
 R = speye(size(B,2));
-K = compute_feedback_matrix(M,A,B,Q);
+K = feedback_matrix(M,A,B,Q);
 A=A-B*sparse(K); 
 
 % eigenvalues with feedback control
