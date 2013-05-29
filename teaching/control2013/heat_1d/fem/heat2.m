@@ -39,7 +39,7 @@ z = zeros(n, nT+1);
 energy = zeros(nT+1,1);
 u = zeros(nT+1,1);
 
-% Space mesh
+% Space mesh: only interior points
 x = linspace(a+h,b-h,n);
 
 % Set initial condition
