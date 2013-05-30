@@ -37,6 +37,6 @@ H = sparse(1,n-1);
 H(1,1) = nu/h;
 
 % Second order finite difference
-% z_x = (1/(2h))*( -3*z0 + 4*z1 - z2 )
+% z_x(x0) = (1/(2h))*( -3*z0 + 4*z1 - z2 )
 H(1,1) =  2*(nu/h);
 H(1,2) = -0.5*(nu/h);
