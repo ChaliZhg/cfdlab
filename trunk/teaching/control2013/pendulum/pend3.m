@@ -50,7 +50,7 @@ Be = [eye(4,4),   zeros(4,2); ...
 He = [H,          zeros(2,4); ...
       zeros(2,4), H];
 
-% N : nbre d'états, no : nombre d'observation   
+% N : number of state variables, no : number of observation
 N = 4; no=2;
 dt = 0.01;
 t = 0:dt:dt*(Nt-1);
@@ -72,24 +72,21 @@ zbc(:,1) = [x0;x0*0];
 
 
 for nt=1:Nt-1    
-    % calcul de l'etat controle par le controleur dynamique, pas de bruit,n
-    % erreur sur la CI
+    % calculate state with control, without noise
+    % error in initial condition
     %--------------------------------------------
     znb(:,nt+1) = U1\(L1\(znb(:,nt)));
     
-    % calcul de l'etat  bruité controle.
+    % calculate state with noise
     %---------------------------------------
     zbc(:,nt+1) = U1\(L1\(znb(:,nt) + dt*Be*[w(nt+1,:)'; v(nt+1,:)'] ));
     
-    % calcul de la commande
+    % calculate control
     %--------------------------------------------------------
-    
     u(1,nt+1) = -K*zbc(5:8,nt+1);
     
-    % Sortie
-    
+    % observation
     ynb(:,nt+1) = He*znb(:,nt+1);
-    
     ybc(:,nt+1) = He*zbc(:,nt+1) + [v(nt+1,:)';0;0];
 end;
 
