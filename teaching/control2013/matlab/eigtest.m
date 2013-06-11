@@ -12,7 +12,7 @@ A = -(1/h^2)*spdiags([e,-2*e,e], -1:1, n-1, n-1);
 l = diag(D);
 
 % Exact eigenvalues
-le = pi^2 * (1:(n-1))';
+le = pi^2 * ((1:(n-1)).^2)';
 
 % Compute error in eigenvalues
 err = abs(l - le);
