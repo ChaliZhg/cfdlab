@@ -1,0 +1,603 @@
+% $Header: /cvsroot/latex-beamer/latex-beamer/solutions/conference-talks/conference-ornate-20min.en.tex,v 1.6 2004/10/07 20:53:08 tantau Exp $
+
+\documentclass[11pt,xcolor=svgnames,onlymath]{beamer}
+
+\mode<presentation>
+{
+  %\usetheme{Madrid}
+  \usetheme{Boadilla}
+  % or ...
+
+  \setbeamercovered{transparent}
+  \setbeamertemplate{navigation symbols}{}
+  % suppress slide number for continued slides
+  \setbeamertemplate{frametitle continuation}[from second][]
+  \setbeamertemplate{footline}[page number]{}
+  % or whatever (possibly just delete it)
+}
+
+\usepackage{graphicx}
+\usepackage{aliases}
+%\usepackage{colortbl}
+\usepackage{listings}
+\usepackage{textcomp}
+
+\usepackage[english]{babel}
+% or whatever
+
+%\usepackage[latin1]{inputenc}
+% or whatever
+
+%\usepackage{times}
+%\usepackage[T1]{fontenc}
+% Or whatever. Note that the encoding and the font should match. If T1
+% does not look nice, try deleting the line with the fontenc.
+
+\usefonttheme{serif}
+\setbeamertemplate{itemize item}[circle]
+\setbeamertemplate{itemize subitem}[triangle]
+\setbeamertemplate{enumerate item}[circle]
+\setbeamertemplate{enumerate subitem}[square]
+
+% equations will appear in this colour
+%\everydisplay{\color{magenta}}
+
+%\everydisplay{\color{blue}}
+
+
+\title[Lecture 1] % (optional, use only with long paper titles)
+{Introduction to Matlab}
+
+%\subtitle{Lecture 1}
+
+\author[Praveen. C] % (optional, use only with lots of authors)
+{Praveen. C\\
+{\tt praveen@math.tifrbng.res.in}}
+% - Give the names in the same order as the appear in the paper.
+% - Use the \inst{?} command only if the authors have different
+%   affiliation.
+
+\institute[TIFR-CAM] % (optional, but mostly needed)
+{
+   \includegraphics[height=1.0cm]{tifr.png}\\
+   Tata Institute of Fundamental Research\\
+   Center for Applicable Mathematics\\
+   Bangalore 560065\\
+\url{http://math.tifrbng.res.in/~praveen}
+}
+% - Use the \inst command only if there are several affiliations.
+% - Keep it simple, no one is interested in your street address.
+
+\date[IFCAM-2013] % (optional, should be abbreviation of conference name)
+{IFCAM Workshop on Control of PDE\\
+22 July - 2 August, 2013}
+% - Either use conference name or its abbreviation.
+% - Not really informative to the audience, more for people (including
+%   yourself) who are reading the slides online
+
+%\subject{Computational Fluid Dynamics}
+% This is only inserted into the PDF information catalog. Can be left
+% out. 
+
+% If you have a file called "university-logo-filename.xxx", where xxx
+% is a graphic format that can be processed by latex or pdflatex,
+% resp., then you can add a logo as follows:
+
+%\pgfdeclareimage[height=0.5cm]{university-logo}{inria}
+%\logo{\pgfuseimage{university-logo}}
+
+% Delete this, if you do not want the table of contents to pop up at
+% the beginning of each subsection:
+%\AtBeginSubsection[]
+%{
+%  \begin{frame}<beamer>
+%    \frametitle{Outline}
+%    \tableofcontents[currentsection,currentsubsection]
+%  \end{frame}
+%}
+
+% If you wish to uncover everything in a step-wise fashion, uncomment
+% the following command: 
+
+%\beamerdefaultoverlayspecification{<+->}
+
+\begin{document}
+
+\lstset{
+   language=matlab,
+   keywordstyle=\bfseries\ttfamily\color[rgb]{0,0,1},
+   identifierstyle=\ttfamily,
+   commentstyle=\color[rgb]{0.133,0.545,0.133},
+   stringstyle=\ttfamily\color[rgb]{0.627,0.126,0.941},
+   showstringspaces=false,
+   basicstyle=\small,
+   numberstyle=\footnotesize,
+   numbers=left,
+   stepnumber=1,
+   numbersep=10pt,
+   tabsize=2,
+   breaklines=true,
+   prebreak = \raisebox{0ex}[0ex][0ex]{\ensuremath{\hookleftarrow}},
+   breakatwhitespace=false,
+   aboveskip={0.1\baselineskip},
+    columns=fixed,
+    upquote=true,
+    extendedchars=true,
+% frame=single,
+    backgroundcolor=\color[rgb]{0.9,0.9,0.9}
+}
+
+\begin{frame}
+  \titlepage
+\end{frame}
+
+%\begin{frame}
+% \frametitle{Outline}
+%\tableofcontents
+% You might wish to add the option [pausesections]
+%\end{frame}
+%#############################################################################
+%-------------------------------------------------------------------------------------
+\begin{frame}[allowframebreaks,fragile]
+%\frametitle{Introduction to Matlab}
+In the following slides, the symbol
+\begin{lstlisting}
+>>
+\end{lstlisting}
+denotes the matlab command prompt.
+
+\vspace{2mm}
+
+{\bf Variables}: Come into existence when you assign a value
+\begin{lstlisting}
+>> x=1
+\end{lstlisting}
+To prevent the value from being printed to screen, end the line with a colon
+\begin{lstlisting}
+>> x=1;
+\end{lstlisting}
+You can now use the variable {\tt x} in other statements
+\begin{lstlisting}
+>> y=sin(x)
+\end{lstlisting}
+
+\vspace{2mm}
+
+A {\bf row vector}
+\begin{lstlisting}
+>> x = [1,2,3,4]
+>> y=sin(x)
+\end{lstlisting}
+Note that Matlab computed {\tt sin} on every element of the vector {\tt x}
+
+\vspace{2mm}
+
+A {\bf column vector}
+\begin{lstlisting}
+>> x = [1; 2; 3; 4]
+>> y = sin(x)
+\end{lstlisting}
+Output {\tt y} inherits dimensions of input {\tt x}
+
+\vspace{2mm}
+
+{\bf Matrix}
+\begin{lstlisting}
+>> x = [1, 2, 3, 4; 5, 6, 7, 8]
+>> y=sin(x)
+\end{lstlisting}
+
+\vspace{2mm}
+
+{\bf Line continuation}
+\begin{lstlisting}
+>> x = [1, 2, 3, 4; ...
+        5, 6, 7, 8]
+>> y=sin(x)
+\end{lstlisting}
+
+\vspace{2mm}
+
+{\bf Adding vectors}
+\begin{lstlisting}
+>> x = [1, 2, 3, 4]
+>> y = [5, 6, 7, 8]
+>> z = x + y
+\end{lstlisting}
+{\tt x} and {\tt y} must have same dimensions. This is wrong
+\end{frame}
+\begin{lstlisting}
+>> x = [1, 2, 3, 4]
+>> y = [5; 6; 7; 8]
+>> z = x + y
+\end{lstlisting}
+
+\vspace{2mm}
+
+{\bf To find dimensions}
+\begin{lstlisting}
+>> size(x)
+>> size(y)
+\end{lstlisting}
+
+\vspace{2mm}
+
+{\bf Transpose} a vector or matrix
+\begin{lstlisting}
+>> z = x + y'
+>> size(y')
+\end{lstlisting}
+
+\vspace{2mm}
+
+Find all variables
+\begin{lstlisting}
+>> who
+\end{lstlisting}
+
+\vspace{2mm}
+
+Deleting all existing variables
+\begin{lstlisting}
+>> clear all
+>> who
+\end{lstlisting}
+
+\vspace{2mm}
+
+{\bf Matrix-vector multiplication}
+\begin{lstlisting}
+>> x = [1; 2]
+>> A = [1, 2; 3, 4]
+>> y = A*x
+\end{lstlisting}
+
+\vspace{2mm}
+
+{\bf Matrix-matrix} operations
+\begin{lstlisting}
+>> B = [5, 6; 7, 8]
+>> C = A + B
+>> D = A*B
+\end{lstlisting}
+
+\vspace{2mm}
+
+{\bf Elementwise operation}
+\[
+z = x \sin(y)
+\]
+\begin{lstlisting}
+>> x = [1, 2, 3, 4]
+>> y = [5, 6, 7, 8]
+>> z = x .* sin(y)
+\end{lstlisting}
+
+A more complicated example
+\[
+z = \frac{x^2 \sin(y)}{\cos(x+y)}
+\]
+
+\begin{lstlisting}
+>> z = x.^2 .* sin(y) ./ cos(x+y)
+\end{lstlisting}
+
+Multiply matrices element-wise
+\begin{lstlisting}
+>> E = A .* B
+\end{lstlisting}
+{\tt A} and {\tt B} must have same size
+
+{\bf Zero vector/matrix}
+\begin{lstlisting}
+>> x = zeros(4,1)
+>> A = zeros(3,3)
+\end{lstlisting}
+
+{\bf Ones vector/matrix}
+\begin{lstlisting}
+>> x = ones(4,1)
+>> A = ones(3,3)
+\end{lstlisting}
+
+{\bf Identity matrix}
+\begin{lstlisting}
+>> A = eye(4)
+\end{lstlisting}
+
+{\bf Random vector/matrix}
+\begin{lstlisting}
+>> x = rand(1,3)
+>> A = rand(3,2)
+\end{lstlisting}
+
+{\bf Documentation}
+\begin{lstlisting}
+>> help rand
+\end{lstlisting}
+
+%-------------------------------------------------------------------------------------
+\begin{frame}[allowframebreaks,fragile]
+\frametitle{Plotting}
+Making a uniform grid
+\begin{lstlisting}
+>> x = linspace(0, 2*pi, 10)
+>> y = sin(x)
+\end{lstlisting}
+
+Plot a line graph
+\begin{lstlisting}
+>> plot(x, y, '-')
+\end{lstlisting}
+
+Plot a symbol graph
+\begin{lstlisting}
+>> plot(x, y, 'o')
+\end{lstlisting}
+
+Plot a line and symbol graph
+\begin{lstlisting}
+>> plot(x, y, 'o-')
+\end{lstlisting}
+
+\newpage 
+
+Multiple graphs
+\begin{lstlisting}
+>> x = linspace(0, 2*pi, 100);
+>> y = sin(x);
+>> z = cos(x);
+>> plot(x, y, 'b-', x, z, 'r--')
+>> xlabel('x')
+>> ylabel('y,z')
+>> legend('x versus y', 'x versus z')
+>> title('x versus y and z')
+\end{lstlisting}
+
+\newpage
+
+Subplots
+\begin{lstlisting}
+>> x = linspace(0, 2*pi, 100);
+>> y = sin(x);
+>> z = cos(x);
+>> subplot(1,2,1)
+>> plot(x, y, 'b-')
+>> xlabel('x')
+>> ylabel('y')
+>> subplot(1,2,2)
+>> plot(x, z, 'r--')
+>> xlabel('x')
+>> ylabel('z')
+\end{lstlisting}
+
+For more, use {\tt help}
+\begin{lstlisting}
+>> help plot
+\end{lstlisting}
+
+\end{frame}
+%-------------------------------------------------------------------------------------
+\begin{frame}[allowframebreaks,fragile]
+\frametitle{Sparse matrices}
+Suppose the matrix $A$ has mostly zero entries
+\[
+A = \begin{bmatrix}
+0 & 1 & 0 \\
+0 & 0 & 2 \\
+3 & 0 & 0
+\end{bmatrix}
+\]
+Create a sparse matrix
+\begin{lstlisting}
+>> A = sparse(3,3)
+\end{lstlisting}
+
+Fill in non-zero entries
+\begin{lstlisting}
+>> A(1,2) = 1;
+>> A(2,3) = 2;
+>> A(3,1) = 3;
+\end{lstlisting}
+
+To get normal matrix
+\begin{lstlisting}
+>> full(A)
+\end{lstlisting}
+
+To convert normal matrix to full matrix
+\begin{lstlisting}
+>> sparse(A)
+\end{lstlisting}
+
+Sparse diagonal matrix
+\[
+A = \mbox{diag}[1, -2, 1] \in \re^{n \times n}
+\]
+\begin{lstlisting}
+>> n = 10;
+>> e = ones(n,1);
+>> A = spdiags([e, -2*e, e], -1:1, n, n);
+\end{lstlisting}
+
+Sparse identity matrix
+\begin{lstlisting}
+>> A = speye(5)
+\end{lstlisting}
+
+\end{frame}
+%-------------------------------------------------------------------------------------
+\begin{frame}[allowframebreaks,fragile]
+\frametitle{Eigenvalues and eigenvectors}
+
+\[
+A x = \lambda x
+\]
+
+\begin{lstlisting}
+>> A = rand(100,100);
+>> lambda = eig(A);
+>> plot(real(lambda), imag(lambda), 'o')
+\end{lstlisting}
+
+To get eigenvectors
+\begin{lstlisting}
+>> [V,D] = eig(A);
+\end{lstlisting}
+Columns of {\tt V} contain eigenvectors, 
+\[
+V = [e_1, e_2, \ldots, e_n] \in \re^{n \times n}, \qquad e_j \in \re^n
+\]
+{\tt D} is diagonal matrix with eigenvalues on the diagonal
+\[
+D = \mbox{diag}[\lambda_1, \lambda_2, \ldots, \lambda_n]
+\]
+\[
+Ae_j = \lambda_j e_j \qquad \Longrightarrow \qquad A V = V D
+\]
+{\bf Generalized eigenvalues/vectors}
+\[
+Ax = \lambda Bx
+\]
+\begin{lstlisting}
+>> A = rand(10,10);
+>> B = rand(10,10);
+>> lambda = eig(A,B);
+>> [V,D] = eig(A,B);
+\end{lstlisting}
+
+\vspace{2mm}
+
+{\bf Sparse matrices}\\
+For large, sparse matrices, we may want to find only few eigenvalues, e.g., those with largest magnitude.
+\begin{lstlisting}
+>> A = rand(10,10);
+>> lambda = eigs(A,2)
+\end{lstlisting}
+To get eigenvectors and eigenvalues
+\begin{lstlisting}
+>> [V,D] = eigs(A,2)
+\end{lstlisting}
+Similarly, to get generalized eigenvectors/values
+\begin{lstlisting}
+>> A = rand(10,10);
+>> B = rand(10,10);
+>> lambda = eigs(A,B,2)
+>> [V,D] = eigs(A,B,2)
+\end{lstlisting}
+
+If matrix is {\bf non-symmetric}, then we may want to compute eigenvalues with {\bf largest real part}
+\begin{lstlisting}
+>> lambda = eigs(A,B,2,'LR')
+>> [V,D] = eigs(A,B,2,'LR')
+\end{lstlisting}
+
+\end{frame}
+%-------------------------------------------------------------------------------------
+\begin{frame}[allowframebreaks,fragile]
+\frametitle{Numerical example: {\tt eigtest.m}}
+Compute eigenvalues and eigenfunctions
+\[
+-u''(x) = \lambda u(x), \qquad x \in (0,1)
+\]
+\[
+u(0) = u(1) = 0
+\]
+Exact eigenvalues and eigenfunctions
+\[
+u_n(x) = \sin(n\pi x), \qquad \lambda_n = \pi^2 n^2, \qquad n=1,2,\ldots
+\]
+Use finite difference method: form a grid
+\[
+0 = x_0 < x_1 < x_2 < \ldots < x_{N+1} = 1, \qquad x_j - x_{j-1} = h = \frac{1}{N+1}
+\]
+\[
+- \frac{u_{j-1} - 2 u_j + u_{j+1}}{h^2} = \lambda u_j, \qquad j=1,2,\ldots,N
+\]
+\[
+u_0 = u_{N+1} = 0
+\]
+Define
+\[
+U = [u_1, u_2, \ldots, u_N]^\top, \qquad A = \mbox{diag}[-1, 2, -1] \in \re^{N \times N}
+\]
+then the finite difference approximation is
+\[
+AU = \lambda U
+\]
+
+{\bf Excercises}
+
+\begin{enumerate}
+
+\item Run {\tt eigtest.m}
+
+\item Compare numerical and exact eigenvalues/eigenfunctions\\
+(Eigenfunctions are exact at the grid points. Can you explain why ?)
+
+\item Replace the function {\tt eig} with {\tt eigs}; compute the 5 largest eigenvalues
+
+\end{enumerate}
+
+\end{frame}
+%-------------------------------------------------------------------------------------
+\begin{frame}[allowframebreaks,fragile]
+\frametitle{Solving an ODE using {\tt ode15s}}
+\[
+\dd{y}{t} = \mbox{fun}(t, y, a, b, c, \ldots)
+\]
+Write a matlab program {\tt fun.m} which computes right hand side
+\begin{lstlisting}
+function f = fun(t, y, a, b, c, ...)
+\end{lstlisting}
+\begin{center}
+\begin{tabular}{|c|l|}
+\hline
+{\tt tspan} & {\tt [T0, TFINAL]} or {\tt [T0, T1, ..., TFINAL]} \\
+\hline
+{\tt y0} & Initial condition $y({\tt T0})$ \\
+\hline
+\end{tabular}
+\end{center}
+
+Solve ode
+\begin{lstlisting}
+[t, Y] = ode15s(@fun, tspan, y0, a, b, c, ...)
+\end{lstlisting}
+
+\begin{center}
+{\tt Y(:,i)} = Solution at time {\tt t(i)}
+\end{center}
+
+\end{frame}
+%-------------------------------------------------------------------------------------
+\begin{frame}[allowframebreaks,fragile]
+\frametitle{Numerical example: {\tt odetest.m}}
+This program solves the inverted pendulum problem which we will study in next lecture.
+
+\vspace{2mm}
+
+{\bf Excercises}
+
+\begin{enumerate}
+
+\item Study the programs\\
+{\tt fbo.m, odetest.m}
+
+\item Run {\tt odetest.m}
+
+\item Implement a program to solve the linearized pendulum
+\[
+z = [z_1, z_2, z_3, z_4]^\top, \qquad \dd{z}{t} = Az
+\]
+where
+\[
+A =
+\]
+The values of parameters in $A$ are already set in program {\tt parameters.m}\\
+Use the same initial conditions as in {\tt odetest.m}
+\end{enumerate}
+
+\end{frame}
+%-------------------------------------------------------------------------------------
+\end{document}
