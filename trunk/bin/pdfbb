@@ -27,7 +27,12 @@ for pdf in "$@"
 do
    if [ -f $pdf ]
    then
-      base=`echo $pdf | cut -d'.' -f1`
+      #base=`echo $pdf | cut -d'.' -f1`
+      # Number of chars in filename
+      nc=`echo $pdf | wc -c`
+      # chop off .pdf part, need to subtract 5, why
+      ((nc = (nc - 5) ))
+      base=`echo $pdf | cut -c 1-$nc`
       echo "Clipping file $pdf"
       pdfcrop --clip $base.pdf > /dev/null
       mv $base-crop.pdf $base.pdf
