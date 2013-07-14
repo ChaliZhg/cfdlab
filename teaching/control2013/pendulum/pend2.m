@@ -5,6 +5,7 @@ parameters;
 [A,B] = get_system_matrices(m,M,k,d,I,g,l,alpha,beta);
 
 % Initial condition
+% x0 = [position of cart, velocity of cart, angle, angular speed]
 x0 = [0.5; 0.2; 0.4; 1];
 
 % Time interval and times at which solution desired

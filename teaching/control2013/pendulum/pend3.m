@@ -12,6 +12,7 @@ disp('Eigenvalues of A-B*K')
 eig(A-B*K)
 
 % Observation operator
+% we observe position of cart and angle of pendulum
 H = [1, 0, 0, 0;
      0, 0, 1, 0];
 

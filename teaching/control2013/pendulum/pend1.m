@@ -19,7 +19,7 @@ figure(2)
 plot(real(eo), imag(eo), 'o', real(L), imag(L), '*')
 grid on
 
-% Stabilize all
+% Stabilize all using LQR
 C = eye(4); 
 Q = C'*C;
 [X,L,K] = care(A, B, Q, 1);
@@ -27,7 +27,7 @@ figure(3)
 plot(real(eo), imag(eo), 'o', real(L), imag(L), '*')
 grid on
 
-% Stabilize only position and angle
+% Stabilize only position and angle using LQR
 C = [1 0 0 0; 
      0 0 1 0];
 Q = C'*C;
