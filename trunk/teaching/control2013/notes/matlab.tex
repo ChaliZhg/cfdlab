@@ -402,17 +402,25 @@ Fill in non-zero entries
 
 To get normal matrix
 \begin{lstlisting}
->> full(A)
+>> B = full(A)
 \end{lstlisting}
 
-To convert normal matrix to full matrix
+To convert normal matrix to sparse matrix
 \begin{lstlisting}
->> sparse(A)
+>> C = sparse(B)
 \end{lstlisting}
 
 Sparse diagonal matrix
 \[
-A = \mbox{diag}[1, -2, 1] \in \re^{n \times n}
+A = \mbox{diag}[1, -2, 1] = \begin{bmatrix}
+-2 & 1 & 0 & 0 & 0 & 0 \\
+1  & -2 & 1 & 0 & 0 & 0 \\
+0  & 1 & -2 & 1 & 0 & 0 \\
+0  & 0 & 1 & -2 & 1 & 0 \\
+0  & 0 & 0 & 1 & -2 & 1 \\
+0  & 0 & 0 & 0 & 1 & -2
+
+\end{bmatrix} \in \re^{n \times n}
 \]
 \begin{lstlisting}
 >> n = 10;
