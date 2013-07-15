@@ -5,17 +5,17 @@ function [M,A,B,Q,H] = get_matrices ( )
   nTri = size(elements3,1)
 
 
-  A = sparse ( nNodes, nNodes );
-  M = sparse ( nNodes, nNodes );
+  Af = sparse ( nNodes, nNodes );
+  Mf = sparse ( nNodes, nNodes );
 %
 %  Assembly.
 %
   for j = 1 : nTri
 %   Stiffness matrix
-    A(elements3(j,:),elements3(j,:)) = A(elements3(j,:),elements3(j,:)) ...
+    Af(elements3(j,:),elements3(j,:)) = Af(elements3(j,:),elements3(j,:)) ...
       + nu*stima3(coordinates(elements3(j,:),:));
 %   Mass matrix
-    M(elements3(j,:),elements3(j,:)) = M(elements3(j,:), elements3(j,:)) ...
+    Mf(elements3(j,:),elements3(j,:)) = Mf(elements3(j,:), elements3(j,:)) ...
        + det([1,1,1;coordinates(elements3(j,:),:)'])*[2,1,1;1,2,1;1,1,2]/24;
   end
 %
@@ -28,19 +28,16 @@ function [M,A,B,Q,H] = get_matrices ( )
 
   FreeNodes = setdiff ( 1:nNodes, BoundNodes );
 
-  B = -A(FreeNodes, ControlNodes);
-  A = -A(FreeNodes, FreeNodes);
-  M = M(FreeNodes, FreeNodes);
+  M = Mf(FreeNodes, FreeNodes);
+  A = -Af(FreeNodes, FreeNodes) + omega * M;
+  B = -Af(FreeNodes, ControlNodes) + omega * Mf(FreeNodes, ControlNodes);
+
+% One dimensional control u(y,t) = v(t) sin(pi*y)
+  B = B * sin(pi*coordinates(ControlNodes,2));
 
   nBoundNodes = size(BoundNodes,1)
   nFreeNodes = size(FreeNodes,2)
   nControlNodes = size(ControlNodes,1)
-
-% Add shift
-  A = A + omega * M;
-
-% One dimensional control u(y,t) = v(t) sin(pi*y)
-  B = B * sin(pi*coordinates(ControlNodes,2));
 
 % Compute eigenvalues and eigenfunctions
 % [V,D] = eigs(A, M, 5, 'LR');
