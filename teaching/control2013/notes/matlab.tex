@@ -170,7 +170,7 @@ A {\bf row vector}
 \end{lstlisting}
 Note that Matlab computed {\tt sin} on every element of the vector {\tt x}
 
-\vspace{2mm}
+\pagebreak
 
 A {\bf column vector}
 \begin{lstlisting}
@@ -204,7 +204,7 @@ Output {\tt y} inherits dimensions of input {\tt x}
 >> y = [5, 6, 7, 8]
 >> z = x + y
 \end{lstlisting}
-{\tt x} and {\tt y} must have same dimensions. This is wrong
+{\tt x} and {\tt y} must have same dimensions. The following is wrong
 \end{frame}
 \begin{lstlisting}
 >> x = [1, 2, 3, 4]
@@ -499,6 +499,10 @@ If matrix is {\bf non-symmetric}, then we may want to compute eigenvalues with {
 >> lambda = eigs(A,B,2,'LR')
 >> [V,D] = eigs(A,B,2,'LR')
 \end{lstlisting}
+Other options available are
+\begin{lstlisting}
+'SR', 'LI', 'SI'
+\end{lstlisting}
 
 \end{frame}
 %-------------------------------------------------------------------------------------
@@ -543,7 +547,7 @@ AU = \lambda U
 \item Compare numerical and exact eigenvalues/eigenfunctions\\
 (Eigenfunctions are exact at the grid points. Can you explain why ?)
 
-\item Replace the function {\tt eig} with {\tt eigs}; compute the 5 largest eigenvalues
+\item Replace the function {\tt eig} with {\tt eigs}; compute the 5 smallest eigenvalues
 
 \end{enumerate}
 
