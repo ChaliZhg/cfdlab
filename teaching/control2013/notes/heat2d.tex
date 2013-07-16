@@ -8,6 +8,7 @@
 \usepackage{amsmath}
 \usepackage{aliases}
 \usepackage{color}
+\usepackage{url}
 
 \usepackage{listings}
 \usepackage{cancel}
@@ -50,7 +51,7 @@
 %\subsection{}
 
 
-\section{The model}
+\section{The PDE model}
 Let $z = z(x,y,t)$ denote the temperature. 
 The shifted 2-D heat equation is given by
 \[
@@ -127,7 +128,7 @@ Consider a division of $\Omega$ into disjoint triangles as shown in figure~(xxx)
 \begin{eqnarray*}
 N_c &=& \mbox{vertices on $\Gamma_c$} \\
 N_d &=& \mbox{vertices on } \{y=0\} \cup \{y=1\} \\
-N_f &=& \mbox{remaining vertices}
+N_f &=& \mbox{remaining vertices (unknown degrees of freedom)}
 \end{eqnarray*}
 For each vertex $i$, define the piecewise affine functions $\phi_i(x,y)$ with the property that
 \[
@@ -163,14 +164,18 @@ In order to simplify the presentation we will ignore the term containing $\dd{v}
 &=&  \sum_{j \in N_f} z_j \left[ -\mu\int_\Omega \nabla \phi_j \cdot \nabla \phi_i + \alpha \int_\Omega \phi_j \phi_i \right] \\
 && v \sum_{j \in N_c} \left[ - \mu  \sin(\pi y_j) \int_\Omega \nabla \phi_j \cdot \nabla \phi_i + \alpha\sin(\pi y_j) \int_\Omega \phi_j \phi_i \right] \qquad \forall i \in N_f
 \end{eqnarray*}
-This can be written as a system of differential equations
+This can be written as a system of ordinary differential equations
 \[
  \M \dd{\z}{t} = \A \z + \B v
 \]
-
+where $\z$ denotes all the unknown degrees of freedom in the set $N_f$.
 %-----------------------------------------------------------------
 \subsection{Finite element assembly}
-The finite element basis functions have compact support. Hence we can compute the integrals by adding the contributions from a small number of triangles. For example, the elements of the mass matrix can be computed as
+The finite element basis functions have compact support. Hence we can compute the integrals 
+\[
+\int_\Omega \phi_i \phi_j \qquad \mbox{and} \qquad \int_\Omega \nabla \phi_i \cdot \nabla \phi_j
+\]
+by adding the contributions from a small number of triangles. For example, the elements of the mass matrix can be computed as
 \[
 \int_\Omega \phi_i \phi_j = \sum_{K \ : \ i, j \in K} \int_K \phi_i \phi_j
 \]
@@ -211,7 +216,21 @@ y_1 & y_2 & y_3
 0 & 1
 \end{bmatrix}
 \]
+The numerical process can be summarized by the following algorithm:
 
+\vspace{2mm}
+\noindent
+Set $\M=0$, $\A=0$.\\
+For each triangle $K$ in the mesh
+\begin{itemize}
+\item Compute $M^K$ and $A^K$
+\item Add the contributions from $M^K$ into $\M$ and from $A^K$ into $\A$
+\end{itemize}
+More details on the assembly process can be found in this paper
+
+\vspace{2mm}\noindent
+Jochen Alberty, Carsten Carstensen and Stefan A. Funken: ``Remarks around 50 lines of Matlab: short finite element implementation", Numerical Algorithms 20 (1999) 117Ð-137\\
+\url{http://math.tifrbng.res.in/~praveen/notes/control2013/acf.pdf}
 %-----------------------------------------------------------------
 \subsection{Computing the observation}
 We will assume that the intervals $[a_i, b_i]$ on which the observation is computed is exactly covered by the edges of the finite element mesh. Let $E_i$ denote the edges on $[a_i,b_i]$
@@ -230,9 +249,9 @@ The observation zones are defined by the following parameters
 \hline
 Value/$i$ & 1 & 2 & 3 \\
 \hline
-$a$ & 0.20 & 0.50 & 0.80 \\
+$a_i$ & 0.20 & 0.50 & 0.80 \\
 \hline
-$b$ & 0.25 & 0.55 & 0.85 \\
+$b_i$ & 0.25 & 0.55 & 0.85 \\
 \hline
 \end{tabular}
 \end{center}
@@ -249,7 +268,7 @@ The grid information consists of following files
 \item {\tt neumann.dat}: contains boundary edges on the neumann boundary
 
 \end{itemize}
-An example of this type of data is given in figures~(\ref{fig:fem501}),~(\ref{fig:fem502}).
+An example of this type of data is given in figures~(\ref{fig:fem501}),~(\ref{fig:fem502}). In each file, the first column is the serial number.
 \begin{figure}
 \begin{center}
 \includegraphics[width=0.7\textwidth]{fem50_1}
@@ -276,7 +295,10 @@ The domain $\Omega$ is the unit square. The program {\tt square.m} generates the
 \begin{lstlisting}
 >> square(11)
 \end{lstlisting}
-When you run the above program, you can see the mesh being plotted. Examine the four files created by this program. For out actual computations, we will use 101 points on each side of the square. In this case, there are 5 edges which exactly cover each of the three observation zones.
+When you run the above program, you can see a picture of the mesh. Examine the four files created by this program. For our actual computations, we will use 101 points on each side of the square. In this case, there are 5 edges which exactly cover each of the three observation zones.
+%-----------------------------------------------------------------
+\section{Excercises}
+
 %-----------------------------------------------------------------
 
 \end{document}  
