@@ -100,6 +100,8 @@ y_i(t) = \frac{1}{b_i - a_i} \int_{a_i}^{b_i} z(0,y,t) \ud y
 \caption{Observations}
 \end{center}
 \end{figure}
+\noindent
+{\bf Note}: Do not confuse the observation $y_i$ with the spatial coordinate $y$.
 %------------------------------------------------------------------------------
 \subsection{Weak formulation}
 We assume $z_0 \in L^2(\Omega)$. We wish to find $z \in L^2(0,T;H^1(\Omega))$ such that
@@ -222,9 +224,59 @@ The set of observations can be written as
 \[
 \y = \bH \z
 \]
+The observation zones are defined by the following parameters
+\begin{center}
+\begin{tabular}{|c|c|c|c|}
+\hline
+Value/$i$ & 1 & 2 & 3 \\
+\hline
+$a$ & 0.20 & 0.50 & 0.80 \\
+\hline
+$b$ & 0.25 & 0.55 & 0.85 \\
+\hline
+\end{tabular}
+\end{center}
 %-----------------------------------------------------------------
 \subsection{Grid information}
+The grid information consists of following files
+\begin{itemize}
+\item {\tt coordinates.dat}: contains $x,y$ coordinates of all the vertices
 
+\item {\tt elements3.dat}: contains verices forming each triangle
+
+\item {\tt dirichlet.dat}: contains boundary edges on the dirichlet boundary
+
+\item {\tt neumann.dat}: contains boundary edges on the neumann boundary
+
+\end{itemize}
+An example of this type of data is given in figures~(\ref{fig:fem501}),~(\ref{fig:fem502}).
+\begin{figure}
+\begin{center}
+\includegraphics[width=0.7\textwidth]{fem50_1}
+\caption{Example of a mesh}
+\label{fig:fem501}
+\end{center}
+\end{figure}
+
+\begin{figure}
+\begin{center}
+\includegraphics[width=0.5\textwidth]{fem50_2}
+\includegraphics[width=0.6\textwidth]{fem50_4}
+\caption{Structure of mesh files}
+\label{fig:fem502}
+\end{center}
+\end{figure}
+
+\begin{center}
+{\bf Note: In our current programs we use a mesh consisting of only triangles. \\
+Also, the serial numbers are not stored in the files. }
+\end{center}
+
+The domain $\Omega$ is the unit square. The program {\tt square.m} generates the mesh and creates the above four files. You have to specify the number of vertices on the side of the square. E.g., to have 11 points on each side, you do the following in matlab
+\begin{lstlisting}
+>> square(11)
+\end{lstlisting}
+When you run the above program, you can see the mesh being plotted. Examine the four files created by this program. For out actual computations, we will use 101 points on each side of the square. In this case, there are 5 edges which exactly cover each of the three observation zones.
 %-----------------------------------------------------------------
 
 \end{document}  
