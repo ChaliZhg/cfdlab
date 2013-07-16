@@ -131,6 +131,12 @@ For each vertex $i$, define the piecewise affine functions $\phi_i(x,y)$ with th
 \[
 \phi_i(x_j, y_j) = \delta_{ij}
 \]
+\begin{figure}
+\begin{center}
+\includegraphics[width=0.5\textwidth]{tria_basis}
+\caption{Piecewise affine basis functions}
+\end{center}
+\end{figure}
 We will take the control to be of the form
 \[
 u(y,t) = v(t) \sin(\pi y)
@@ -170,12 +176,55 @@ and similarly the stiffness matrix is computed as
 \[
 \int_\Omega \nabla \phi_i \cdot \nabla \phi_j = \sum_{K \ : \ i, j \in K} \int_K \nabla \phi_i \cdot \nabla \phi_j
 \]
-The integrals on each triangle $K$ will be evaluated exactly. For a triangle $K$ with vertices labelled 1, 2, 3, the local mass and stiffness matrices are given by
+The integrals on each triangle $K$ will be evaluated exactly. For a triangle $K$ with vertices labelled 1, 2, 3 as in figure~(\ref{fig:tria}), the local mass and stiffness matrices are given by
 \[
-M_K =
+M^K = \frac{1}{24} \mbox{det}\begin{bmatrix}
+x_2 - x_1 & x_3 - x_1 \\
+y_2 - y_1 & y_3 - y_1
+\end{bmatrix} \begin{bmatrix}
+2 & 1 & 1 \\
+1 & 2 & 1 \\
+1 & 1 & 2
+\end{bmatrix}
 \]
+\begin{figure}
+\begin{center}
+\includegraphics[width=0.3\textwidth]{tria}
+\caption{Triangle}
+\label{fig:tria}
+\end{center}
+\end{figure}
+\[
+A^K = \half \mbox{det}\begin{bmatrix}
+1 & 1 & 1 \\
+x_1 & x_2 & x_3 \\
+y_1 & y_2 & y_3
+\end{bmatrix} G G^\top \qquad\textrm{where}\qquad G = \begin{bmatrix}
+1 &  1 & 1\\
+x_1 & x_2 & x_3 \\
+y_1 & y_2 & y_3
+\end{bmatrix}^{-1} \begin{bmatrix}
+0 & 0 \\
+1 & 0 \\
+0 & 1
+\end{bmatrix}
+\]
+
 %-----------------------------------------------------------------
 \subsection{Computing the observation}
+We will assume that the intervals $[a_i, b_i]$ on which the observation is computed is exactly covered by the edges of the finite element mesh. Let $E_i$ denote the edges on $[a_i,b_i]$
+\begin{eqnarray*}
+y_i &=& \frac{1}{b_i-a_i} \int_{a_i}^{b_i} z(0,y,t) \ud y \\
+&=& \frac{1}{b_i-a_i} \sum_{e \in E_i} \int_e z(0,y,t) \ud y \\
+&=& \frac{1}{b_i-a_i} \sum_{e \in E_i} \half (z_{e_1} + z_{e_2}) |e|
+\end{eqnarray*}
+The set of observations can be written as
+\[
+\y = \bH \z
+\]
+%-----------------------------------------------------------------
+\subsection{Grid information}
+
 %-----------------------------------------------------------------
 
 \end{document}  
