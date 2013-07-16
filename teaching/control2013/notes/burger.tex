@@ -1,0 +1,77 @@
+\documentclass[12pt]{article}
+\usepackage[width=16cm]{geometry}                % See geometry.pdf to learn the layout options. There are lots.
+\geometry{letterpaper}                   % ... or a4paper or a5paper or ... 
+%\geometry{landscape}                % Activate for for rotated page geometry
+%\usepackage[parfill]{parskip}    % Activate to begin paragraphs with an empty line rather than an indent
+\usepackage{graphicx}
+\usepackage{amssymb}
+\usepackage{amsmath}
+\usepackage{aliases}
+\usepackage{color}
+
+\usepackage{listings}
+\usepackage{cancel}
+\usepackage{textcomp}
+
+\lstset{
+   language=matlab,
+   keywordstyle=\bfseries\ttfamily\color[rgb]{0,0,1},
+   identifierstyle=\ttfamily,
+   commentstyle=\color[rgb]{0.133,0.545,0.133},
+   stringstyle=\ttfamily\color[rgb]{0.627,0.126,0.941},
+   showstringspaces=false,
+   basicstyle=\small,
+   numberstyle=\footnotesize,
+   numbers=none,
+   stepnumber=1,
+   numbersep=10pt,
+   tabsize=2,
+   breaklines=true,
+   prebreak = \raisebox{0ex}[0ex][0ex]{\ensuremath{\hookleftarrow}},
+   breakatwhitespace=false,
+   aboveskip={0.1\baselineskip},
+    columns=fixed,
+    upquote=true,
+    extendedchars=true,
+% frame=single,
+    backgroundcolor=\color[rgb]{0.9,0.9,0.9}
+}
+
+\title{1-D Burger's equation}
+\author{Praveen. C, Deep Ray, Jean-Pierre Raymond}
+%\date{}                                           % Activate to display a given date or no date
+
+\begin{document}
+
+
+
+\maketitle
+%\section{}
+%\subsection{}
+
+
+\section{Non-linear Burger's equation with linear estimator}
+\begin{eqnarray*}
+\df{w}{t} + w \df{w}{x} &=& \mu \df{^2 w}{x^2} \\
+w(0,t) &=& u_s + u(t) \\
+\df{w}{x}(1,t) &=& g_s \\
+w(x,0) &=& w_s(x) + w'(x)
+\end{eqnarray*}
+The linear estimator is
+\begin{eqnarray*}
+\df{z_e}{t} + w_s \df{z_e}{x} + z_e \dd{w_s}{x} &=& \mu \df{^2 z_e}{x^2} + L(y_o - Hz_e) \\
+z_e(0,t) &=& u(t) \\
+\df{z_e}{x}(1,t) &=& 0 \\
+z_e(x,0) &=& 0
+\end{eqnarray*}
+The feedback control is given by
+\[
+u(t) = -K z_e(t)
+\]
+and the observation is
+\[
+y_o(t) = H(w(t) - w_s) = w(1,t) - w_s(1)
+\]
+%-----------------------------------------------------------------
+
+\end{document}  
