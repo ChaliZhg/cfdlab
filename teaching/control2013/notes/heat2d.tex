@@ -236,7 +236,7 @@ Jochen Alberty, Carsten Carstensen and Stefan A. Funken: ``Remarks around 50 lin
 \begin{figure}
 \begin{center}
 \includegraphics[width=0.8\textwidth]{heat2d_obs_mesh}
-\caption{Triangular mesh with 100 edges on each side; see the first observation zone  $\{x=0, 0.2 \le y \le 0.25\}$ exactly covered by five boundary edges}
+\caption{Triangular mesh with 100 edges on each side. The figure shows a zoomed view near the left boundary. Notice that the first observation zone  $\{x=0, 0.2 \le y \le 0.25\}$ is exactly covered by five boundary edges.}
 \label{fig:heatobsmesh}
 \end{center}
 \end{figure}
@@ -303,12 +303,12 @@ The domain $\Omega$ is the unit square. The program {\tt square.m} generates the
 >> square(11)
 \end{lstlisting}
 When you run the above program, you can see a picture of the mesh. Examine the four files created by this program. For our actual computations, we will use 101 points on each side of the square. In this case, there are 5 edges which exactly cover each of the three observation zones.
-%-----------------------------------------------------------------
-\section{Estimation and feedback control}
+
 %-----------------------------------------------------------------
 \section{List of matlab programs}
+The programs are under the directory {\tt heat\_2d}
 %-----------------------------------------------------------------
-\section{Excercises}
+\section{Parameters and initial condition}
 Let us take
 \[
 \mu = \frac{1}{50}, \qquad \omega = 0.4
@@ -321,7 +321,6 @@ The corresponding eigenfunction is
 \[
 \phi(x,y) = \cos(\pi x/2) \sin(\pi y)
 \]
-which is shown in figure~(\ref{fig:initcond}).
 \begin{figure}
 \begin{center}
 \includegraphics[width=0.9\textwidth]{heat2d_initcond}
@@ -329,6 +328,23 @@ which is shown in figure~(\ref{fig:initcond}).
 \label{fig:initcond}
 \end{center}
 \end{figure}
+which is shown in figure~(\ref{fig:initcond}). We will use the unstable eigenfunction as the initial condition for the heat equation. This initial condition satisfies the following boundary conditions
+\[
+\phi(x,0) = \phi(x,1) = \phi(1,y) = 0, \qquad \phi_x(0,y) = 0
+\]
+%-----------------------------------------------------------------
+\section{Excercises}
+\begin{enumerate}
+
+\item The value of $\omega$ is set in the file {\tt parameters.m}. Set $\omega=0$ and run the program. Observe that the energy is decreasing with time.
+
+\item Set $\omega=0.4$ and run the program. Observe that the energy is increasing with time.
+
+\end{enumerate}
+%-----------------------------------------------------------------
+\section{Estimation and feedback control}
+%-----------------------------------------------------------------
+\section{Excercises}
 %-----------------------------------------------------------------
 
 \end{document}  
