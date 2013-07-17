@@ -22,37 +22,40 @@ function fem_50 ( )
 % show ( elements3, coordinates, full ( ef ) );
 % pause(2)
 
-  Z = sparse ( nNodes, 1 );        % Complete solution
-  z = sparse ( nFreeNodes, 1 );    % Interior solution
-  u = sparse ( nControlNodes, 1 ); % Control vector
+  za = sparse ( nNodes, 1 );        % Complete solution
+  z  = sparse ( nFreeNodes, 1 );    % Interior solution
+  u  = sparse ( nControlNodes, 1 ); % Control vector
 
   dt = 0.01;
   Nt = 100;
   A1 = M - dt*A;
-  Z(:)= -cos(pi*coordinates(:,1)) .* sin(pi*coordinates(:,2));
-  z(:) = Z(FreeNodes);
-  u(:) = Z(ControlNodes);
+  za(:)= -cos(pi*coordinates(:,1)) .* sin(pi*coordinates(:,2));
+  z(:) = za(FreeNodes);
+  u(:) = za(ControlNodes);
   v    = 1;
-  show ( elements3, coordinates, full ( Z ) );
+  show ( elements3, coordinates, full(za) );
   pause(2)
 
 % Time loop
   t = 0;
   for it = 1:Nt
+     norm(z'*M*z)
      z = A1 \ (M*z + dt*B*v);
      t = t + dt;
-     Z(FreeNodes) = z;
-     Z(ControlNodes) = v*u;
-     if mod(it,10) == 0
-      show ( elements3, coordinates, full ( Z ) );
-      pause(1)
-     end
+     za(FreeNodes) = z;
+     za(ControlNodes) = v*u;
      y = H*z;
      fprintf(1,'Time = %e %e %e %e\n', t, y(1), y(2), y(3))
+     if mod(it,10) == 0
+      energy = z'*M*z;
+      fprintf(1,'Energy = %e\n', energy)
+      show ( elements3, coordinates, full(za) );
+      pause(1)
+     end
   end
 %
 %  Graphic representation.
 %
-  show ( elements3, coordinates, full ( Z ) );
+  show ( elements3, coordinates, full (za) );
 
 end
