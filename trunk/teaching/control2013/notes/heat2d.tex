@@ -55,7 +55,7 @@
 Let $z = z(x,y,t)$ denote the temperature. 
 The shifted 2-D heat equation is given by
 \[
-z_t = \mu \Delta z + \alpha z, \quad (x,y) \in \Omega = (0,1) \times (0,1), \qquad t \in  [0,T]
+z_t = \mu \Delta z + \omega z, \quad (x,y) \in \Omega = (0,1) \times (0,1), \qquad t \in  [0,T]
 \]
 with boundary conditions
 \[
@@ -65,7 +65,7 @@ and initial condition
 \[
 z(x,y,0) = z_0(x,y)
 \]
-Here $\alpha \ge 0$ and $\mu > 0$. Let us denote the Dirichlet part of the boundary by $\Gamma_D$
+Here $\omega \ge 0$ and $\mu > 0$. Let us denote the Dirichlet part of the boundary by $\Gamma_D$
 \[
 \Gamma_D = \{ y=0\} \cup \{ y=1\} \cup \{ x=1 \}
 \]
@@ -107,7 +107,7 @@ y_i(t) = \frac{1}{b_i - a_i} \int_{a_i}^{b_i} z(0,y,t) \ud y
 \subsection{Weak formulation}
 We assume $z_0 \in L^2(\Omega)$. We wish to find $z \in L^2(0,T;H^1(\Omega))$ such that
 \[
- \dd{}{t}(z(t), \phi)_{L^2} = - \mu \int_\Omega \nabla z \cdot \nabla \phi \ud x +  \alpha \int_\Omega z \phi \ud x, \quad \forall \phi \in H^1_{\Gamma_D}(\Omega)
+ \dd{}{t}(z(t), \phi)_{L^2} = - \mu \int_\Omega \nabla z \cdot \nabla \phi \ud x +  \omega \int_\Omega z \phi \ud x, \quad \forall \phi \in H^1_{\Gamma_D}(\Omega)
 \]
 \[
 z(x,0,t) = z(x,1,t) = 0, \quad z(1,y,t) = u(y,t)
@@ -150,19 +150,19 @@ z(x,y,t) = \sum_{j \in N_f} z_j(t) \phi_j(x,y) + v(t) \sum_{j \in N_c} \sin(\pi 
 \]
 The approximate weak formulation is given as
 \[
- \dd{}{t}(z(t), \phi_i)_{L^2} = - \mu \int_\Omega \nabla z \cdot \nabla \phi_i \ud x +  \alpha \int_\Omega z \phi_i \ud x, \quad \forall i \in N_f
+ \dd{}{t}(z(t), \phi_i)_{L^2} = - \mu \int_\Omega \nabla z \cdot \nabla \phi_i \ud x +  \omega \int_\Omega z \phi_i \ud x, \quad \forall i \in N_f
 \]
 i.e.,
 \begin{eqnarray*}
 && \sum_{j \in N_f} \dd{z_j}{t} \int_\Omega \phi_j \phi_i + \dd{v}{t} \sum_{j \in N_c} \sin(\pi y_j) \int_\Omega \phi_j \phi_i \\
 &=& -\mu \sum_{j \in N_f} z_j \int_\Omega \nabla \phi_j \cdot \nabla \phi_i - \mu v \sum_{j \in N_c} \sin(\pi y_j) \int_\Omega \nabla \phi_j \cdot \nabla \phi_i \\
-&& + \alpha \sum_{j \in N_f} z_j \int_\Omega \phi_j \phi_i + \alpha v \sum_{j \in N_c} \sin(\pi y_j) \int_\Omega \phi_j \phi_i, \qquad \forall i \in N_f
+&& + \omega \sum_{j \in N_f} z_j \int_\Omega \phi_j \phi_i + \omega v \sum_{j \in N_c} \sin(\pi y_j) \int_\Omega \phi_j \phi_i, \qquad \forall i \in N_f
 \end{eqnarray*}
 In order to simplify the presentation we will ignore the term containing $\dd{v}{t}$\footnote{This term vanishes if we use the trapezoidal rule for integration.} and then we can write the FEM formulation as
 \begin{eqnarray*}
 && \sum_{j \in N_f} \dd{z_j}{t} \int_\Omega \phi_j \phi_i \\
-&=&  \sum_{j \in N_f} z_j \left[ -\mu\int_\Omega \nabla \phi_j \cdot \nabla \phi_i + \alpha \int_\Omega \phi_j \phi_i \right] \\
-&& v \sum_{j \in N_c} \left[ - \mu  \sin(\pi y_j) \int_\Omega \nabla \phi_j \cdot \nabla \phi_i + \alpha\sin(\pi y_j) \int_\Omega \phi_j \phi_i \right] \qquad \forall i \in N_f
+&=&  \sum_{j \in N_f} z_j \left[ -\mu\int_\Omega \nabla \phi_j \cdot \nabla \phi_i + \omega \int_\Omega \phi_j \phi_i \right] \\
+&& v \sum_{j \in N_c} \left[ - \mu  \sin(\pi y_j) \int_\Omega \nabla \phi_j \cdot \nabla \phi_i + \omega\sin(\pi y_j) \int_\Omega \phi_j \phi_i \right] \qquad \forall i \in N_f
 \end{eqnarray*}
 This can be written as a system of ordinary differential equations
 \[
@@ -233,6 +233,13 @@ Jochen Alberty, Carsten Carstensen and Stefan A. Funken: ``Remarks around 50 lin
 \url{http://math.tifrbng.res.in/~praveen/notes/control2013/acf.pdf}
 %-----------------------------------------------------------------
 \subsection{Computing the observation}
+\begin{figure}
+\begin{center}
+\includegraphics[width=0.8\textwidth]{heat2d_obs_mesh}
+\caption{Triangular mesh with 100 edges on each side; see the first observation zone  $\{x=0, 0.2 \le y \le 0.25\}$ exactly covered by five boundary edges}
+\label{fig:heatobsmesh}
+\end{center}
+\end{figure}
 We will assume that the intervals $[a_i, b_i]$ on which the observation is computed is exactly covered by the edges of the finite element mesh. Let $E_i$ denote the edges on $[a_i,b_i]$
 \begin{eqnarray*}
 y_i &=& \frac{1}{b_i-a_i} \int_{a_i}^{b_i} z(0,y,t) \ud y \\
@@ -304,11 +311,15 @@ When you run the above program, you can see a picture of the mesh. Examine the f
 \section{Excercises}
 Let us take
 \[
-\mu = \frac{1}{50}, \qquad \omega = 0.1
+\mu = \frac{1}{50}, \qquad \omega = 0.4
 \]
 Then the heat equation has one unstable eigenvalue given by
 \[
-\lambda = -\frac{\pi^2}{40} + \omega =
+\lambda = -\frac{\pi^2}{40} + \omega = 0.015325988997
+\]
+The corresponding eigenfunction is
+\[
+\phi(x,y) = \cos(\pi x/2) \sin(\pi y)
 \]
 %-----------------------------------------------------------------
 

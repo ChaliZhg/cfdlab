@@ -29,30 +29,38 @@ function fem_50 ( )
   dt = 0.01;
   Nt = 100;
   A1 = M - dt*A;
-  za(:)= -cos(pi*coordinates(:,1)) .* sin(pi*coordinates(:,2));
+  za(:)= -cos(0.5*pi*coordinates(:,1)) .* sin(pi*coordinates(:,2));
   z(:) = za(FreeNodes);
   u(:) = za(ControlNodes);
-  v    = 1;
+  v    = 0;
   show ( elements3, coordinates, full(za) );
   pause(2)
 
 % Time loop
   t = 0;
+  energy = zeros(Nt,1);
+  time = zeros(Nt,1);
   for it = 1:Nt
      z = A1 \ (M*z + dt*B*v);
      t = t + dt;
      za(FreeNodes) = z;
      za(ControlNodes) = v*u;
+     time(it) = t;
+     energy(it) = z'*M*z;
      y = H*z;
-     fprintf(1,'Time = %e, Energy = %e, Obs = %e %e %e\n', t, z'*M*z, y(1), y(2), y(3))
+     fprintf(1,'Time = %e, Energy = %e, Obs = %e %e %e\n', ...
+             t, energy(it), y(1), y(2), y(3))
      if mod(it,10) == 0
       show ( elements3, coordinates, full(za) );
       pause(1)
      end
   end
-%
-%  Graphic representation.
-%
-  show ( elements3, coordinates, full (za) );
+  show ( elements3, coordinates, full(za) );
+
+  % Plot energy
+  figure(10)
+  semilogy(time, energy)
+  xlabel('Time')
+  ylabel('Energy')
 
 end
