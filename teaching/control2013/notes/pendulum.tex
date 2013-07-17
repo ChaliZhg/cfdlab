@@ -121,7 +121,18 @@ where $u$ is the voltage in the motor driving the cart, and the second term repr
 The numerical solution of this model is implemented in program {\tt nlp.m}
 %--------------------------------------------------------------------------------
 \paragraph{Excercises}
-The pendulum has two equilibrium positions, one upright and another in the down position.
+The matlab programs are in the directory {\tt pendulum}; go into this directory and start matlab. E.g.,
+\begin{lstlisting}
+cd control2013/pendulum
+matlab
+\end{lstlisting}
+If you have started matlab through some other way, then change the directory inside matlab
+\begin{lstlisting}
+>> cd <Full path to>/control2013/pendulum
+\end{lstlisting}
+Or use the matlab gui to change the working directory.
+
+The pendulum has two equilibrium positions, one upright ($\theta=0$) and another in the down position ($\theta=\pi$).
 \begin{enumerate}
 \item Solve the non-linear pendulum problem with initial condition close to upright position 
 \[
@@ -129,7 +140,7 @@ z(0) = \begin{bmatrix} 0, 0, \frac{5\pi}{180}, 0 \end{bmatrix}
 \]
 and final time $T=100$. Is the upright position stable ? What happens to the four variables ? Interpret the solution in physical terms.
 
-\item Solve the non-linear pendulum problem with initial condition 
+\item Solve the non-linear pendulum problem with initial condition close to downward position
 \[
 z(0) = \begin{bmatrix} 0, 0, \frac{170\pi}{180}, 0 \end{bmatrix}
 \]
@@ -198,11 +209,11 @@ B^\top V \ne 0
 \]
 If the above condition is true for each unstable eigenvalue, i.e., with $\mbox{real}(\lambda) > 0$, then the system is stabilizable.
 
-\item Solve linear model with initial condition 
+\item Solve linear model ({\tt lp.m}) with initial condition 
 \[
 z(0) = \begin{bmatrix} 0, 0, \frac{5\pi}{180}, 0 \end{bmatrix}
 \]
-upto a final time of $T=1$. Compare this solution with solution of non-linear model.
+upto a final time of $T=5$. Compare this solution with solution of non-linear model.
 
 \end{enumerate}
 %--------------------------------------------------------------------------------
@@ -306,8 +317,11 @@ CA^3
 \end{bmatrix}
 \]
 
-\item Compute $K$ using {\tt lqr} function
+\item Compute feedback operator $K$ using {\tt lqr} function. We will control position and angle.
 \begin{lstlisting}
+C = [1 0 0 0; 0 0 1 0];
+Q = C'*C;
+R = 1;
 [K,S,E] = lqr(A, B, Q, R);
 plot(real(E), imag(E), 'o')
 \end{lstlisting}
