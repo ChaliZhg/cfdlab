@@ -89,11 +89,11 @@ and the part on which the control is applied as
 \subsection{Observations}
 We will measure an average value of the temperature on strips along the left vertical boundary
 \[
-I_i = [a_i, b_i]
+I_i = [a_i, b_i], \qquad i=1,2,3
 \]
 as shown in figure~(\ref{fig:obs}). Thus the observations are
 \begin{equation}
-y_i(t) = \frac{1}{b_i - a_i} \int_{a_i}^{b_i} z(0,y,t) \ud y
+y_i(t) = \frac{1}{b_i - a_i} \int_{a_i}^{b_i} z(0,y,t) \ud y, \qquad i=1,2,3
 \end{equation}
 
 \begin{figure}
@@ -246,7 +246,7 @@ Jochen Alberty, Carsten Carstensen and Stefan A. Funken: ``Remarks around 50 lin
 \end{figure}
 We will assume that the intervals $[a_i, b_i]$ on which the observation is computed is exactly covered by the edges of the finite element mesh, see figure~(\ref{fig:heatobsmesh}). Let $E_i$ denote the edges on $[a_i,b_i]$. Then
 \begin{eqnarray*}
-y_i &=& \frac{1}{b_i-a_i} \int_{a_i}^{b_i} z(0,y,t) \ud y \\
+y_i &=& \frac{1}{b_i-a_i} \int_{a_i}^{b_i} z(0,y,t) \ud y, \qquad i=1,2,3 \\
 &=& \frac{1}{b_i-a_i} \sum_{e \in E_i} \int_e z(0,y,t) \ud y \\
 &=& \frac{1}{b_i-a_i} \sum_{e \in E_i} \half (z_{e_1} + z_{e_2}) |e|
 \end{eqnarray*}
@@ -282,7 +282,7 @@ The grid information consists of following files
 An example of this type of data is given in figures~(\ref{fig:fem501}),~(\ref{fig:fem502}). In each file, the first column is the serial number.
 \begin{figure}
 \begin{center}
-\includegraphics[width=0.7\textwidth]{fem50_1}
+\includegraphics[width=0.8\textwidth]{fem50_1}
 \caption{Example of a mesh}
 \label{fig:fem501}
 \end{center}
@@ -337,17 +337,17 @@ which is shown in figure~(\ref{fig:initcond}). We will use the unstable eigenfun
 \phi(x,0) = \phi(x,1) = \phi(1,y) = 0, \qquad \phi_x(0,y) = 0
 \]
 %-----------------------------------------------------------------
-\section{Excercises}
+\section{Excercises I}
 
 \begin{enumerate}
 
 \item Generate the mesh by running the {\tt square} program and use 101 points on each side of the square.
 
-\item The value of $\omega$ is set in the file {\tt parameters.m}. Set $\omega=0$ and calculate the eigenvalue with largest real part using {\tt eigs} function. Is this eigenvalue stable or unstable ?
+\item The value of $\omega$ is set in the file {\tt parameters.m}. Set $\omega=0$ and calculate five eigenvalues with largest real part using {\tt eigs} function. Is there an  unstable eigenvalue ?
 
 \item With $\omega=0$, run the program. Observe that the energy is decreasing with time. The energy is plotted with linear scale for time and log scale for energy. The straight line behaviour indicates that the energy is decaying exponentially wrt time.
 
-\item Set $\omega=0.4$ and caculate the eigenvalue with largest real part using {\tt eigs} function. Compare it with exact eigenvalue given above.
+\item Set $\omega=0.4$ and caculate five eigenvalues with largest real part using {\tt eigs} function. Is there an unstable eigenvalue ? Compare it with exact unstable eigenvalue given above.
 
 \item With $\omega=0.4$, run the program. Observe that the energy is increasing exponentially with time.
 
@@ -355,7 +355,7 @@ which is shown in figure~(\ref{fig:initcond}). We will use the unstable eigenfun
 %-----------------------------------------------------------------
 \section{Estimation and feedback control}
 %-----------------------------------------------------------------
-\section{Excercises}
+\section{Excercises II}
 %-----------------------------------------------------------------
 
 \end{document}  
