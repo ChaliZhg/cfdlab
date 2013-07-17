@@ -39,16 +39,13 @@ function fem_50 ( )
 % Time loop
   t = 0;
   for it = 1:Nt
-     norm(z'*M*z)
      z = A1 \ (M*z + dt*B*v);
      t = t + dt;
      za(FreeNodes) = z;
      za(ControlNodes) = v*u;
      y = H*z;
-     fprintf(1,'Time = %e %e %e %e\n', t, y(1), y(2), y(3))
+     fprintf(1,'Time = %e, Energy = %e, Obs = %e %e %e\n', t, z'*M*z, y(1), y(2), y(3))
      if mod(it,10) == 0
-      energy = z'*M*z;
-      fprintf(1,'Energy = %e\n', energy)
       show ( elements3, coordinates, full(za) );
       pause(1)
      end
