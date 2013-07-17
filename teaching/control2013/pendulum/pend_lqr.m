@@ -11,7 +11,7 @@ parameters;
 [A,B] = get_system_matrices();
 
 % Initial condition
-x0 = [0; 0; 0 ; 0];
+x0 = [0; 0; 0; 0];
 
 % Time dicretizition
 tspan = [0:0.01:3];
@@ -36,8 +36,9 @@ title('Evolution of control for nonlinear system')
 hold all
 
 % Function to compute energy
-compute_energy = @(x) 0.5*(M*x(:,2).^2 + m*(x(:,2) + l*x(:,4).*cos(x(:,3))).^2 + ...
-         (I+m*l^2).*x(:,4).^2 ) - m*g*l*cos(x(:,3));
+compute_energy = @(x) 0.5*(M*x(:,2).^2 + m*(x(:,2) + ...
+                           l*x(:,4).*cos(x(:,3))).^2 + ...
+                           (I+m*l^2).*x(:,4).^2 ) - m*g*l*cos(x(:,3));
 
 % Plotting the evolution of energy     
 energy = compute_energy(x);
@@ -61,7 +62,7 @@ hold all;
 
 % Solving linear model with control
 options = odeset('RelTol',1e-6,'AbsTol',1e-6);
-[t,x] = ode15s(@rhs_lpc,tspan,x0,options,M,m,l,g,k,c,I,K,Alpha,Beta) ;
+[t,x] = ode15s(@rhs_lpc,tspan,x0,options,A,B,K);
 
 % Plotting the solutions
 %figure('Name','Evolution of state variables with control for linear system')
@@ -74,6 +75,3 @@ subplot(2,2,3) ; plot(t,x(:,3), 'LineWidth',1) ; title('Angle of pendulum (linea
 hold all;
 subplot(2,2,4), plot(t,x(:,4),'LineWidth',1), title('Angular speed of pendulum (linear)') ;
 hold all;
-
-     
-     
