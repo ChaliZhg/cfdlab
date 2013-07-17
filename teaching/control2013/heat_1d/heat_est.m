@@ -25,15 +25,15 @@ disp('Eigenvalues of (A-B*K,M)')
 eig(full(A-B*sparse(K)),full(M))
 
 % Parameters for time integration. nT = number of time steps
-nT=5000; dt=0.01; t=0:dt:nT*dt;
+nT=6000; dt=0.01; t=0:dt:nT*dt;
 
 % Noise in state
-w = (5e-1)^2 * randn(nT+1,n);
+w = (5e-2)^2 * randn(nT+1,n);
 Rw = diag(std(w).^2);
 Rw = sparse(Rw);
 
 % Noise in observation
-v = (5e-1)^2 * randn(nT+1,1);
+v = (5e-2)^2 * randn(nT+1,1);
 Rv = diag(std(v).^2);
 Rv = sparse(Rv);
 
@@ -106,7 +106,7 @@ Am = (1/(beta*dt))*Me - Ae;
 [L1,U1,P1,Q1] = lu(Am);
 
 for i=3:nT+1
-   rhs = -(1/(beta*dt))*Me*(a1*z(:,i-1) + a2*z(:,i-2));
+   rhs = -(1/(beta*dt))*Me*(a1*z(:,i-1) + a2*z(:,i-2)) + Be*[w(i,:)';v(i,:)'];
    z(:,i) = Q1 * (U1 \ (L1 \ (P1 * rhs)));
    energy(i) = compute_energy(z(1:N,i));
    u(i) = -K*z(N+1:2*N,i);
