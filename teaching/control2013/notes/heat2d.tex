@@ -240,7 +240,7 @@ Jochen Alberty, Carsten Carstensen and Stefan A. Funken: ``Remarks around 50 lin
 \label{fig:heatobsmesh}
 \end{center}
 \end{figure}
-We will assume that the intervals $[a_i, b_i]$ on which the observation is computed is exactly covered by the edges of the finite element mesh. Let $E_i$ denote the edges on $[a_i,b_i]$
+We will assume that the intervals $[a_i, b_i]$ on which the observation is computed is exactly covered by the edges of the finite element mesh, see figure~(\ref{fig:heatobsmesh}). Let $E_i$ denote the edges on $[a_i,b_i]$. Then
 \begin{eqnarray*}
 y_i &=& \frac{1}{b_i-a_i} \int_{a_i}^{b_i} z(0,y,t) \ud y \\
 &=& \frac{1}{b_i-a_i} \sum_{e \in E_i} \int_e z(0,y,t) \ud y \\
@@ -321,6 +321,14 @@ The corresponding eigenfunction is
 \[
 \phi(x,y) = \cos(\pi x/2) \sin(\pi y)
 \]
+which is shown in figure~(\ref{fig:initcond}).
+\begin{figure}
+\begin{center}
+\includegraphics[width=0.9\textwidth]{heat2d_initcond}
+\caption{Unstable eigenfunction}
+\label{fig:initcond}
+\end{center}
+\end{figure}
 %-----------------------------------------------------------------
 
 \end{document}  
