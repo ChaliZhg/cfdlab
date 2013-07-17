@@ -57,7 +57,7 @@ The shifted 2-D heat equation is given by
 \[
 z_t = \mu \Delta z + \omega z, \quad (x,y) \in \Omega = (0,1) \times (0,1), \qquad t \in  [0,T]
 \]
-with boundary conditions
+with boundary conditions, see figure~(\ref{fig:prob})
 \[
 z(x,0,t) = z(x,1,t) = 0, \quad z(1,y,t) = u(y,t), \qquad \df{z}{x}(0,y,t) = 0
 \]
@@ -81,6 +81,7 @@ and the part on which the control is applied as
 \begin{center}
 \includegraphics[width=0.5\textwidth]{heat2d_prob}
 \caption{Problem definition}
+\label{fig:prob}
 \end{center}
 \end{figure}
 %------------------------------------------------------------------------------
@@ -90,7 +91,7 @@ We will measure an average value of the temperature on strips along the left ver
 \[
 I_i = [a_i, b_i]
 \]
-as shown in figure. Thus the observations are
+as shown in figure~(\ref{fig:obs}). Thus the observations are
 \begin{equation}
 y_i(t) = \frac{1}{b_i - a_i} \int_{a_i}^{b_i} z(0,y,t) \ud y
 \end{equation}
@@ -99,6 +100,7 @@ y_i(t) = \frac{1}{b_i - a_i} \int_{a_i}^{b_i} z(0,y,t) \ud y
 \begin{center}
 \includegraphics[width=0.5\textwidth]{heat2d_obs}
 \caption{Observations}
+\label{fig:obs}
 \end{center}
 \end{figure}
 \noindent
@@ -122,15 +124,16 @@ z(x,0,t) = z(x,1,t) = 0, \quad z(1,y,t) = u(y,t)
 \begin{center}
 \includegraphics[width=0.5\textwidth]{heat2d_mesh}
 \caption{Example of a finite element mesh}
+\label{fig:mesh}
 \end{center}
 \end{figure}
-Consider a division of $\Omega$ into disjoint triangles as shown in figure~(xxx). We will assume that the vertices of the mesh are numbered in some manner. Let us define the following sets of vertices
+Consider a division of $\Omega$ into disjoint triangles as shown in figure~(\ref{fig:mesh}). We will assume that the vertices of the mesh are numbered in some manner. Let us define the following sets of vertices
 \begin{eqnarray*}
 N_c &=& \mbox{vertices on $\Gamma_c$} \\
 N_d &=& \mbox{vertices on } \{y=0\} \cup \{y=1\} \\
 N_f &=& \mbox{remaining vertices (unknown degrees of freedom)}
 \end{eqnarray*}
-For each vertex $i$, define the piecewise affine functions $\phi_i(x,y)$ with the property that
+For each vertex $i$, define the piecewise affine functions $\phi_i(x,y)$, see figure~(\ref{fig:basis}), with the property that
 \[
 \phi_i(x_j, y_j) = \delta_{ij}
 \]
@@ -138,6 +141,7 @@ For each vertex $i$, define the piecewise affine functions $\phi_i(x,y)$ with th
 \begin{center}
 \includegraphics[width=0.5\textwidth]{tria_basis}
 \caption{Piecewise affine basis functions}
+\label{fig:basis}
 \end{center}
 \end{figure}
 We will take the control to be of the form
@@ -168,7 +172,7 @@ This can be written as a system of ordinary differential equations
 \[
  \M \dd{\z}{t} = \A \z + \B v
 \]
-where $\z$ denotes all the unknown degrees of freedom in the set $N_f$.
+where $\z$ denotes all the unknown degrees of freedom.
 %-----------------------------------------------------------------
 \subsection{Finite element assembly}
 The finite element basis functions have compact support. Hence we can compute the integrals 
