@@ -334,11 +334,18 @@ which is shown in figure~(\ref{fig:initcond}). We will use the unstable eigenfun
 \]
 %-----------------------------------------------------------------
 \section{Excercises}
+
 \begin{enumerate}
 
-\item The value of $\omega$ is set in the file {\tt parameters.m}. Set $\omega=0$ and run the program. Observe that the energy is decreasing with time.
+\item Generate the mesh by running the {\tt square} program and use 101 points on each side of the square.
 
-\item Set $\omega=0.4$ and run the program. Observe that the energy is increasing with time.
+\item The value of $\omega$ is set in the file {\tt parameters.m}. Set $\omega=0$ and calculate the eigenvalue with largest real part using {\tt eigs} function. Is this eigenvalue stable or unstable ?
+
+\item With $\omega=0$, run the program. Observe that the energy is decreasing with time. The energy is plotted with linear scale for time and log scale for energy. The straight line behaviour indicates that the energy is decaying exponentially wrt time.
+
+\item Set $\omega=0.4$ and caculate the eigenvalue with largest real part using {\tt eigs} function. Compare it with exact eigenvalue given above.
+
+\item With $\omega=0.4$, run the program. Observe that the energy is increasing exponentially with time.
 
 \end{enumerate}
 %-----------------------------------------------------------------
