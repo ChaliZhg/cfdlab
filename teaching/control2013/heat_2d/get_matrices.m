@@ -33,7 +33,7 @@ function [M,A,B,Q,H] = get_matrices ( )
   B = -Af(FreeNodes, ControlNodes) + omega * Mf(FreeNodes, ControlNodes);
 
 % One dimensional control u(y,t) = v(t) sin(pi*y)
-  B = B * sin(pi*coordinates(ControlNodes,2));
+  B = sparse(B * sin(pi*coordinates(ControlNodes,2)));
 
   nBoundNodes = size(BoundNodes,1)
   nFreeNodes = size(FreeNodes,2)
