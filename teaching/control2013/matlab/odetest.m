@@ -11,7 +11,7 @@ tspan = [0:0.01:20];
 options = odeset('RelTol',1e-8,'AbsTol',1e-8);
 
 % without control
-[t,x] = ode15s(@fbo,tspan,x0,options,M,m,l,g,k,d,I) ;
+[t,x] = ode15s(@fbo,tspan,x0,options,M,m,l,g,k,c,I) ;
 
 figure(1),  title('Evolution of state variables without control'),
          subplot(2,2,1), plot(t,x(:,1)), title('Position of cart'),
