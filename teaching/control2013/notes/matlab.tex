@@ -554,9 +554,12 @@ AU = \lambda U
 \end{frame}
 %-------------------------------------------------------------------------------------
 \begin{frame}[allowframebreaks,fragile]
-\frametitle{Solving an ODE using {\tt ode15s}}
+\frametitle{Solving system of ODE using {\tt ode15s}}
 \[
-\dd{y}{t} = \mbox{fun}(t, y, a, b, c, \ldots)
+\dd{y}{t} = \mbox{fun}(t, y, \clr{red}{a, b, c, \ldots}), \qquad {\tt T0} \le t \le {\tt TFINAL}
+\]
+\[
+y({\tt T0}) = y0
 \]
 Write a matlab program {\tt fun.m} which computes right hand side
 \begin{lstlisting}
@@ -566,48 +569,104 @@ function f = fun(t, y, a, b, c, ...)
 \begin{tabular}{|c|l|}
 \hline
 {\tt tspan} & {\tt [T0, TFINAL]} or {\tt [T0, T1, ..., TFINAL]} \\
+& or {\tt T0:dT:TFINAL} \\
 \hline
 {\tt y0} & Initial condition $y({\tt T0})$ \\
+\hline
+{\tt options} &  {\tt options = odeset('RelTol',1e-8,'AbsTol',1e-8);} \\
 \hline
 \end{tabular}
 \end{center}
 
 Solve ode
 \begin{lstlisting}
-[t, Y] = ode15s(@fun, tspan, y0, a, b, c, ...)
+[t, Y] = ode15s(@fun, tspan, y0, options, a, b, c, ...)
 \end{lstlisting}
 
 \begin{center}
-{\tt Y(:,i)} = Solution at time {\tt t(i)}
+{\tt Y(:,i)} = $i$'th component of solution at different times specified in {\tt tspan}
 \end{center}
 
 \end{frame}
 %-------------------------------------------------------------------------------------
 \begin{frame}[allowframebreaks,fragile]
 \frametitle{Numerical example: {\tt odetest.m}}
-This program solves the inverted pendulum problem which we will study in next lecture.
-
-\vspace{2mm}
+This program solves the inverted pendulum problem which we will study in next lecture. We will solve the following non-linear ODE
+{\footnotesize
+\[
+\begin{bmatrix}
+\dz_1 \\ \dz_2 \\ \dz_3 \\ \dz_4 \end{bmatrix} = \begin{bmatrix}
+z_2 \\
+\frac{1}{D} [ m l \cos z_3 (c z_4 - mgl\sin z_3) + (I+ml^2)(- k z_2 + ml      z_4^2 \sin      z_3)] \\
+z_4 \\
+\frac{1}{D}[ (M+m)(-c z_4 + mgl\sin z_3) - ml\cos z_3 (- k z_2 + ml z_4^2     \sin z_3)]
+\end{bmatrix}
+\]
+}
+where
+\[
+D = (M+m)(I+ml^2) - m^2 l^2 \cos^2 z_3
+\]
+The values of various parameters are set in file {\tt parameters.m}
 
 {\bf Excercises}
 
 \begin{enumerate}
 
-\item Study the programs\\
-{\tt fbo.m, odetest.m}
+\item Study the programs: {\tt fbo.m, odetest.m}\\
+{\tt fbo.m} implements the right hand side of the ODE\\
+{\tt odetest.m} is the driver program which solves the ODE and plots the solution.
 
-\item Run {\tt odetest.m}
+\item Run {\tt odetest.m}; you will obtain solution as shown in figure below
+\begin{center}
+\includegraphics[width=0.6\textwidth]{odetest1}
+\end{center}
 
-\item Implement a program to solve the linearized pendulum
+\item Implement a program to solve the following problem
+{\footnotesize
 \[
-z = [z_1, z_2, z_3, z_4]^\top, \qquad \dd{z}{t} = Az
+\begin{bmatrix}
+\dz_1 \\ \dz_2 \\ \dz_3 \\ \dz_4 \end{bmatrix} = \begin{bmatrix}
+z_2 \\
+\frac{1}{D} [ m l \cos z_3 (c z_4 - mgl\sin z_3) + (I+ml^2)(\clr{red}{F} - k z_2 + ml      z_4^2 \sin      z_3)] \\
+z_4 \\
+\frac{1}{D}[ (M+m)(-c z_4 + mgl\sin z_3) - ml\cos z_3 (\clr{red}{F} - k z_2 + ml z_4^2     \sin z_3)]
+\end{bmatrix}
 \]
+}
 where
 \[
-A =
+F = \alpha u - \beta z_2
 \]
-The values of parameters in $A$ are already set in program {\tt parameters.m}\\
-Use the same initial conditions as in {\tt odetest.m}
+\[
+u = -Kz, \qquad K = \begin{bmatrix}
+-10 & -16.1615 & -71.8081 & -15.2885 \end{bmatrix}
+\]
+The value of $\alpha$, $\beta$ are set in {\tt parameters.m} file.
+\begin{itemize}
+
+\item Copy {\tt fbo.m} as {\tt fbf.m}, e.g. in Unix/Linux\\
+%\begin{lstlisting}
+\begin{center}
+{\tt cp fbo.m fbf.m}
+\end{center}
+%\end{lstlisting}
+
+\item You have to pass $\alpha$, $\beta$ in the arguments to {\tt fbf} function.
+
+\item Modify {\tt fbf.m} to include the force $F$
+
+\item Copy {\tt odetest.m} as {\tt odetest2.m}
+
+\item Modify {\tt odetest2.m} to now use {\tt fbf} instead of {\tt fbo} and make sure to pass $\alpha$, $\beta$
+
+\item Run {\tt odetest2.m}; you will obtain solution as shown in figure below
+\begin{center}
+\includegraphics[width=0.6\textwidth]{odetest2}
+\end{center}
+
+\end{itemize}
+
 \end{enumerate}
 
 \end{frame}
