@@ -205,7 +205,7 @@ Output {\tt y} inherits dimensions of input {\tt x}
 >> z = x + y
 \end{lstlisting}
 {\tt x} and {\tt y} must have same dimensions. The following is wrong
-\end{frame}
+
 \begin{lstlisting}
 >> x = [1, 2, 3, 4]
 >> y = [5; 6; 7; 8]
@@ -243,7 +243,7 @@ Deleting all existing variables
 >> who
 \end{lstlisting}
 
-\vspace{2mm}
+\pagebreak
 
 {\bf Matrix-vector multiplication}
 \begin{lstlisting}
@@ -316,6 +316,7 @@ Multiply matrices element-wise
 >> help rand
 \end{lstlisting}
 
+\end{frame}
 %-------------------------------------------------------------------------------------
 \begin{frame}[allowframebreaks,fragile]
 \frametitle{Plotting}
@@ -614,7 +615,7 @@ The values of various parameters are set in file {\tt parameters.m}
 \begin{enumerate}
 
 \item Study the programs: {\tt fbo.m, odetest.m}\\
-{\tt fbo.m} implements the right hand side of the ODE\\
+{\tt fbo.m} implements the right hand side function of the ODE\\
 {\tt odetest.m} is the driver program which solves the ODE and plots the solution.
 
 \item Run {\tt odetest.m}; you will obtain solution as shown in figure below
@@ -660,7 +661,7 @@ The value of $\alpha$, $\beta$ are set in {\tt parameters.m} file.
 
 \item Modify {\tt odetest2.m} to now use {\tt fbf} instead of {\tt fbo} and make sure to pass $\alpha$, $\beta$
 
-\item Run {\tt odetest2.m}; you will obtain solution as shown in figure below
+\item Run {\tt odetest2.m}; you should obtain solution as shown in figure below
 \begin{center}
 \includegraphics[width=0.6\textwidth]{odetest2}
 \end{center}
@@ -668,6 +669,19 @@ The value of $\alpha$, $\beta$ are set in {\tt parameters.m} file.
 \end{itemize}
 
 \end{enumerate}
+\end{frame}
+%-------------------------------------------------------------------------------------
+\begin{frame}[fragile]
+\frametitle{Some checks}
+We will need some functions from the Control System toolbox. Check that you have this toolbox by typing following command
+\begin{lstlisting}
+>> help lqr
+\end{lstlisting}
+If you get the message
+\begin{lstlisting}
+ lqr not found
+\end{lstlisting}
+then you do not have this toolbox. Talk to one of us.
 
 \end{frame}
 %-------------------------------------------------------------------------------------
