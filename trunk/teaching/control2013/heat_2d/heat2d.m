@@ -6,7 +6,7 @@
 % To run with feedback control
 % >> heat2d(1)
 %
-function fem_50(to_control)
+function heat2d(to_control)
    globals;
    parameters;
 
