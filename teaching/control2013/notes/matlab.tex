@@ -572,12 +572,23 @@ AU = \lambda U
 
 \begin{enumerate}
 
-\item Run {\tt eigtest.m}
+\item Study the program {\tt eigtest.m}
+
+\item Run {\tt eigtest.m}; first change your matlab directory to the directory {\tt matlab}
+\begin{lstlisting}
+>> pwd
+>> ls
+\end{lstlisting}
+You should be able to see the {\tt eigtest.m} file in this directory. Now run it
+\begin{lstlisting}
+>> eigtest
+\end{lstlisting}
 
 \item Compare numerical and exact eigenvalues/eigenfunctions\\
 (Eigenfunctions are exact at the grid points. Can you explain why ?)
 
-\item Replace the function {\tt eig} with {\tt eigs}; compute the 5 smallest eigenvalues
+\item Make a copy of the file {\tt eigtest.m} as {\tt eigtest2.m} \\
+In {\tt eigtest2.m}, replace the function {\tt eig} with {\tt eigs} and compute the 5 smallest eigenvalues
 
 \end{enumerate}
 
