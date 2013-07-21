@@ -380,6 +380,35 @@ For more, use {\tt help}
 \end{frame}
 %-------------------------------------------------------------------------------------
 \begin{frame}[allowframebreaks,fragile]
+\frametitle{Logarithmic plots}
+Suppose we want to plot
+\[
+y = \exp(-10 x), \qquad x \in [0,1]
+\]
+Then $y$ varies between $10^{-4}$ to $1$. A normal plot does not clearly show the function, as seen in the left figure. 
+\begin{center}
+\includegraphics[width=0.5\textwidth]{logplot}
+\end{center}
+\begin{lstlisting}
+>> x = linspace(0,1,100);
+>> y = exp(-10*x);
+>> figure(1)
+>> plot(x,y)
+\end{lstlisting}
+We can use logarithmic scale for the $y$ axis
+\begin{lstlisting}
+>> figure(2)
+>> semilogy(x,y)
+\end{lstlisting}
+Now the variation of $y$ is clearly seen. Study the matlab file {\tt logplot.m} included in the {\tt matlab} directory.
+
+\vspace{2mm}
+
+Also check out these other functions for logarithmic plots\\
+{\tt semilogx, loglog}
+\end{frame}
+%-------------------------------------------------------------------------------------
+\begin{frame}[allowframebreaks,fragile]
 \frametitle{Sparse matrices}
 Suppose the matrix $A$ has mostly zero entries
 \[
