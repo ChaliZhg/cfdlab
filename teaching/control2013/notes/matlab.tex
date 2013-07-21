@@ -69,8 +69,9 @@
 % - Keep it simple, no one is interested in your street address.
 
 \date[IFCAM-2013] % (optional, should be abbreviation of conference name)
-{IFCAM Workshop on Control of PDE\\
-22 July - 2 August, 2013}
+{IFCAM Summer School on Numerics and Control of PDE\\
+22 July - 2 August, 2013\\
+IISc, Bangalore}
 % - Either use conference name or its abbreviation.
 % - Not really informative to the audience, more for people (including
 %   yourself) who are reading the slides online
@@ -416,14 +417,14 @@ A = \begin{bmatrix}
 0 & 1 & 0 \\
 0 & 0 & 2 \\
 3 & 0 & 0
-\end{bmatrix}
+\end{bmatrix} \qquad \mbox{We will store only the non-zero entries.}
 \]
 Create a sparse matrix
 \begin{lstlisting}
 >> A = sparse(3,3)
 \end{lstlisting}
 
-Fill in non-zero entries
+At this stage $A$ is empty (zero matrix). Fill in non-zero entries
 \begin{lstlisting}
 >> A(1,2) = 1;
 >> A(2,3) = 2;
@@ -576,8 +577,8 @@ AU = \lambda U
 
 \item Run {\tt eigtest.m}; first change your matlab directory to the directory {\tt matlab}
 \begin{lstlisting}
->> pwd
->> ls
+>> pwd % This shows your current working directory
+>> ls  % This shows contents of directory
 \end{lstlisting}
 You should be able to see the {\tt eigtest.m} file in this directory. Now run it
 \begin{lstlisting}
@@ -677,7 +678,7 @@ z_4 \\
 }
 where
 \[
-F = \alpha u - \beta z_2
+\clr{red}{F} = \alpha u - \beta z_2
 \]
 \[
 u = -Kz, \qquad K = \begin{bmatrix}
