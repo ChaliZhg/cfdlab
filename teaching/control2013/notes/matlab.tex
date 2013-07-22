@@ -153,7 +153,7 @@ denotes the matlab command prompt.
 \begin{lstlisting}
 >> x=1
 \end{lstlisting}
-To prevent the value from being printed to screen, end the line with a colon
+Variable names are case sensitive: {\tt x} and {\tt X} are different. To prevent the value from being printed to screen, end the line with a colon
 \begin{lstlisting}
 >> x=1;
 \end{lstlisting}
@@ -266,12 +266,18 @@ Deleting all existing variables
 
 {\bf Elementwise operation}
 \[
-z = x \sin(y)
+z = x y
 \]
 \begin{lstlisting}
 >> x = [1, 2, 3, 4]
 >> y = [5, 6, 7, 8]
->> z = x .* sin(y)
+>> z = x .* y  % x and y must be of same size
+\end{lstlisting}
+One can also use a {\tt for} loop, but this will be slow in matlab
+\begin{lstlisting}
+for j=1:4
+   z(j) = x(j) * y(j)
+end
 \end{lstlisting}
 
 A more complicated example
@@ -285,9 +291,9 @@ z = \frac{x^2 \sin(y)}{\cos(x+y)}
 
 Multiply matrices element-wise
 \begin{lstlisting}
->> E = A .* B
+>> E = A .* B   % A and B must have same size
 \end{lstlisting}
-{\tt A} and {\tt B} must have same size
+
 
 {\bf Zero vector/matrix}
 \begin{lstlisting}
@@ -306,9 +312,11 @@ Multiply matrices element-wise
 >> A = eye(4)
 \end{lstlisting}
 
+\pagebreak
+
 {\bf Random vector/matrix}
 \begin{lstlisting}
->> x = rand(1,3)
+>> x = rand(1,3) % uniform random variables in [0,1]
 >> A = rand(3,2)
 \end{lstlisting}
 
@@ -573,14 +581,16 @@ AU = \lambda U
 
 \begin{enumerate}
 
-\item Study the program {\tt eigtest.m}
-
-\item Run {\tt eigtest.m}; first change your matlab directory to the directory {\tt matlab}
+\item Inside matlab, change directory to the directory {\tt matlab}
 \begin{lstlisting}
 >> pwd % This shows your current working directory
 >> ls  % This shows contents of directory
 \end{lstlisting}
-You should be able to see the {\tt eigtest.m} file in this directory. Now run it
+You should be able to see the {\tt eigtest.m} file in this directory.
+
+\item Study the program {\tt eigtest.m}
+
+\item Run {\tt eigtest.m}
 \begin{lstlisting}
 >> eigtest
 \end{lstlisting}
@@ -589,7 +599,7 @@ You should be able to see the {\tt eigtest.m} file in this directory. Now run it
 (Eigenfunctions are exact at the grid points. Can you explain why ?)
 
 \item Make a copy of the file {\tt eigtest.m} as {\tt eigtest2.m} \\
-In {\tt eigtest2.m}, replace the function {\tt eig} with {\tt eigs} and compute the 5 smallest eigenvalues
+In {\tt eigtest2.m}, replace the function {\tt eig} with {\tt eigs} and compute the 5 smallest eigenvalues. When passing matrix {\tt A} to {\tt eigs} function, pass it as a sparse matrix.
 
 \end{enumerate}
 
@@ -598,7 +608,7 @@ In {\tt eigtest2.m}, replace the function {\tt eig} with {\tt eigs} and compute 
 \begin{frame}[allowframebreaks,fragile]
 \frametitle{Solving system of ODE using {\tt ode15s}}
 \[
-\dd{y}{t} = \mbox{fun}(t, y, \clr{red}{a, b, c, \ldots}), \qquad {\tt T0} \le t \le {\tt TFINAL}
+y \in \re^n, \qquad \dd{y}{t} = \mbox{fun}(t, y, \clr{red}{a, b, c, \ldots}), \qquad {\tt T0} \le t \le {\tt TFINAL}
 \]
 \[
 y({\tt T0}) = y0
