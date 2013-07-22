@@ -4,11 +4,12 @@
 
 clear all
 %close all
-clc
 parameters;
 [A,B] = get_system_matrices();
 
 Q = eye(4);
+Q = diag([1/0.68^2, 1, 1/0.175^2, 1/0.5^2]);
+
 Ru = 1/3^2;
 
 [K,X] = lqr(A, B, Q, Ru);
@@ -17,24 +18,22 @@ eig(A-B*K)
 
 % Observation operator
 H = [1, 0, 0, 0;
-      0, 0, 1, 0];
+     0, 0, 1, 0];
 %H = eye(4);
 
 % Number of time steps
-Nt = 25000; N = 4; No = length(H(:,1));
+Nt = 2500; N = 4; No = length(H(:,1));
 
 % Initial condition
 z0 = [0; 0; 20*pi/180; 0];
 
 % Noise in state
-muw = zeros(1,N)';
-Rw = (5e-3) * diag([0.9,0.8,0.4,0.7]);
-w = mvnrnd(muw,Rw,Nt);
+w = (5e-2)^2 * randn(Nt,4);
+Rw = diag(std(w).^2);
 
 % Noise in observation
-muv = zeros(1,No);
-Rv = (5e-3) * diag([0.9,0.8]);
-v = mvnrnd(muv,Rv,Nt);
+v = (5e-2)^2 * randn(Nt,2);
+Rv = diag(std(v).^2);
 
 [L,S] = lqr(A', H', Rw, Rv);
 L = real(L');
@@ -58,8 +57,9 @@ He = [H,          zeros(No,N); ...
       zeros(No,N), H];
   
 % Function to compute energy
-compute_energy = @(x) 0.5*(M*x(:,2).^2 + m*(x(:,2) + l*x(:,4).*cos(x(:,3))).^2 + ...
-         (I+m*l^2).*x(:,4).^2 ) - m*g*l*cos(x(:,3));
+compute_energy = @(x) 0.5*(M*x(:,2).^2 + m*(x(:,2) ...
+                     + l*x(:,4).*cos(x(:,3))).^2 + ...
+                      (I+m*l^2).*x(:,4).^2 ) - m*g*l*cos(x(:,3));
 
 % N : number of state variables, no : number of observation
 dt = 0.01;
@@ -100,7 +100,7 @@ for i=3:Nt
    energy(i) = compute_energy(zc(N+1:2*N,i)');
 end
 
-% Plottig all state variables
+% Plotting all state variables
 figure(1),
 title('Noisy state')
 subplot(2,2,1)
