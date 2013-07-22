@@ -18,6 +18,7 @@ le = pi^2 * ((1:(n-1)).^2)';
 err = abs(l - le);
 figure(200)
 plot(err,'o')
+grid on
 xlabel('n')
 ylabel('Error in eigenvalue \lambda_n')
 
