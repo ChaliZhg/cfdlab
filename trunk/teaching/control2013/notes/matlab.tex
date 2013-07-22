@@ -323,7 +323,7 @@ Multiply matrices element-wise
 
 Standard normal random variables: zero mean, unit variance
 \begin{lstlisting}
->> x = randn(3,1)
+>> x = randn(3,1) % x is in (-inf,+inf)
 \end{lstlisting}
 Generate values from a normal distribution with mean = 1 and standard deviation = 2
 \begin{lstlisting}
@@ -486,21 +486,20 @@ Sparse identity matrix
 \end{frame}
 %-------------------------------------------------------------------------------------
 \begin{frame}[allowframebreaks,fragile]
-\frametitle{Eigenvalues and eigenvectors}
-
-\[
-A x = \lambda x
-\]
-
+\frametitle{Eigenvalues and eigenvectors: $Ax=\lambda x$, $Ax = \lambda Bx$}
+%\[
+%A x = \lambda x
+%\]
 \begin{lstlisting}
->> A = rand(100,100);
+>> A = randn(100,100);
 >> lambda = eig(A);
 >> plot(real(lambda), imag(lambda), 'o')
 \end{lstlisting}
 
-To get eigenvectors
+To get eigenvectors also
 \begin{lstlisting}
->> [V,D] = eig(A);
+>> A = randn(5)
+>> [V,D] = eig(A)
 \end{lstlisting}
 Columns of {\tt V} contain eigenvectors, 
 \[
@@ -513,6 +512,9 @@ D = \mbox{diag}[\lambda_1, \lambda_2, \ldots, \lambda_n]
 \[
 Ae_j = \lambda_j e_j \qquad \Longrightarrow \qquad A V = V D
 \]
+
+\pagebreak
+
 {\bf Generalized eigenvalues/vectors}
 \[
 Ax = \lambda Bx
