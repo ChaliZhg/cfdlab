@@ -6,6 +6,7 @@ plot(x,y,'LineWidth',2)
 title('Linear scale for x and y')
 xlabel('x')
 ylabel('y')
+
 subplot(1,2,2)
 semilogy(x,y,'LineWidth',2)
 title('Linear scale for x, log scale for y')
