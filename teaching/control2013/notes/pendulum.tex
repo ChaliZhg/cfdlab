@@ -55,7 +55,7 @@ IISc, Bangalore\\
 \url{http://praveen.cfdlab.net/teaching/control2013}
 \end{center}
 
-
+%-----------------------------------------------------------------------------------
 \section{Inverted pendulum}
 \begin{center}
 \includegraphics[width=0.50\textwidth]{inv_pendulum}
@@ -116,7 +116,7 @@ z_4 \\
 \frac{1}{D}[ (M+m)(-c z_4 + mgl\sin z_3) - ml\cos z_3 (F - k z_2 + ml z_4^2 \sin z_3)]
 \end{bmatrix}
 \]
-In the experimental setup of Landry, the force $F$ on the cart is
+In the experimental setup of Landry et al.~\cite{landry}, the force $F$ on the cart is
 \[
 F(t) = \alpha u(t) - \beta \dx, \qquad \alpha > 0, \qquad \beta > 0
 \]
@@ -124,9 +124,8 @@ where $u$ is the voltage in the motor driving the cart, and the second term repr
 \[
 \dd{z}{t} = N(z,u)
 \]
-The numerical solution of this model is implemented in program {\tt nlp.m}
 %--------------------------------------------------------------------------------
-\paragraph{Excercises}
+\subsection{Excercises}
 The matlab programs are in the directory {\tt pendulum}; go into this directory and start matlab. E.g. if you are working on the Unix/Linux command line
 \begin{lstlisting}
 $ cd control2013/pendulum
@@ -138,13 +137,15 @@ If you have started matlab through some other way, then change the directory ins
 \end{lstlisting}
 Or use the matlab gui to change the working directory.
 
+The solution of the non-linear pendulum is implemented in {\tt nlp.m} file and ths right hand side function without any control ($F=0$) is implemented in {\tt rhs\_nlp.m} file. Study these two programs.
+
 The pendulum has two equilibrium positions, one upright ($\theta=0$) and another in the down position ($\theta=\pi$).
 \begin{enumerate}
-\item Solve the non-linear pendulum problem with initial condition close to upright position 
+\item Using {\tt nlp.m} solve the non-linear pendulum problem with initial condition close to upright position 
 \[
 z(0) = \begin{bmatrix} 0, 0, \frac{5\pi}{180}, 0 \end{bmatrix}
 \]
-and final time $T=100$. Is the upright position stable ? What happens to the four variables ? Interpret the solution in physical terms.
+and final time $T=100$. Is the upright position stable ? What happens to the four variables ? What is the time asymptotic value of $x$, $\dx$, $\theta$, $\dt$ ?
 
 \item Solve the non-linear pendulum problem with initial condition close to downward position
 \[
@@ -152,7 +153,12 @@ z(0) = \begin{bmatrix} 0, 0, \frac{170\pi}{180}, 0 \end{bmatrix}
 \]
 and final time $T=100$. Is the downward position stable ?
 
+\item Now set the value of friction coefficients $k$ and $c$ to zero in {\tt parameters.m} file and run {\tt nlp.m} again. How does the solution behave qualitatively ? Is it converging to a stationary state ?
+
 \end{enumerate}
+
+\paragraph{Note} Set the value of $k$ and $c$ back to their initial non-zero values.
+
 %--------------------------------------------------------------------------------
 \subsection{Linearised system} 
 We linearize around $z=(0,0,0,0)$
@@ -177,51 +183,67 @@ then we have the linear model
 \dd{z}{t} = Az + Bu
 \]
 %--------------------------------------------------------------------------------
-\paragraph{Excercises}
+\subsection{Excercises}
 
 \begin{enumerate}
 
 \item Generate matrices for linear system
 \begin{lstlisting}
-parameters
-[A,B] = get_system_matrices()
+>> parameters
+>> [A,B] = get_system_matrices()
 \end{lstlisting}
 
 \item Compute eigenvalues
 \begin{lstlisting}
-e = eig(A)
-plot(real(e), imag(e), 'o')
+>> e = eig(A)
+>> plot(real(e), imag(e), 'o')
 \end{lstlisting}
 Is there an unstable eigenvalue ? Is there a zero eigenvalue ?
 
-\item Check that $(A,B)$ is controllable by computing rank of controllability matrix
+\item The linear pendulum system is controllable if rank of controllability matrix is four. Check that $(A,B)$ is controllable by computing rank of controllability matrix
 \[
 P_c = \begin{bmatrix} 
 B & A B & A^2 B & A^3 B
 \end{bmatrix}
 \]
 \begin{lstlisting}
-Pc = [B, A*B, A^2*B, A^3*B];
-rank(Pc)
+>> Pc = [B, A*B, A^2*B, A^3*B];
+>> rank(Pc)
 \end{lstlisting}
 
-\item Check the controllability using Hautus criterion. For each eigenvalue $\lambda$, compute eigenvector $V$ of $A^\top$
+\item Check the controllability using Hautus criterion. Compute all the eigenvectors and eigenvalues of $A^\top$. For each eigenvalue $\lambda$ and eigenvector $V$ of $A^\top$
 \[
 A^\top V = \lambda V
 \]
-and check if 
+check if 
 \[
 B^\top V \ne 0
 \]
-If the above condition is true for each unstable eigenvalue, i.e., with $\mbox{real}(\lambda) > 0$, then the system is stabilizable.
+If the above condition is true for each unstable eigenvalue, i.e., with $\mbox{real}(\lambda) \ge 0$, then the system is stabilizable. Is the linear pendulum stabilizable ?
 
-\item Solve linear model ({\tt lp.m}) with initial condition 
+\item Solve linear pendum model (see {\tt lp.m} and {\tt rhs\_lp.m}) with initial condition 
 \[
 z(0) = \begin{bmatrix} 0, 0, \frac{5\pi}{180}, 0 \end{bmatrix}
 \]
 upto a final time of $T=5$. Compare this solution with solution of non-linear model.
 
 \end{enumerate}
+%--------------------------------------------------------------------------------
+\section{Matlab function: {\tt lqr}}
+The solution $X$ of algebraic Riccati equation
+\begin{equation}
+A^\top X + X A - X B R^{-1} B^\top X + Q = 0, \qquad Q = C^\top C
+\label{eq:are}
+\end{equation}
+can be computed in matlab using
+\begin{lstlisting}
+>> [K,X,E] = lqr(A, B, Q, R);
+\end{lstlisting}
+Here $K$ is the feedback gain and can be computed as
+\[
+K = B^\top X
+\]
+and $E$ contains the eigenvalues of $A-BK$.
 %--------------------------------------------------------------------------------
 \section{Minimal norm feedback control}
 The minimal norm control is given by
@@ -241,25 +263,35 @@ Model with feedback
 \dd{z}{t} = (A - BK)z, \qquad z(0) = z_0
 \]
 %--------------------------------------------------------------------------------
-\paragraph{Excercises}
+\subsection{Excercises}
 
 \begin{enumerate}
 
 \item Compute the minimal norm feedback matrix $K$ using {\tt lqr} function
 \begin{lstlisting}
-Q = zeros(4,4);
-R = 1;
-om = 0.01;
-A = A + om*eye(4);
-[K,S,E] = lqr(A, B, Q, R);
-plot(real(E), imag(E), 'o')
+>> Q = zeros(4,4);
+>> R = 1;
+>> om = 0.01;
+>> As = A + om*eye(4);
+>> [K,X,E] = lqr(As, B, Q, R);
 \end{lstlisting}
-$E$ contains the eigenvalues of $A - B K$.
-
-\item Also check for yourself that $A-BK$ is stable by computing its eigenvalues.
+Compute feedback gain from solution {\tt X} of Riccati equation and check that it is same as {\tt K} given by {\tt lqr} function
 \begin{lstlisting}
-e = eig(A-B*K);
-plot(real(e), imag(e), 'o')
+>> K1 = B'*X
+>> K-K1       % This should give you zero matrix
+\end{lstlisting}
+$E$ contains the eigenvalues of $As - B K$. Compare eigenvalues of {\tt As} and {\tt As-B*K}
+\begin{lstlisting}
+>> e = eig(As);
+>> plot(real(e), imag(e), 'o', real(E), imag(E), '*')
+\end{lstlisting}
+Observe that unstable eigenvalues of {\tt As} have been reflected symmetrically about the imaginary axis.
+
+\item Also check that $A-BK$ is stable by computing its eigenvalues.
+\begin{lstlisting}
+>> e1 = eig(A);
+>> e2 = eig(A-B*K);
+>> plot(real(e1), imag(e1), 'o', real(e2), imag(e2), '*')
 \end{lstlisting}
 
 \end{enumerate}
@@ -267,7 +299,7 @@ plot(real(e), imag(e), 'o')
 %--------------------------------------------------------------------------------
 
 \section{Feedback control using LQR approach}
-Measurement
+Output
 \[
 y_m = C z, \qquad \textrm{e.g.} \qquad C = I_4
 \]
@@ -293,11 +325,11 @@ A^\top X + X A - X B R^{-1} B^\top X + Q = 0
 %The solution exists if $(A,B)$ is controllable and $(A,C)$ is observable.
 %--------------------------------------------------------------------------------
 
-\paragraph{Excercises}
+\subsection{Excercises}
 
 \begin{enumerate}
 
-\item We may observe different quantities, e.g.,
+\item We may measure different output quantities, e.g.,
 \[
 C = \begin{bmatrix}
 1 & 0 & 0 & 0 
@@ -313,33 +345,39 @@ C = \begin{bmatrix}
 0 & 0 & 0 & 1
 \end{bmatrix}
 \]
-In each case, check if $(A,C)$ is observable by computing rank of observability matrix
+These correspond to controlling $(x)$, $(\theta)$, $(x,\theta)$ and $(x,\dx,\theta,\dt)$ respectively. In each case, check if $(A,C)$ is observable by computing rank of observability matrix
 \[
 P_o = \begin{bmatrix}
 C \\
 CA \\
 CA^2 \\
 CA^3
-\end{bmatrix}
+\end{bmatrix} \qquad \mbox{Is rank($P_o$) = 4 or is rank$(P_o) < 4$ ?}
 \]
+For which $C$ is the rank condition satisfied ? Which of the four state variables is important ?
 
 \item Compute feedback operator $K$ using {\tt lqr} function. We will control position and angle.
 \begin{lstlisting}
-C = [1 0 0 0; 0 0 1 0];
-Q = C'*C;
-R = 1;
-[K,S,E] = lqr(A, B, Q, R);
-plot(real(E), imag(E), 'o')
+>> C = [1 0 0 0; 0 0 1 0];
+>> Q = C'*C;
+>> R = 1;
+>> [K,X,E] = lqr(A, B, Q, R);
+>> plot(real(E), imag(E), 'o')
 \end{lstlisting}
-$E$ contains the eigenvalues of $A - B K$.
+$E$ contains the eigenvalues of $A - B K$. Compare eigenvalues of $A$ and $A-BK$
+\begin{lstlisting}
+>> e = eig(A);
+>> plot(real(e), imag(e), 'o', real(E), imag(E), '*')
+\end{lstlisting}
+Is $A-BK$ stable ?
 
-\item Solve with LQR feedback control. This is implemented in program {\tt pend\_lqr.m} which solves both linear and nonlinear model. Compare the linear and non-linear solutions. Try with $R=0.01$ and $R=0.1$ and initial condition
+\item Solve with LQR feedback control. This is implemented in program {\tt pend\_lqr.m} which solves both linear and non-linear model. Compare the linear and non-linear solutions. Try with $R=0.01$ and $R=0.1$ and initial condition
 \[
 z(0) = \begin{bmatrix}
 0 & 0 & \frac{50 \pi}{180} & 0 
 \end{bmatrix}
 \]
-Which is better ?
+Which is better, $R=0.01$ or $R=0.1$ ?
 
 \item Run the program {\tt pend\_lqr.m} with different initial angles
 \[
@@ -351,16 +389,15 @@ z(0) = \begin{bmatrix}
 \]
 and for $R=0.01$ and $R=0.1$. Which value of $R$ gives faster stabilization ? What is the maximum magnitude of control in each case ? 
 
-\item Find angle beyond which non-linear model cannot be stabilized. Do this for $R=0.01$, $R=0.1$ and $R=0.5$. Use final time of $T=3$ and initial conditions of the form 
+\item If the initial angle $\theta_0$ is too large, then it may not be possible to stabilize the non-linear pendulum. The linear pendulum is always stabilized. Find angle beyond which non-linear model cannot be stabilized. Do this for $R=0.01$, $R=0.1$ and $R=0.5$. Use final time of $T=3$ and initial conditions of the form 
 \[
 z(0) = \begin{bmatrix}
 0 & 0 & \theta_0 & 0 
 \end{bmatrix}
 \]
-Use the evolution of energy as an indicator for finding the threshold angle.
+Use the evolution of energy as an indicator for finding the threshold angle. If the energy starts to increase monotonically, then conclude that it is not possible to stabilize the system.
 
 \end{enumerate}
-
 %--------------------------------------------------------------------------------
 
 \section{Linear system with noise and partial information}
@@ -372,15 +409,36 @@ where $w$ and $\eta$ are error/noise terms. We may not have access to the full s
 \[
 y_o = Hz  + v, \qquad \textrm{e.g.} \qquad H = \begin{bmatrix}
 1 & 0 & 0 & 0 \\
-0 & 0 & 1 & 0 \end{bmatrix}
+0 & 0 & 1 & 0 \end{bmatrix} \qquad \Longrightarrow \qquad y_o = \begin{bmatrix}
+x \\ \theta \end{bmatrix} + v
 \]
 which corresponds to observing $x$ and $\theta$.
 
 \vspace{5mm}
 
-Since we have partial information, we estimate $z$ by a linear estimator.
+Since we have partial information, we have to estimate $z$ somehow.
 %--------------------------------------------------------------------------------
-
+\subsection{A simple ``estimator"}
+Suppose we can observe only $z_1 = x$ and $z_3 = \theta$ but this is also noisy observation. Then we can estimate $\dx$ and $\dt$ by finite difference
+\[
+\dx(t_n) = \frac{x(t_n) - x(t_{n-1})}{\Delta t}, \qquad \dt(t_n) = \frac{\theta(t_n) - \theta(t_{n-1})}{\Delta t}
+\]
+Then we can try the following feedback control scheme using backward Euler time discretization
+\begin{eqnarray*}
+y^n &=& H z^n + v^n \\
+u^n &=& - K \begin{bmatrix}
+y_1^n \\
+\frac{1}{\Delta t}(y_1^n - y_1^{n-1}) \\
+y_2^n \\
+\frac{1}{\Delta t}(y_1^n - y_1^{n-1})
+\end{bmatrix} \\
+\frac{z^{n+1} - z^n}{\Delta t} &=& A z^{n+1} + B u^n + w^n
+\end{eqnarray*}
+This is implemented in {\tt lp\_noest.m}.
+%--------------------------------------------------------------------------------
+\subsection{Excercise}
+Run the program {\tt lp\_noest.m} and observe that the state and control are very noisy and hence is not of practical utility.
+%--------------------------------------------------------------------------------
 \subsection{Estimation problem}
 Linear estimator
 \[
@@ -390,33 +448,53 @@ We determine the filtering gain $L$ by minimizing
 \[
 J = \frac{1}{2} \int_0^\infty (y_o - H z_e)^\top R_v^{-1} (y_o - H z_e) \ud t +            \frac{1}{2} \int_0^\infty w^\top R_w^{-1} w \ud t
 \]
-The solution is given by
-\[
-L = - X_e H^\top R_v^{-1}
-\]
-where $X_e$ is solution of
+The best $L$ is given by
+\begin{equation}
+L = X_e H^\top R_v^{-1}
+\label{eq:L}
+\end{equation}
+where $X_e$ is solution of algebraic Riccati equation
 \[
 A X_e + X_e A^\top - X_e H^\top R_v^{-1}  H X_e + R_w = 0
 \]
+This equation is similar to equation~(\ref{eq:are}) if we replace 
+\begin{center}
+\begin{tabular}{ccc}
+$A$ & with & $A^\top$ \\
+$B$ & with & $H^\top$ \\
+$Q$ & with & $R_w$ \\
+$R$ & with & $R_v$
+\end{tabular}
+\end{center}
+%--------------------------------------------------------------------------------
 
-\paragraph{Excercises}
+\subsection{Excercises}
 
 \begin{enumerate}
 
 \item Compute the filtering matrix $L$
 \begin{lstlisting}
-Rw = (5e-3) *diag([0.9,0.8,0.4,0.7]);
-Rv = (5e-3) *diag([0.9,0.8]);
-[L, S] = lqr(A', H', Rw, Rv);
-L = real(L');
+>> Rw = (5e-2)^2 * diag([1, 1, 1, 1]);
+>> Rv = (5e-2)^2 * diag([1, 1]);
+>> [L, Xe] = lqr(A', H', Rw, Rv);
+>> L = real(L');
 \end{lstlisting}
 
 \item Compute eigenvalues of $A-LH$ and check that they are all stable.
+\begin{lstlisting}
+>> eig(A-L*H)
+\end{lstlisting}
+
+\item Compute $L$ from equation~(\ref{eq:L}) and check that it is same as $L$ obtained in step~1 above.
+\begin{lstlisting}
+>> L1 = Xe * H' / Rv;
+>> L - L1
+\end{lstlisting}
 
 \end{enumerate}
 %--------------------------------------------------------------------------------
 
-\subsection{Coupled linear system}
+\subsection{Linear system with linear estimator}
 The feedback is based on estimated solution $u = -K z_e$
 \begin{eqnarray*}
 \dd{z}{t} &=& A z - B K z_e + w \\
@@ -439,46 +517,46 @@ The initial condition is given by
 z(0) = z_0 + \eta, \qquad z_e(0) = z_0
 \]
 This is implemented in program {\tt lp\_est.m}
+%--------------------------------------------------------------------------------
 
-\paragraph{Excercises}
+\subsection{Excercises}
 
 \begin{enumerate}
 
-\item Run program {\tt lp\_est.m}
-
-\item The above problem can also be solved without estimation, where the control is generated by the faulty partial observations. For instance, if we observe only the position of the cart and the angle, then the other states can be approximated using a backward time difference. This is implemented in {\tt lp\_noest.m}. Run this code with the same initial conditions and error parameters as chosen in {\tt lp\_est.m}. Which method gives a better control?  
+\item Run program {\tt lp\_est.m}. Observe that initially $z$ and $z_e$ differ but after some time, $z_e$ approches $z$ so that the estimation becomes more accurate. You may have to zoom the plot near the initial time to see the difference.
 
 \item Vary the magnitude of the errors (GIVE SOME CHOICES) in the covariance matrices {\tt Rw, Ru}. How does each type of control perform?
 \end{enumerate}
 
 %--------------------------------------------------------------------------------
 
-\subsection{Coupled non-linear system}
+\subsection{Non-linear system with linear estimator}
 
-The feedback is based on estimated solution $u = -K z_e$
+The feedback is based on estimated solution using the linear estimator which is used to add the control into the non-linear model.
 \begin{eqnarray*}
-\dd{z}{t} &=& N(z, u) + w \\
+\dd{z}{t} &=& N(z, u) \\
 \dd{z_e}{t} &=& A z_e + B u + L(y_o - H z_e) \\
-y_o &=& H z + v
+y_o &=& H z \\
+u &=& -K z_e
 \end{eqnarray*}
 with initial condition
 \[
 z(0) = z_0 + \eta, \qquad z_e(0) = z_0
 \]
+Since we do not know the precise initial condition, the estimator contains an error in the initial condition. This is implemented in program {\tt nlp\_est.m} and {\tt rhs\_nlpest.m}
+%--------------------------------------------------------------------------------
 
-This is implemented in program {\tt nlp\_est.m}
-
-\paragraph{Excercises}
+\subsection{Excercises}
 
 \begin{enumerate}
 
-\item Run program {\tt nlp\_est.m}
+\item Run program {\tt nlp\_est.m}. Zoom the plot near initial time and compare the non-linear solution with the linear estimator. Note that $z_e$ approaches $z$ for larger times.
 
-\item Have the threshold angles evaluated for $Ru=0.01$, $Ru=0.1$ and $Ru=0.5$ changed? If yes, then what are the new threshold angles?
+\item Increase the initial angle and check if the feedback can be stabilize the non-linear system. Have the threshold angles evaluated for $R=0.01$, $R=0.1$ and $R=0.5$ changed? If yes, then what are the new threshold angles?
 
-\item How does the control vary as {\tt Ru} is changed? Is the behaviour the same as that observed in the earlier cases?
+\item How does the control vary as $R$ is changed? Is the behaviour the same as that observed in the earlier cases?
 
-\item How does the value of {\tt Ru} influence the stabilization of the state variables?
+\item How does the value of $R$ influence the stabilization of the state variables?
 
 \end{enumerate}
 
@@ -542,5 +620,12 @@ $a$ & Acceleration due to gravity & 9.81 \\
 \item {\tt nlp\_est.m}: Solves the non-linear model with noise and partial information, coupled estimator and feedback stabilization
 
 \end{enumerate}
+%--------------------------------------------------------------------------------
+
+\begin{thebibliography}{99}
+
+\bibitem{landry} M. Landry, S. A. Campbell, L. Morris and C. O. Aguilar, ``Dynamics of an inverted pendulum with delayed feedback control", SIAM J. Applied Dynamical Systems, Vol.~4, No.~2, pp.~333-351, 2005.
+
+\end{thebibliography}
 
 \end{document}  
