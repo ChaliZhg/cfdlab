@@ -2,8 +2,6 @@
 % no control, no noise
 function dxdt = rhs_nlp(t,x,M,m,l,g,k,c,I)                  
 
-dxdt = zeros(4,1);
-
 D = (M + m)*(I + m*l^2) - m^2*l^2*cos(x(3))^2; 
 
 dxdt = [ x(2);...

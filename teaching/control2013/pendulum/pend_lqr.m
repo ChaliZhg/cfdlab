@@ -2,7 +2,6 @@
 % control from the LQR approach
 
 close all
-clc
 
 % File declaring the values of the various parameters to be used
 parameters;
@@ -38,7 +37,7 @@ hold all
 % Function to compute energy
 compute_energy = @(x) 0.5*(M*x(:,2).^2 + m*(x(:,2) + ...
                            l*x(:,4).*cos(x(:,3))).^2 + ...
-                           (I+m*l^2).*x(:,4).^2 ) - m*g*l*cos(x(:,3));
+                           (I+m*l^2).*x(:,4).^2 ) + m*g*l*cos(x(:,3));
 
 % Plotting the evolution of energy     
 energy = compute_energy(x);

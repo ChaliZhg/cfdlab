@@ -4,7 +4,7 @@ dxdt = zeros(8,1);
 
 % Compute feedback using estimator
 u = -K*x(5:8);
-F = Alpha*u-Beta*x(2);
+F = Alpha*u - Beta*x(2);
 
 % nonlinear model
 D = (M + m)*(I + m*l^2) - m^2*l^2*cos(x(3))^2; 

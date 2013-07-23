@@ -2,7 +2,6 @@
 
 clear all
 close all
-clc
 
 parameters;
 [A,B] = get_system_matrices();
@@ -10,7 +9,7 @@ parameters;
 C = [1 0 0 0; 
      0 0 1 0];
 Q = C'*C; 
-Ru = 0.01;
+Ru = 1/3^2;
 
 [K,X] = lqr(A, B, Q, Ru);
 disp('Eigenvalues of A-B*K')
@@ -20,20 +19,17 @@ eig(A-B*K)
 H = [1, 0, 0, 0;
      0, 0, 1, 0];
 
-% Number of time steps
-Nt = 1500;
-
 % Initial condition
 x0 = [0; 0; 0; 0];
 
 % Covariance matrix for noise in state
-Rw = (5e-3) *diag([0.9,0.8,0.4,0.7]);
+Rw = (5e-2)^2 * diag([1, 1, 1, 1]);
 
 % Covariance matrix for noise in observation
-Rv = (5e-3) *diag([0.9,0.8]);
+Rv = (5e-2)^2 * diag([1, 1]);
 
 % Adding noise to the initial conditions
-x0c = [x0;0*x0];
+x0c = [x0; 0*x0];
 
 [L,S] = lqr(A', H', Rw, Rv);
 L = real(L');
@@ -42,7 +38,7 @@ disp('Eigenvalues of A-L*H')
 eig(A-L*H)
 
 % Time dicretizition
-tspan = [0:0.01:3];
+tspan = [0:0.01:10];
 
 % Nonlinear system without estimation and control with noise full
 % information

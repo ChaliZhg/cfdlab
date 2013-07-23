@@ -14,8 +14,8 @@ nz = 0; % Number of eigenvalues with zero real part
 tol = 1e-13; % To check Hautus criterion
 
 for j = 1:n
-   if(D(j) >= 0)
-       if(D(j) > 0)
+   if(D(j) >= -tol)
+       if(D(j) > tol)
            nu = nu + 1;
        else
            nz = nz + 1;
