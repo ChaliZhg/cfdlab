@@ -13,7 +13,7 @@ l=0.36;
 % Moment of inertia of pendulum
 I=1/3*m*l^2;
 
-% Coefficients of fricition
+% Coefficients of friction
 k = 0.05; 
 c = 0.005;
 

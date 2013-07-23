@@ -1,7 +1,6 @@
 % Linear model for the inverted pendulum, without any feedback control
 
 close all
-clc
 
 % File declaring the values of the various parameters to be used
 parameters;

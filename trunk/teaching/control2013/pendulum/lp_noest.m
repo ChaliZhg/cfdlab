@@ -6,7 +6,6 @@
 
 clear all
 close all
-clc
 
 parameters;
 [A,B] = get_system_matrices();
@@ -24,8 +23,9 @@ H = [1, 0, 0, 0;
 %H = eye(4);
 
 % Function to compute energy
-compute_energy = @(x) 0.5*(M*x(:,2).^2 + m*(x(:,2) + l*x(:,4).*cos(x(:,3))).^2 + ...
-         (I+m*l^2).*x(:,4).^2 ) - m*g*l*cos(x(:,3));
+compute_energy = @(x) 0.5*(M*x(:,2).^2 + m*(x(:,2) ...
+                     + l*x(:,4).*cos(x(:,3))).^2 + ...
+                    (I+m*l^2).*x(:,4).^2 ) + m*g*l*cos(x(:,3));
 
 % Number of time steps; N = number of states; No = number of observations
 Nt = 25000; N = 4; No = length(H(:,1));
@@ -34,15 +34,12 @@ Nt = 25000; N = 4; No = length(H(:,1));
 x0 = [0; 0; 20*pi/180; 0];
 
 % Noise in state
-muw = zeros(1,N)';
-Rw = (5e-3) *diag([0.9,0.8,0.4,0.7]);
-w = mvnrnd(muw,Rw,Nt);
+w = (5e-2)^2 * randn(Nt+1,N);
+Rw = diag(std(w).^2);
 
 % Noise in observation
-muv = zeros(1,No);
-Rv = (5e-3) *diag([0.9,0.8]);
-v = mvnrnd(muv,Rv,Nt);
-
+v = (5e-2)^2 * randn(Nt+1,No);
+Rv = diag(std(v).^2);
 
 % Time discretization
 dt = 0.01;
@@ -75,7 +72,10 @@ for nt=1:Nt-1
     y(:,nt+1) = H*z(:,nt+1) + v(nt+1,:)';   
     
     % calculate control without estimation
-    u(nt+1) = -K*[y(1,nt+1) ;(y(1,nt+1)-y(1,nt))/dt; y(2,nt+1) ;(y(2,nt+1)-y(2,nt))/dt];
+    u(nt+1) = -K*[y(1,nt+1); ...
+                  (y(1,nt+1)-y(1,nt))/dt; ...
+                  y(2,nt+1); ...
+                  (y(2,nt+1)-y(2,nt))/dt];
     
     % calculating energy
     energy(nt) = compute_energy(z(:,nt)');

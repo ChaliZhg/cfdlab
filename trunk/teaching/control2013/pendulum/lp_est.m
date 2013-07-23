@@ -8,8 +8,6 @@ parameters;
 [A,B] = get_system_matrices();
 
 Q = eye(4);
-Q = diag([1/0.68^2, 1, 1/0.175^2, 1/0.5^2]);
-
 Ru = 1/3^2;
 
 [K,X] = lqr(A, B, Q, Ru);
@@ -28,11 +26,11 @@ Nt = 2500; N = 4; No = length(H(:,1));
 z0 = [0; 0; 20*pi/180; 0];
 
 % Noise in state
-w = (5e-2)^2 * randn(Nt,4);
+w = (5e-2)^2 * randn(Nt,N);
 Rw = diag(std(w).^2);
 
 % Noise in observation
-v = (5e-2)^2 * randn(Nt,2);
+v = (5e-2)^2 * randn(Nt,No);
 Rv = diag(std(v).^2);
 
 [L,S] = lqr(A', H', Rw, Rv);
@@ -59,7 +57,7 @@ He = [H,          zeros(No,N); ...
 % Function to compute energy
 compute_energy = @(x) 0.5*(M*x(:,2).^2 + m*(x(:,2) ...
                      + l*x(:,4).*cos(x(:,3))).^2 + ...
-                      (I+m*l^2).*x(:,4).^2 ) - m*g*l*cos(x(:,3));
+                      (I+m*l^2).*x(:,4).^2 ) + m*g*l*cos(x(:,3));
 
 % N : number of state variables, no : number of observation
 dt = 0.01;
@@ -72,13 +70,13 @@ energy = zeros(1,Nt);
 
 % Set initial condition
 i=1;
-zc(:,i) = [z0;zeros(4,1)] ; % Initial condition
+zc(:,i) = [z0; zeros(N,1)] ; % Initial condition
 u(i) = -K*zc(N+1:2*N,i);
 energy(i) = compute_energy(zc(N+1:2*N,i)');
 
 % First time step: use BDF1 (Backward Euler)
 beta = 1; a1   = -1;
-Am = (1/(beta*dt))*eye(8) - Ae;
+Am = (1/(beta*dt))*eye(2*N) - Ae;
 
 i = 2;
 rhs = -(a1/(beta*dt))*zc(:,i-1) + Be*[w(i,:)';v(i,:)'];
@@ -90,7 +88,7 @@ energy(i) = compute_energy(zc(N+1:2*N,i)');
 
 % Remaining time steps: use BDF2
 beta = 2/3; a1 = -4/3; a2 = 1/3;
-Am = (1/(beta*dt))*eye(8) - Ae;
+Am = (1/(beta*dt))*eye(2*N) - Ae;
 
 for i=3:Nt
    rhs = -(1/(beta*dt))*(a1*zc(:,i-1) + a2*zc(:,i-2)) + Be*[w(i,:)';v(i,:)'];
