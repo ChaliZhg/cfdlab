@@ -49,25 +49,25 @@ figure(1),
 subplot(2,2,1)
 hold all
 plot(t,zc(:,1),t,zc(:,5))
-legend('z nonlinear','z_e')
+legend('z','z_e')
 title('Position of cart')
 grid on
 subplot(2,2,2)
 hold all
 plot(t,zc(:,2),t,zc(:,6))
-legend('z nonlinear','z_e')
+legend('z','z_e')
 title('Speed of cart')
 grid on
 subplot(2,2,3)
 hold all
 plot(t,zc(:,3),t,zc(:,7))
-legend('z nonlinear','z_e')
+legend('z','z_e')
 title('Angle of Pendulum')
 grid on
 subplot(2,2,4)
 hold all
 plot(t,zc(:,4),t,zc(:,8))
-legend('z nonlinear','z_e')
+legend('z','z_e')
 title('Anglular speed of Pendulum')
 grid on
 

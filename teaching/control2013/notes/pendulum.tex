@@ -419,7 +419,7 @@ which corresponds to observing $x$ and $\theta$.
 Since we have partial information, we have to estimate $z$ somehow.
 %--------------------------------------------------------------------------------
 \subsection{A simple ``estimator"}
-Suppose we can observe only $z_1 = x$ and $z_3 = \theta$ but this is also noisy observation. Then we can estimate $\dx$ and $\dt$ by finite difference
+Suppose we can observe only $z_1 = x$ and $z_3 = \theta$ but this is also noisy observation. Then we can try to estimate $\dx$ and $\dt$ by using finite difference in time.
 \[
 \dx(t_n) = \frac{x(t_n) - x(t_{n-1})}{\Delta t}, \qquad \dt(t_n) = \frac{\theta(t_n) - \theta(t_{n-1})}{\Delta t}
 \]
@@ -430,7 +430,7 @@ u^n &=& - K \begin{bmatrix}
 y_1^n \\
 \frac{1}{\Delta t}(y_1^n - y_1^{n-1}) \\
 y_2^n \\
-\frac{1}{\Delta t}(y_1^n - y_1^{n-1})
+\frac{1}{\Delta t}(y_2^n - y_2^{n-1})
 \end{bmatrix} \\
 \frac{z^{n+1} - z^n}{\Delta t} &=& A z^{n+1} + B u^n + w^n
 \end{eqnarray*}
@@ -545,7 +545,6 @@ z(0) = z_0 + \eta, \qquad z_e(0) = z_0
 \]
 Since we do not know the precise initial condition, the estimator contains an error in the initial condition. This is implemented in program {\tt nlp\_est.m} and {\tt rhs\_nlpest.m}
 %--------------------------------------------------------------------------------
-
 \subsection{Excercises}
 
 \begin{enumerate}
@@ -559,7 +558,29 @@ Since we do not know the precise initial condition, the estimator contains an er
 \item How does the value of $R$ influence the stabilization of the state variables?
 
 \end{enumerate}
+%--------------------------------------------------------------------------------
+\subsection{Excercises}
+Here we will assume that we do not know the value of the friction coefficient $k$ and $c$. So the linear estimator will be constructed taking $k=0$ and $c=0$ whereas the non-linear model will include the friction. We want to see if the estimator is still able to give a good estimate of the real state.
+\begin{enumerate}
 
+\item In {\tt parameters.m} set $k$ and $c$ to be zero.
+
+\item Copy {\tt nlp\_est.m} as {\tt nlp\_est2.m}
+
+\item Modify the initial part like this
+\begin{lstlisting}
+parameters;
+[A,B] = get_system_matrices();
+k = 0.05;
+c = 0.005;
+\end{lstlisting}
+
+\item Run the program
+\begin{lstlisting}
+>> nlp_est2
+\end{lstlisting}
+
+\end{enumerate}
 %--------------------------------------------------------------------------------
 
 \section{Inverted pendulum: Parameters}
