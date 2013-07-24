@@ -54,6 +54,7 @@ IISc, Bangalore\\
 \url{http://praveen.cfdlab.net/teaching/control2013}
 \end{center}
 
+%----------------------------------------------------------------------------------------
 
 \section{The model}
 The shifted 1D heat equation is given by
@@ -69,6 +70,7 @@ and initial condition
 z(x,0) = z_0(x) , \quad x \in (0,1)
 \]
 Here $\alpha \ge 0$ and $\mu > 0$. 
+%----------------------------------------------------------------------------------------
 
 \subsection{Weak formulation}
 We assume $z_0 \in L^2(0,1)$. We wish to find $z \in L^2(0,T;H^1_{\{0\}}(0,1))$ such that
@@ -81,11 +83,12 @@ We assume $z_0 \in L^2(0,1)$. We wish to find $z \in L^2(0,T;H^1_{\{0\}}(0,1))$ 
 \[
  (z(0),\phi)_{L^2} = (z_0 ,\phi)_{L^2}
 \]
+%----------------------------------------------------------------------------------------
 
 \subsection{FEM approximation}
 Consider a regular subdivision of $[0,1]$
 \[
- 0 = x_0 < x_1 < ... < x_N = 1, \quad h = \frac{1}{N}, \quad x_k = kh \quad \forall k \in \{0,...,N\}
+ 0 = x_0 < x_1 < ... < x_N = 1, \quad h = \frac{1}{N}, \quad x_k = kh \quad \forall k \in \{0,1,...,N\}
 \]
 We work with the finite dimensional subspaces of $H^1_{0}(0,1)$
 \begin{equation*}
@@ -96,18 +99,15 @@ We work with the finite dimensional subspaces of $H^1_{0}(0,1)$
 \end{equation*}
 We denote the standard $P_1$ bases for $Z_{h,0}$ and $Z_{h}$ by $\{\phi_1, \phi_2,...,\phi_{N-1}\}$ and $\{\phi_1, \phi_2,...,\phi_N\}$ respectively, with $\phi_j(x_i) = \delta_{ij}$. The test function are chosen from $Z_{h,0}$. The approximate weak formulation is given as
 \[
- \text{Find } z = \sum \limits_{i=1}^N z_i \phi_i = \sum \limits_{i=1}^{N-1} z_i \phi_i + u(t) \phi_N \in Z_h, \quad z_i \in L^2(0,T) \text{ such that}
+ \text{Find } z = \sum \limits_{i=1}^{N-1} z_i \phi_i + u(t) \phi_N \in Z_h, \quad \text{ such that}
 \]
 \[
  \dd{}{t}(z(t), \phi_k)_{L^2} = - \mu \int \limits^{1}_{0} \df{z}{x} \dd{\phi_k}{x} \, dx +  \alpha \int \limits^{1}_{0} z(x,t) \phi_k \, dx, \quad \forall k \in \{1,..., N-1\}
 \]
 \[
- z_N(t) = u(t)
-\]
-\[
  (z(0),\phi_k)_{L^2} = (z_0 ,\phi_k)_{L^2}, \quad \forall k \in \{1,..., N-1\}
 \]
-Since $z_N(t)$ is known, we obtain a a differential system 
+We obtain a a differential system 
 \[
  \M \dd{\z}{t} = \A_\alpha \z + \B u , \quad \M \z(0) = ((z_0,\phi_i)_{L^2})_{1\le i \le {N-1}}
 \]
@@ -139,7 +139,11 @@ Using exact integration for $\M$ and $\A$ gives
 \]
 We use the trapezoidal rule for $u'(t) \int_0^1 \phi_N \phi_{N-1}$ which will evaluate out as zero. 
 
-%----------------------------------------------------------------------------------------------------------------------------------------------------------
+\vspace{2mm}
+
+\noindent
+The matrices are computed in the matlab code {\tt matrix\_fem.m}
+%----------------------------------------------------------------------------------------
 \section{Time integration using BDF}
 Assume for now that the feedback control is of the form 
 \[
@@ -159,49 +163,40 @@ For the remaining time steps we use BDF2
 \]
 or
 \[
- \left[ \frac{\M }{\frac{2}{3}\Delta t} - (\A_\alpha - \B \K) \right] \z^{n+1} =  \frac{\M}{\frac{2}{3}\Delta t}\left( \frac{4}{3} \z^{n} - \frac{1}{3} \z^{n-1} \right)
+ \left[ \frac{\M }{\frac{2}{3}\Delta t} - (\A_\alpha - \B \K) \right] \z^{n+1} =  -\frac{\M}{\frac{2}{3}\Delta t}\left( -\frac{4}{3} \z^{n} + \frac{1}{3} \z^{n-1} \right)
 \]
 
 %--------------------------------------------------------------------------------
-\paragraph{Excercises}
+\section{Excercises}
 \begin{enumerate}
-\item Run the code {\tt heat.m} with $\alpha =0$
+\item The code in {\tt heat.m} solves the problem with homogeneous Dirichlet boundary conditions at $x=0$ and $x=1$ and initial condition
+\[
+z(x,0) = x^2 (1-x)^3
+\]
+Since $z(1,t) = u(t) = 0$ it is enough to solve
+\[
+\M \dd{\z}{t} = \A \z
+\]
+Run the code {\tt heat.m} with $\alpha =0$
 \begin{lstlisting}
 alpha = 0; 
 mu = 1;
 \end{lstlisting}
-Are all the eigenvalues stable? How do the solution and energy behave?
-\item Evaluate the decay rate of the solution via the following steps
-\begin{itemize}
+Are all the eigenvalues stable ? How do the solution and energy behave with time ?
 
-\item Declare an array 
+\item Evaluate the decay rate of energy for initial condition $z(x,0) = \sin(\pi x)$
 \begin{lstlisting}
-diff = zeros(nT+1,1)
+P = polyfit(t, log(energy'), 1)
+P(1) % Exact rate = 2*mu*pi^2
 \end{lstlisting}
-
-\item Store the norm of the solution at each time step 
-\begin{lstlisting}
-diff(i) = norm([0,z(:,i)',0])
-\end{lstlisting}
-Find the coefficients of the linear polynomial fit of the data set {\tt (t,log(diff))}
-\begin{lstlisting}
-polyfit(t,log(diff)',1)
-\end{lstlisting}
-This will give you the decay rate.
-\end{itemize}      
-\item Run the code with
+      
+\item With initial condition $z(x,0) = \sin(\pi x)$ run {\tt heat.m} with
 \begin{lstlisting}
 alpha = 0.4 + pi^2 * mu
 \end{lstlisting}
-Are all the eigenvalues stable? How do the solution and energy behave this time?
+Are all the eigenvalues stable ? How do the solution and energy behave with time ?
 
-\item Change the initial condition to
-\begin{lstlisting}
-z0 = sqrt(2)*sin(pi*x)
-\end{lstlisting}
-which is the eigenfunction corresponding to the unstable eigenvalue. What happens to the solution?
-
-\item For each eigenvalue $\lambda$, compute eigenvector $\V$ of $(\A_\alpha^\top,\M^\top)$
+\item For same $\alpha$ as above, compute 10 eigenvalues with largest real part using {\tt eigs} function. For each unstable eigenvalue $\lambda$, compute eigenvector $\V$ of $(\A_\alpha^\top,\M^\top)$
 \[
  \A_\alpha^\top \V = \lambda \M^\top \V
 \]
@@ -209,7 +204,17 @@ and check if
 \[
  \B^\top \V \ne 0
 \]
-for each unstable eigenvalue (Hautus criterion).
+If the above is true for all unstable eigenvalues, then the system is stabilizable. Is the heat equation system stabilizable ?
+
+\item Now modify {\tt heat.m} to implement the following non-homogeneous Dirichlet boundary condition
+\[
+z(1,t) = u(t) = 1
+\]
+and use the same initial condition as before. Use $\mu=1$ and $\alpha=0$. The solution should converge to
+\[
+\lim_{t \to \infty} z(x,t) = x
+\]
+
 \end{enumerate}
 
 %--------------------------------------------------------------------------------
@@ -226,7 +231,7 @@ where $\bdP$ is solution of algebraic Riccati equation (ARE)
 \[
 \A^\top_\alpha \bdP \M + \M^\top \bdP \A_\alpha - \M^\top \bdP \B \R^{-1} \B^\top \bdP \M  = 0
 \]
-This can be done using the {\tt care} function
+This can be solved using the {\tt care} function
 \begin{lstlisting}
 [P,L,K] = care(A,B,R,Q,S,M);
 \end{lstlisting}
@@ -236,18 +241,14 @@ which solves the more general ARE
 \]
 where $\bL$ gives the eigenvalues of $(\A- \B \K,\M)$. Since $\bdS=0$ for our problem, we can simply replace it with {\tt []} while calling the {\tt care} function. Furthermore, for the minimal norm feedback, we take $\Q=0$, which can be set in {\tt matrix\_fem.m}
 %--------------------------------------------------------------------------------
-\paragraph{Excercises}
+\section{Excercises}
 
 \begin{enumerate}
-\item Run the code {\tt heat\_lqr.m} and observe the modification in the eigenvalues. Has the unstable eigenvalue observed earlier changed? What about the remaining stable eigenvalues?
-
-\item Change the initial condition to
+\item Set $\Q=0$ in {\tt matrix\_fem.m} and use
 \begin{lstlisting}
-z0 = sqrt(2)*sin(pi*x)
+alpha = 0.4 + pi^2 * mu
 \end{lstlisting}
-What happens to the solution with the above control?
-
-\item Plot the intial condition and the numerical solution after one time step.  
+Run the code {\tt heat\_lqr.m}. Use initial condition $z(x,0) = \sin(\pi x)$. Observe the modification in the eigenvalues; zoom the eigenvalue plot near the origin and locate the unstable eigenvalue and modified eigenvalue; note that the unstable eigenvalue is reflected about the imaginary axis. What about the remaining stable eigenvalues? Is the solution of the heat equation stable ?
 
 \item Save the feedback matrix evaluated
 \begin{lstlisting}
@@ -258,8 +259,8 @@ Load $\K$ into {\tt heat.m}, and for {\tt alpha = 0} (no shift) introduce contro
 load('feedback');
 A = A-B*sparse(K);
 \end{lstlisting}
+Find the decay rate in this case using {\tt polyfit} function. Has it improved? We expect it to be atleast $2(0.4 + \mu \pi^2)$.
 
-\item Find the decay rate in this case. Has it improved? Is it in the expected range?      
 \end{enumerate}
 
 %--------------------------------------------------------------------------------
@@ -291,7 +292,7 @@ where $\bdP$ is solution of algebraic Riccati equation (ARE)
 %The solution exists if $(A,B)$ is controllable and $(A,C)$ is observable.
 %--------------------------------------------------------------------------------
 
-\paragraph{Excercises}
+\section{Excercises}
 
 \begin{enumerate}
 
@@ -366,6 +367,7 @@ The corresponding matrix $\bdP \in \LL(\re^{N-1})$ such that $(\M,\A_\alpha - \B
  \bdP = \Sigma_u \PPu \Sigma^\top_u
 \]
 where $\Sigma_u$ is the matrix of eigenvectors corresponding to the unstable eigenvalues. This is implemented in {\tt heat\_lqru.m}
+%----------------------------------------------------------------------------------------
 
 \paragraph{Excercises}
 
@@ -390,7 +392,7 @@ in the equation and find the expressions for exact control and solution. Plot an
 \item Save the feedback matrix and load it into {\tt heat.m}. Is the decay rate as expected?
 \end{enumerate}
 
-%-------------------------------------------------------------------------------------------------------------------------------------------------------------
+%-----------------------------------------------------------------------------------
 
 \section{System with noise and partial information}
 Consider the system with noise in the model and initial condition
@@ -484,6 +486,7 @@ The initial condition is given by
 \z(0) = \z_0 + \eta, \qquad \z_e(0) = \z_0
 \]
 This is implemented in program {\tt heat\_est.m}
+%----------------------------------------------------------------------------------------
 
 \paragraph{Excercises}
 
