@@ -8,7 +8,7 @@ close all
 a     = 0; 
 b     = 1; 
 ni    = 100; 
-mu    = 1/1; 
+mu    = 1; 
 %alpha = 0.4 + pi^2*mu;
 alpha = 0;
 
@@ -19,7 +19,7 @@ h = (b-a)/ni;
 [M,A,B,C,D] = matrix_fem(ni,mu,alpha);
 
 % eigenvalues
-eo=eig(full(A),full(M));
+eo=eigs(A,M,10,'LR');
 
 figure(1)
 plot(real(eo),imag(eo),'o')
