@@ -3,12 +3,11 @@
 
 clear all
 close all
-clc
 
 a     = 0; 
 b     = 1; 
 ni    = 100; 
-mu    = 1/1; 
+mu    = 1; 
 alpha = 0.4 + pi^2*mu;
 n = ni - 1;
 h = (b-a)/ni;
@@ -17,13 +16,13 @@ h = (b-a)/ni;
 [M,A,B,Q,R] = matrix_fem(ni,mu,alpha);
 
 % uncontrolled eigenvalues
-eo=eig(full(A),full(M));
+eo=eigs(A,M,10,'LR');
 
 K = feedback_matrix(M,A,B,Q,R);
 A=A-B*sparse(K); 
 
 % eigenvalues with feedback control
-ec=eig(full(A),full(M));
+ec=eigs(A,M,10,'LR');
 
 figure(2)
 plot(real(eo),imag(eo),'o',real(ec),imag(ec),'*')
