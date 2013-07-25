@@ -16,7 +16,7 @@ n = ni - 1;
 h = (b-a)/ni;
 
 % Generate the system matrices
-[M,A,B,C,D] = matrix_fem(ni,mu,alpha);
+[M,A,B,Q,R,H] = matrix_fem(ni,mu,alpha);
 
 % eigenvalues
 eo=eigs(A,M,10,'LR');
