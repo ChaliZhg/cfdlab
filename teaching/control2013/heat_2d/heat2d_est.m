@@ -33,11 +33,14 @@ function heat2d_est ( )
    eig(D - Bu*Bu'*Pu)
    
    % Matrix P for the initial system.
-   P = sparse(V*Pu*V'); 
-   
+   % P = V*Pu*V'
    % Feedback matrix for the original system
-   K = B'*P*M;   
- 
+   % K = B'*P*M;   
+
+   % We directly compute K to avoid computing P which will be large matrix
+   Pu= sparse(Pu);
+   K = ((B'*V)*Pu)*(V'*M);
+
 %==========================================================================
    
    % Noise in state

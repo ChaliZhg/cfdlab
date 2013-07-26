@@ -4,13 +4,12 @@
 
 clear all
 close all
-clc
 
 a     = 0; 
 b     = 1; 
 ni    = 100; 
-mu    = 1/1; 
-alpha = 10;
+mu    = 1; 
+alpha = 0.4 + pi^2;
 
 n = ni - 1;
 h = (b-a)/ni;
@@ -19,11 +18,13 @@ h = (b-a)/ni;
 [M,A,B,Q] = matrix_fem(ni,mu,alpha);
 
 % uncontrolled eigenvalues
-eo=eig(full(A),full(M));
+[V,D]=eigs(A,M,10,'LR');
+eo=diag(D);
 
-% Hautus criterion 
-[nu] =  hautus(full(A),full(B),full(M));
-[V,D] = eigs(full(A),full(M),nu,'lr');
+% Find number of unstable eigenvalues
+nu = 1;
+V = V(:,1:nu);
+D = D(1:nu, 1:nu);
 
 % Bu is the matrix acting on the control corresponding to the unstable 
 % portion of the diagonalized system, 
@@ -43,11 +44,11 @@ eig(D - Bu*Bu'*Pu)
 P = V*Pu*V'; 
 
 % Feedback matrix for the original system
-K = B'*P*M;
-A=A-B*sparse(K);
+K = sparse(B'*P*M);
+A = A - B*K;
 
 % eigenvalues with feedback control
-ec=eig(full(A),full(M));
+ec=eigs(A,M,10,'LR');
 
 figure(1)
 plot(real(eo),imag(eo),'o',real(ec),imag(ec),'*')
