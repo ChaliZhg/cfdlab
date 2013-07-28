@@ -7,6 +7,7 @@ h = 1/n;
 %[K,X] = lqr(full(M\A), full(M\B), full(Q), R);
 %K = real(K);
 [X,L,K] = care(full(A),full(B), full(Q),R,[],full(M));
+K = sparse(K);
 
 % plot control operator
 k_EF = [0 K 0];

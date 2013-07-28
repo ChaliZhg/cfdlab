@@ -35,7 +35,7 @@ H = sparse(1,n-1);
 % CHOOSE ONE OF THE FOLLOWING
 
 % First order finite difference z_x = (z1 - z0)/h
-H(1,1) = nu/h;
+%H(1,1) = nu/h;
 
 % Second order finite difference
 % z_x(x0) = (1/(2h))*( -3*z0 + 4*z1 - z2 )
