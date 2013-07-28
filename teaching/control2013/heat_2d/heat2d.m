@@ -36,10 +36,14 @@ function heat2d(to_control)
       eig(D - Bu*Bu'*Pu)
 
       % Matrix P for the initial system.
-      P = sparse(V*Pu*V');
-
+      % P = V*Pu*V'
       % Feedback matrix for the original system
-      K = B'*P*M;
+      % K = B'*P*M;   
+
+      % We directly compute K to avoid computing P which will be large matrix
+      Pu= sparse(Pu);
+      V = sparse(V);
+      K = ((B'*V)*Pu)*(V'*M);
 
    else
 

@@ -415,7 +415,14 @@ y = Hz  + v
 \]
 where $H$ is a suitable measure. We shall consider the case where $H$ is given by
 \[
- Hz(t) = z_x(0,t)
+ Hz(t) = \mu z_x(0,t)
+\]
+We have to approximate $z_x(0,t)$ by a finite difference formula. We can use a first order or second order finite differences
+\[
+\begin{aligned}
+\mbox{first order} \qquad & \mu z_x(0,t_n) \approx \mu \frac{z_1^n - z_0^n}{h} = \mu \frac{z_1^n}{h} \\
+\mbox{second order} \qquad & \mu z_x(0,t_n) \approx \mu \frac{- 3 z_0^n + 4 z_1^n - z_2^n}{2h} = \mu \frac{4 z_1^n - z_2^n}{2h}
+\end{aligned}
 \]
 In the FEM setup, we get the system
 \[
@@ -443,7 +450,7 @@ J = \frac{1}{2} \int_0^\infty (y - H z_e)^\top R^{-1}_v (y - H z_e) \ud t +    \
 \]
 The solution is given by
 \[
-L = - P_e H^\top R^{-1}_v
+L = P_e H^\top R^{-1}_v
 \]
 where $P_e$ is solution of
 \[
@@ -454,7 +461,7 @@ The operators $R_w$ and $R_v$ are chosen according to the apriori knowledge we h
 \M \dd{\z_e}{t} = \A_\alpha \z_e + \B u + \bL(\y - \bH \z_e)
 \]
 \[
-\bL = - \M \bdP_e \bH^\top \R^{-1}_\bdv
+\bL = \M \bdP_e \bH^\top \R^{-1}_\bdv
 \]
 where $\bdP_e$ is solution of
 \[
@@ -494,47 +501,39 @@ The initial condition is given by
 This is implemented in program {\tt heat\_est.m}
 %----------------------------------------------------------------------------------------
 
-\paragraph{Excercises}
+\subsection{Excercises}
 
 \begin{enumerate}
 
-\item Run program {\tt heat\_est.m}
+\item Study the program {\tt heat\_est.m} and run it. We are taking initial condition
+\[
+\z(0) = \sin(\pi x) + 0.1 \sin(2 \pi x), \qquad \z_e(0) = \sin(\pi x)
+\]
 
-\item Plot the eigenvalues of the coupled system. Are they stable?
+\item Look at eigenvalues of $(A,M)$, $(A-BK,M)$ and $(A-LH,M)$. Are they stable?
 
-\item The matrices $\K$ and $\bL$ should improve estimation and decay rate of the unshifted problem. Check this via the following steps
-   \begin{itemize}
-    \item Save the matrices $\K$ and $\bL$
-    
-    \item Set {\tt alpha = 0} and evaluate the decay rate of $\z$ with $\K = 0$ and $\bL=0$. 
-    
-    \item Load the saved matrices and evaluate the decay rate. Has it improved?
-   \end{itemize}
-
+\item By default, the program takes $\Q=0$. Try the LQR approach using $\Q = \M$.
 
 \end{enumerate}
 
 %--------------------------------------------------------------------------------
 \subsection{Stabilizing the unstable component}
-As done before, the feedback gain matrix $\K$ can be evaluated by considering the projected system
-\[
- \dd{\zzu}{t} = \Lambda_{\alpha,u} \zzu + \BBu u
-\]
-We use the variable change
+
+We use the variable change to the eigenvector basis
 \[
  \z = \Sigma \zz
 \]
-and define the operator $\HH$ by
+The first $N_\alpha$ eigenvalues are unstable; the projection to the unstable space is $\zzu = \PIu \zz$. As done before, the feedback gain matrix $\K$ can be evaluated by considering the projected system
 \[
- \HH \zz = \bH \z
+ \dd{\zzu}{t} = \Lambda_{\alpha,u} \zzu + \BBu u
 \]
-We shall work with the projected variable $\zzu = \PIu \zz$, and thus define the corresponding measure operator
+Define the operator $\HH$ and $\HHu$ by
 \[
- \HHu = \HH \PIu
+ \HH \zz = \bH \z, \qquad \HHu = \HH \PIu
 \]
 The filtering gain $\PP_e$ for the reduced projected system is obtained as the solution of the ARE
 \[
- \PP_e \Lambda_{\alpha,u}^\top + \Lambda_{\alpha,u} \PP_e - \PP_e \HHu^\top \R_\bdv^{-1} \HHu \PP_e + \QQ_\w
+ \PP_e \Lambda_{\alpha,u}^\top + \Lambda_{\alpha,u} \PP_e - \PP_e \HHu^\top \R_\bdv^{-1} \HHu \PP_e + \QQ_\w = 0
 \]
 \[
  \Lambda_{\alpha,u} - \PP_e \HHu^\top \R_\bdv^{-1} \HHu \text{ is stable} 
@@ -545,36 +544,37 @@ where $\QQ_\w = \Sigma_u^\top \R_\w \Sigma_u$. The corresponding $\bdP_e$ such t
 \]
 
 %--------------------------------------------------------------------------------
-\paragraph{Excercises}
+\subsection{Excercises}
 
 \begin{enumerate}
 
-\item Write a code {\tt heat\_estu.m} for the above via the following steps
+\item Write a code {\tt heat\_estu.m} for the above via the following steps.
+
 \begin{itemize}
-\item Copy the contents of {\tt heat\_est.m}
+\item Copy the contents of {\tt heat\_est.m} to a new file called {\tt heat\_estu.m}
 
 \item Evaluate the feedback gain $\K$ as done in {\tt heat\_lqru.m}
 
 \item Evaluate the projected matrix $\HHu$ 
 \begin{lstlisting}
-Hu = full(H)*V; 
+Hu = full(H*V); 
 \end{lstlisting}
-where {\tt V} is the matrix of unstable eigenvectors ( you would have already evaluated this while obtaining $\K$ )
+where {\tt V} is the matrix of unstable eigenvectors (you would have already evaluated this while obtaining $\K$).
 
 \item Evaluate $\QQ_\w$ 
 \begin{lstlisting}
-Rwu = V'*full(Rw)*V; 
+Rwu = full(V'*Rw*V); 
 \end{lstlisting}
 
 \item Solve the ARE for the reduced system to obtain $\PP_e$
 \begin{lstlisting}
-Peu = care(D',full(Hu)',full(Rwu),full(Rv));
+Peu = care(D',Hu',Rwu,Rv);
 \end{lstlisting}
 where {\tt D} is the diagonalized matrix of the reduced system ( also evaluated while finding $\K$ )
 
 \item Find $\bdP_e$ for the original system
 \begin{lstlisting}
-Pe = V*Peu*V'; 
+Pe = sparse(V*Peu*V'); 
 \end{lstlisting}
 
 \item Finally evaluate $\bL$ by
@@ -582,18 +582,8 @@ Pe = V*Peu*V';
 L = M*Pe*H'/Rv; 
 \end{lstlisting}
 
-\item Run {\tt heat\_estu.m} with {\tt alpha = 10}. How do the solution and energy behave?
+\item Run {\tt heat\_estu.m} with {\tt alpha = 10}. How do the solution and energy behave~?
 
-\end{itemize}
-
-\item Check whether the $\K$ and $\bL$ improve the estimation and decay rate of the unshifted problem 
-
-\begin{itemize}
-\item Save the matrices $\K$ and $\bL$
-    
-\item Set {\tt alpha = 0} and evaluate the decay rate of $\z$ with $\K = 0$ and $\bL=0$. It would be easier to copy the code of {\tt heat\_estu.m} into a new file, say {\tt heat\_estu0.m} and remove all evaluations of $\bdP$ and $\bdP_e$.
-    
-\item Load the saved matrices and evaluate the decay rate. Has it improved?
 \end{itemize}
 
 \end{enumerate}
@@ -606,8 +596,6 @@ L = M*Pe*H'/Rv;
 
 \item {\tt matrix\_fem.m}: Computes FEM matrices
 
-\item {\tt hautus.m}: Checks the stabilizability of the system using Hautus criterion
-
 \item {\tt feedback\_matrix.m}: Computes feedback matrix
 
 \item {\tt heat.m}: Solves the heat equation for a given $\alpha$, without feedback
@@ -618,9 +606,7 @@ L = M*Pe*H'/Rv;
 
 \item {\tt heat\_est.m}: Solves the coupled estimation and control problem for the heat equation for a given $\alpha$
 
-\item {\tt heat\_estu.m}: Solves the coupled estimation and control problem for the heat equation for a given $\alpha$, stablilizing only the unstable components
-
-\item {\tt heat\_estu0.m}: Solves the coupled estimation and control problem for the heat equation for $\alpha = 0$, using matrice from {\tt heat\_estu.m}
+\item {\tt heat\_estu.m}: Solves the coupled estimation and control problem for the heat equation for a given $\alpha$, stablilizing only the unstable components.
 
 \end{enumerate}
 
