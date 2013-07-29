@@ -19,14 +19,14 @@ function heat2d(to_control)
 % Feedback matrix based on only the unstable components
 %--------------------------------------------------------------------------
       % Unstable eigenvalues and eigenvectors
-      nu = 1;
-      [V,D] = eigs(A,M,nu,'lr');
+      Nu = 1;
+      [V,D] = eigs(A,M,Nu,'lr');
       % Bu is the matrix acting on the control corresponding to the unstable 
       % portion of the diagonalized system, 
       Bu = V'*B;
 
       % Solving the ARE for the unstable part of the diagonalized system
-      Qu = zeros(nu);
+      Qu = zeros(Nu);
       Ru = 1;
       [Pu,L,G] = care(D,Bu,Qu,Ru);
 

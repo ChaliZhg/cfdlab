@@ -16,6 +16,9 @@ function show ( elements3, coordinates, u )
   figure(1)
   hold off
   trisurf ( elements3, coordinates(:,1), coordinates(:,2), u' );
+  xlabel('x')
+  ylabel('y')
+  zlabel('z')
 %
 %  Define the initial viewing angle.
 %
@@ -23,6 +26,6 @@ function show ( elements3, coordinates, u )
 
   title ( 'Solution to the Problem' )
 
-  figure(2)
-  hold off
-  pdecont(coordinates', elements3', u');
+  %figure(2)
+  %hold off
+  %pdecont(coordinates', elements3', u');
