@@ -114,7 +114,7 @@ y_i(t) = \frac{1}{b_i - a_i} \int_{a_i}^{b_i} z(0,y,t) \ud y, \qquad i=1,2,3
 \subsection{Weak formulation}
 We assume $z_0 \in L^2(\Omega)$. We wish to find $z \in L^2(0,T;H^1(\Omega))$ such that
 \[
- \dd{}{t}\int_\Omega z(x,t) \phi(x) \ud x = - \mu \int_\Omega \nabla z \cdot \nabla \phi \ud x +  \omega \int_\Omega z \phi \ud x, \quad \forall \phi \in H^1_{\Gamma_D}(\Omega)
+ \dd{}{t}\int_\Omega z(t) \phi = - \mu \int_\Omega \nabla z \cdot \nabla \phi +  \omega \int_\Omega z \phi, \quad \forall \phi \in H^1_{\Gamma_D}(\Omega)
 \]
 \[
 z(x,0,t) = z(x,1,t) = 0, \quad z(1,y,t) = u(y,t)
@@ -149,9 +149,17 @@ For each vertex $i$, define the piecewise affine functions $\phi_i(x,y)$, see fi
 \label{fig:basis}
 \end{center}
 \end{figure}
+Then the finite element solution is of the form
+\[
+z(x,y,t) = \sum_{j \in N_f} z_j(t) \phi_j(x,y) + \sum_{j \in N_c} u_j(t) \phi_j(x,y)
+\]
+This function already satisfies the Dirichlet boundary conditions
+\[
+z(x,0,t) = z(x,1,t) = 0, \qquad z(1,y,t) = \sum_{j \in N_c} u_j(t) \phi_j(1,y)
+\]
 We will take the control to be of the form
 \[
-u(y,t) = v(t) \sin(\pi y)
+u(y,t) = v(t) \sin(\pi y) \qquad \Longrightarrow \qquad u_j(t) = v(t) \sin(\pi y_j)
 \]
 Then the finite element solution is of the form
 \[
@@ -159,7 +167,7 @@ z(x,y,t) = \sum_{j \in N_f} z_j(t) \phi_j(x,y) + v(t) \sum_{j \in N_c} \sin(\pi 
 \]
 The approximate weak formulation is given as
 \[
- \dd{}{t} \int_\Omega z(x,t) \phi_i(x) \ud x = - \mu \int_\Omega \nabla z \cdot \nabla \phi_i \ud x +  \omega \int_\Omega z \phi_i \ud x, \quad \forall i \in N_f
+ \dd{}{t} \int_\Omega z(t) \phi_i = - \mu \int_\Omega \nabla z \cdot \nabla \phi_i +  \omega \int_\Omega z \phi_i, \quad \forall i \in N_f
 \]
 i.e.,
 \begin{eqnarray*}
@@ -170,107 +178,14 @@ i.e.,
 In order to simplify the presentation we will ignore the term containing $\dd{v}{t}$. This term vanishes if we use the trapezoidal rule for integration. Then we can write the FEM formulation as
 \begin{eqnarray*}
 && \sum_{j \in N_f} \dd{z_j}{t} \int_\Omega \phi_j \phi_i \\
-&=&  \sum_{j \in N_f} z_j \left[ -\mu\int_\Omega \nabla \phi_j \cdot \nabla \phi_i + \omega \int_\Omega \phi_j \phi_i \right] \\
+&=&  \sum_{j \in N_f} z_j \left[ -\mu\int_\Omega \nabla \phi_j \cdot \nabla \phi_i + \omega \int_\Omega \phi_j \phi_i \right] + \\
 && v \sum_{j \in N_c} \left[ - \mu  \sin(\pi y_j) \int_\Omega \nabla \phi_j \cdot \nabla \phi_i + \omega\sin(\pi y_j) \int_\Omega \phi_j \phi_i \right] \qquad \forall i \in N_f
 \end{eqnarray*}
 This can be written as a system of ordinary differential equations
 \[
  \M \dd{\z}{t} = \A \z + \B v
 \]
-where $\z$ denotes all the unknown degrees of freedom.
-%-----------------------------------------------------------------
-\subsection{Finite element assembly}
-The finite element basis functions have compact support. Hence we can compute the integrals 
-\[
-\int_\Omega \phi_i \phi_j \qquad \mbox{and} \qquad \int_\Omega \nabla \phi_i \cdot \nabla \phi_j
-\]
-by adding the contributions from a small number of triangles. For example, the elements of the mass matrix can be computed as
-\[
-\int_\Omega \phi_i \phi_j = \sum_{K \ : \ i, j \in K} \int_K \phi_i \phi_j
-\]
-and similarly the stiffness matrix is computed as
-\[
-\int_\Omega \nabla \phi_i \cdot \nabla \phi_j = \sum_{K \ : \ i, j \in K} \int_K \nabla \phi_i \cdot \nabla \phi_j
-\]
-The integrals on each triangle $K$ will be evaluated exactly. For a triangle $K$ with vertices labelled 1, 2, 3 as in figure~(\ref{fig:tria}), the local mass and stiffness matrices are given by
-\[
-M^K = \frac{1}{24} \mbox{det}\begin{bmatrix}
-x_2 - x_1 & x_3 - x_1 \\
-y_2 - y_1 & y_3 - y_1
-\end{bmatrix} \begin{bmatrix}
-2 & 1 & 1 \\
-1 & 2 & 1 \\
-1 & 1 & 2
-\end{bmatrix}
-\]
-\begin{figure}
-\begin{center}
-\includegraphics[width=0.3\textwidth]{tria}
-\caption{Triangle}
-\label{fig:tria}
-\end{center}
-\end{figure}
-\[
-A^K = \half \mbox{det}\begin{bmatrix}
-1 & 1 & 1 \\
-x_1 & x_2 & x_3 \\
-y_1 & y_2 & y_3
-\end{bmatrix} G G^\top \qquad\textrm{where}\qquad G = \begin{bmatrix}
-1 &  1 & 1\\
-x_1 & x_2 & x_3 \\
-y_1 & y_2 & y_3
-\end{bmatrix}^{-1} \begin{bmatrix}
-0 & 0 \\
-1 & 0 \\
-0 & 1
-\end{bmatrix}
-\]
-The numerical process can be summarized by the following algorithm:
-
-\vspace{2mm}
-\noindent
-Set $\M=0$, $\A=0$.\\
-For each triangle $K$ in the mesh
-\begin{itemize}
-\item Compute $M^K$ and $A^K$
-\item Add the contributions from $M^K$ into $\M$ and from $A^K$ into $\A$
-\end{itemize}
-More details on the assembly process can be found in this paper
-
-\vspace{2mm}\noindent
-Jochen Alberty, Carsten Carstensen and Stefan A. Funken: ``Remarks around 50 lines of Matlab: short finite element implementation", Numerical Algorithms 20 (1999) 117Ð-137\\
-\url{http://math.tifrbng.res.in/~praveen/notes/control2013/acf.pdf}
-%-----------------------------------------------------------------
-\subsection{Computing the observation}
-\begin{figure}
-\begin{center}
-\includegraphics[width=0.8\textwidth]{heat2d_obs_mesh}
-\caption{Triangular mesh with 100 edges on each side. The figure shows a zoomed view near the left boundary. Notice that the first observation zone  $\{x=0, 0.2 \le y \le 0.25\}$ is exactly covered by five boundary edges.}
-\label{fig:heatobsmesh}
-\end{center}
-\end{figure}
-We will assume that the intervals $[a_i, b_i]$ on which the observation is computed is exactly covered by the edges of the finite element mesh, see figure~(\ref{fig:heatobsmesh}). Let $E_i$ denote the edges on $[a_i,b_i]$. Then
-\begin{eqnarray*}
-y_i &=& \frac{1}{b_i-a_i} \int_{a_i}^{b_i} z(0,y,t) \ud y, \qquad i=1,2,3 \\
-&=& \frac{1}{b_i-a_i} \sum_{e \in E_i} \int_e z(0,y,t) \ud y \\
-&=& \frac{1}{b_i-a_i} \sum_{e \in E_i} \half (z_{e_1} + z_{e_2}) |e|
-\end{eqnarray*}
-The set of observations can be written as
-\[
-\y = \bH \z
-\]
-The observation zones are defined by the following parameters
-\begin{center}
-\begin{tabular}{|c|c|c|c|}
-\hline
-Value/$i$ & 1 & 2 & 3 \\
-\hline
-$a_i$ & 0.20 & 0.50 & 0.80 \\
-\hline
-$b_i$ & 0.25 & 0.55 & 0.85 \\
-\hline
-\end{tabular}
-\end{center}
+where $\z$ denotes all the unknown degrees of freedom corresponding to $N_f$.
 %-----------------------------------------------------------------
 \subsection{Grid information}
 The grid information consists of following files
@@ -312,7 +227,94 @@ The domain $\Omega$ is the unit square. The program {\tt square.m} generates the
 >> square(11)
 \end{lstlisting}
 When you run the above program, you can see a picture of the mesh. Examine the four files created by this program. For our actual computations, we will use 101 points on each side of the square. In this case, there are 5 edges which exactly cover each of the three observation zones.
+%-----------------------------------------------------------------
 
+\subsection{Finite element assembly}
+The finite element basis functions have compact support. Hence we can compute the integrals 
+\[
+\int_\Omega \phi_i \phi_j \qquad \mbox{and} \qquad \int_\Omega \nabla \phi_i \cdot \nabla \phi_j
+\]
+by adding the contributions from a small number of triangles. For example, the elements of the mass matrix can be computed as
+\[
+\int_\Omega \phi_i \phi_j = \sum_{K \ : \ i, j \in K} \int_K \phi_i \phi_j
+\]
+and similarly the stiffness matrix is computed as
+\[
+\int_\Omega \nabla \phi_i \cdot \nabla \phi_j = \sum_{K \ : \ i, j \in K} \int_K \nabla \phi_i \cdot \nabla \phi_j
+\]
+The integrals on each triangle $K$ will be evaluated exactly. For a triangle $K$ with vertices labelled 1, 2, 3 as in figure~(\ref{fig:tria}), the local mass and stiffness matrices are given by
+\[
+M^K = \begin{bmatrix}
+\int_K \phi_1 \phi_1 & \int_K \phi_1 \phi_2 & \int_\Omega \phi_1 \phi_3 \\
+\int_K \phi_2 \phi_1 & \int_K \phi_2 \phi_2 & \int_\Omega \phi_2 \phi_3 \\
+\int_K \phi_3 \phi_1 & \int_K \phi_3 \phi_2 & \int_\Omega \phi_3 \phi_3
+\end{bmatrix} = \frac{1}{24} \mbox{det}\begin{bmatrix}
+x_2 - x_1 & x_3 - x_1 \\
+y_2 - y_1 & y_3 - y_1
+\end{bmatrix} \begin{bmatrix}
+2 & 1 & 1 \\
+1 & 2 & 1 \\
+1 & 1 & 2
+\end{bmatrix}
+\]
+\begin{figure}
+\begin{center}
+\includegraphics[width=0.3\textwidth]{tria}
+\caption{Triangle}
+\label{fig:tria}
+\end{center}
+\end{figure}
+\[
+A^K = \half \mbox{det}\begin{bmatrix}
+1 & 1 & 1 \\
+x_1 & x_2 & x_3 \\
+y_1 & y_2 & y_3
+\end{bmatrix} G G^\top \qquad\textrm{where}\qquad G = \begin{bmatrix}
+1 &  1 & 1\\
+x_1 & x_2 & x_3 \\
+y_1 & y_2 & y_3
+\end{bmatrix}^{-1} \begin{bmatrix}
+0 & 0 \\
+1 & 0 \\
+0 & 1
+\end{bmatrix}
+\]
+The numerical process can be summarized by the following algorithm:
+
+\vspace{2mm}
+\noindent
+Set $\M=0$, $\A=0$.\\
+For each triangle $K$ in the mesh
+\begin{itemize}
+\item Compute $M^K$ and $A^K$
+\item Add the contributions from $M^K$ into $\M$ and from $A^K$ into $\A$
+\end{itemize}
+For the $j'$th triangle, the mapping between the local index to global index is given below
+\begin{center}
+\begin{tabular}{|c|c|}
+\hline
+Local index & Global index \\
+\hline
+1 & {\tt elements3(j,1)} \\
+\hline
+2 & {\tt elements3(j,2)} \\
+\hline
+3 & {\tt elements3(j,3)} \\
+\hline
+\end{tabular}
+\end{center}
+For $j=1,2,\ldots,{\tt Ntri}$\\
+\indent For $k=1,2,3$ \\
+\indent \indent For $l=1,2,3$
+\begin{eqnarray*}
+\A( elements3(j,k), elements3(j,l) ) &+=& A^{K_j}(k,l) \\
+\M( elements3(j,k), elements3(j,l) ) &+=& M^{K_j}(k,l) \\
+\end{eqnarray*}
+More details on the assembly process can be found in this paper
+
+\vspace{2mm}\noindent
+Jochen Alberty, Carsten Carstensen and Stefan A. Funken: ``Remarks around 50 lines of Matlab: short finite element implementation", Numerical Algorithms 20 (1999) 117Ð-137\\
+\url{http://math.tifrbng.res.in/~praveen/notes/control2013/acf.pdf}
 %-----------------------------------------------------------------
 \section{Parameters and initial condition}
 Let us take
@@ -344,9 +346,13 @@ The solution of heat equation is implemented in {\tt heat2d.m}. For the case wit
 
 \begin{enumerate}
 
-\item Generate the mesh by running the {\tt square} program and use 81 points on each side of the square.
+\item Generate the mesh by running the {\tt square} program and use 41 or 81 or 101 points on each side of the square.
+
+\item Study the program {\tt get\_matrices.m} which performs the matrix assembly.
 
 \item The value of $\omega$ is set in the file {\tt parameters.m}. Set $\omega=0$ and calculate five eigenvalues with largest real part using {\tt eigs} function. Is there an  unstable eigenvalue~? Use the program {\tt check\_eig.m}.
+
+\item Study the program {\tt heat2d.m} which solves the heat equation.
 
 \item With $\omega=0$, run the program. 
 \begin{lstlisting}
@@ -361,6 +367,8 @@ Observe that the energy is decreasing with time. The energy is plotted with line
 \end{enumerate}
 
 \pagebreak
+
+
 %-----------------------------------------------------------------
 \section{Feedback control}
 The feedback control is determined by solving the lqr problem using the matrices $\M$, $\A$ and $\B$. Since the dimensions of these matrices are very large, we determine the feedback matrix $\K$ by considering only the unstable components of the system.
@@ -378,8 +386,42 @@ The feedback control is determined by solving the lqr problem using the matrices
 
 \section{Estimation and control}
 We now consider the case where we have partial observation as discussed in the previous sections. Thus we need to solve the estimation problem. This requires the evauation of the filtering gain matrix $\bL$. Once again, the large dimensions of the system matrices forces us to evaluate $\bL$ using only the unstable components.
+
 %-----------------------------------------------------------------
-\section{Excercises III}
+\subsection{Computing the observation}
+\begin{figure}
+\begin{center}
+\includegraphics[width=0.8\textwidth]{heat2d_obs_mesh}
+\caption{Triangular mesh with 100 edges on each side. The figure shows a zoomed view near the left boundary. Notice that the first observation zone  $\{x=0, 0.2 \le y \le 0.25\}$ is exactly covered by five boundary edges.}
+\label{fig:heatobsmesh}
+\end{center}
+\end{figure}
+We will assume that the intervals $[a_i, b_i]$ on which the observation is computed is exactly covered by the edges of the finite element mesh, see figure~(\ref{fig:heatobsmesh}). Let $E_i$ denote the edges on $[a_i,b_i]$. Then
+\begin{eqnarray*}
+y_i &=& \frac{1}{b_i-a_i} \int_{a_i}^{b_i} z(0,y,t) \ud y, \qquad i=1,2,3 \\
+&=& \frac{1}{b_i-a_i} \sum_{e \in E_i} \int_e z(0,y,t) \ud y \\
+&=& \frac{1}{b_i-a_i} \sum_{e \in E_i} \half (z_{e_1} + z_{e_2}) |e|
+\end{eqnarray*}
+The set of observations can be written as
+\[
+\y = \bH \z
+\]
+The observation zones are defined by the following parameters
+\begin{center}
+\begin{tabular}{|c|c|c|c|}
+\hline
+Value/$i$ & 1 & 2 & 3 \\
+\hline
+$a_i$ & 0.20 & 0.50 & 0.80 \\
+\hline
+$b_i$ & 0.25 & 0.55 & 0.85 \\
+\hline
+\end{tabular}
+\end{center}
+
+
+%-----------------------------------------------------------------
+\subsection{Excercises III}
 \begin{enumerate}
 
 \item Set $\omega = 0.4$. In {\tt fem\_50\_est.m}, insert lines of code to determine $\K$ as above, and to evaluate $\bL$ using just the unstable components. You will need the matrix $\bH$ which is already generated by {\tt get\_matrices.m}. Run the code and observe the solution.
