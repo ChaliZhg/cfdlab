@@ -20,14 +20,14 @@ function [M,A,B,Q,H] = get_matrices ( )
   end
 %
 %  Determine which nodes are associated with Dirichlet conditions.
-%
+%  and which are free
   BoundNodes = unique ( dirichlet );
+  FreeNodes = setdiff ( 1:nNodes, BoundNodes );
 
 % Find nodes for which x = a
   ControlNodes = find ( coordinates(:,1) - a > -eps );
 
-  FreeNodes = setdiff ( 1:nNodes, BoundNodes );
-
+% Get matrix for free nodes only
   M = Mf(FreeNodes, FreeNodes);
   A = -Af(FreeNodes, FreeNodes) + omega * M;
   B = -Af(FreeNodes, ControlNodes) + omega * Mf(FreeNodes, ControlNodes);
@@ -38,18 +38,6 @@ function [M,A,B,Q,H] = get_matrices ( )
   nBoundNodes = size(BoundNodes,1)
   nFreeNodes = size(FreeNodes,2)
   nControlNodes = size(ControlNodes,1)
-
-% Compute eigenvalues and eigenfunctions
-% [V,D] = eigs(A, M, 5, 'LR');
-% e = diag(D);
-% figure(10)
-% plot(real(e),imag(e),'o')
-% fprintf(1,'Most unstable eigenvalue (numerical) = %f\n', e(1))
-% fprintf(1,'Most unstable eigenvalue (exact)     = %f\n', -pi^2/40 + omega)
-% ef = zeros(nNodes,1);
-% ef(FreeNodes) = V(:,1);
-% show ( elements3, coordinates, full ( ef ) );
-% pause(2)
 
 % Observations on left boundary
   nObs = 3;
@@ -67,6 +55,7 @@ function [M,A,B,Q,H] = get_matrices ( )
   end
   H = H(:, FreeNodes);
 
-  Q = M;
+% LQR problem
+  Q = sparse(nNodes,nNodes);
 
 end

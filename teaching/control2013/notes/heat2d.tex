@@ -151,7 +151,7 @@ For each vertex $i$, define the piecewise affine functions $\phi_i(x,y)$, see fi
 \end{figure}
 Then the finite element solution is of the form
 \[
-z(x,y,t) = \sum_{j \in N_f} z_j(t) \phi_j(x,y) + \sum_{j \in N_c} u_j(t) \phi_j(x,y)
+z(x,y,t) = \sum_{j \in N_f} z_j(t) \phi_j(x,y) + \sum_{j \in N_c} u_j(t) \phi_j(x,y), \qquad z(x_i,y_i,t) = z_i(t), \quad \forall i \in N_f
 \]
 This function already satisfies the Dirichlet boundary conditions
 \[
@@ -160,6 +160,10 @@ z(x,0,t) = z(x,1,t) = 0, \qquad z(1,y,t) = \sum_{j \in N_c} u_j(t) \phi_j(1,y)
 We will take the control to be of the form
 \[
 u(y,t) = v(t) \sin(\pi y) \qquad \Longrightarrow \qquad u_j(t) = v(t) \sin(\pi y_j)
+\]
+This is a one dimensional control which is compatible with the other boundary control
+\[
+u(0,t) = u(1,t) = 0
 \]
 Then the finite element solution is of the form
 \[
