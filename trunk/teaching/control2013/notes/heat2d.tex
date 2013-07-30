@@ -114,7 +114,7 @@ y_i(t) = \frac{1}{b_i - a_i} \int_{a_i}^{b_i} z(0,y,t) \ud y, \qquad i=1,2,3
 \subsection{Weak formulation}
 We assume $z_0 \in L^2(\Omega)$. We wish to find $z \in L^2(0,T;H^1(\Omega))$ such that
 \[
- \dd{}{t}(z(t), \phi)_{L^2} = - \mu \int_\Omega \nabla z \cdot \nabla \phi \ud x +  \omega \int_\Omega z \phi \ud x, \quad \forall \phi \in H^1_{\Gamma_D}(\Omega)
+ \dd{}{t}\int_\Omega z(x,t) \phi(x) \ud x = - \mu \int_\Omega \nabla z \cdot \nabla \phi \ud x +  \omega \int_\Omega z \phi \ud x, \quad \forall \phi \in H^1_{\Gamma_D}(\Omega)
 \]
 \[
 z(x,0,t) = z(x,1,t) = 0, \quad z(1,y,t) = u(y,t)
@@ -159,7 +159,7 @@ z(x,y,t) = \sum_{j \in N_f} z_j(t) \phi_j(x,y) + v(t) \sum_{j \in N_c} \sin(\pi 
 \]
 The approximate weak formulation is given as
 \[
- \dd{}{t}(z(t), \phi_i)_{L^2} = - \mu \int_\Omega \nabla z \cdot \nabla \phi_i \ud x +  \omega \int_\Omega z \phi_i \ud x, \quad \forall i \in N_f
+ \dd{}{t} \int_\Omega z(x,t) \phi_i(x) \ud x = - \mu \int_\Omega \nabla z \cdot \nabla \phi_i \ud x +  \omega \int_\Omega z \phi_i \ud x, \quad \forall i \in N_f
 \]
 i.e.,
 \begin{eqnarray*}
@@ -167,7 +167,7 @@ i.e.,
 &=& -\mu \sum_{j \in N_f} z_j \int_\Omega \nabla \phi_j \cdot \nabla \phi_i - \mu v \sum_{j \in N_c} \sin(\pi y_j) \int_\Omega \nabla \phi_j \cdot \nabla \phi_i \\
 && + \omega \sum_{j \in N_f} z_j \int_\Omega \phi_j \phi_i + \omega v \sum_{j \in N_c} \sin(\pi y_j) \int_\Omega \phi_j \phi_i, \qquad \forall i \in N_f
 \end{eqnarray*}
-In order to simplify the presentation we will ignore the term containing $\dd{v}{t}$\footnote{This term vanishes if we use the trapezoidal rule for integration.} and then we can write the FEM formulation as
+In order to simplify the presentation we will ignore the term containing $\dd{v}{t}$. This term vanishes if we use the trapezoidal rule for integration. Then we can write the FEM formulation as
 \begin{eqnarray*}
 && \sum_{j \in N_f} \dd{z_j}{t} \int_\Omega \phi_j \phi_i \\
 &=&  \sum_{j \in N_f} z_j \left[ -\mu\int_\Omega \nabla \phi_j \cdot \nabla \phi_i + \omega \int_\Omega \phi_j \phi_i \right] \\
@@ -340,22 +340,27 @@ which is shown in figure~(\ref{fig:initcond}). We will use the unstable eigenfun
 \]
 %-----------------------------------------------------------------
 \section{Excercises I}
+The solution of heat equation is implemented in {\tt heat2d.m}. For the case without control, we use zero boundary conditions on $x=1$ which corresponds to setting $v=0$ or equivalently we can set $\K=0$ since $v=-\K\z$.
 
 \begin{enumerate}
 
 \item Generate the mesh by running the {\tt square} program and use 81 points on each side of the square.
 
-\item The value of $\omega$ is set in the file {\tt parameters.m}. Set $\omega=0$ and calculate five eigenvalues with largest real part using {\tt eigs} function. Is there an  unstable eigenvalue ?
+\item The value of $\omega$ is set in the file {\tt parameters.m}. Set $\omega=0$ and calculate five eigenvalues with largest real part using {\tt eigs} function. Is there an  unstable eigenvalue~? Use the program {\tt check\_eig.m}.
 
-\item With $\omega=0$, run the program. Observe that the energy is decreasing with time. The energy is plotted with linear scale for time and log scale for energy. The straight line behaviour indicates that the energy is decaying exponentially wrt time.
+\item With $\omega=0$, run the program. 
+\begin{lstlisting}
+>> heat2d(0) % argument 0 = no control => v=0 or K=0
+\end{lstlisting}
+Observe that the energy is decreasing with time. The energy is plotted with linear scale for time and log scale for energy. The straight line behaviour indicates that the energy is decaying exponentially with time.
 
-\item With $\omega=0$, find the decay rate of the solution.
-
-\item Set $\omega=0.4$ and caculate five eigenvalues with largest real part using {\tt eigs} function. Is there an unstable eigenvalue ? Compare it with exact unstable eigenvalue given above.
+\item Set $\omega=0.4$ and calculate five eigenvalues with largest real part using {\tt eigs} function. Is there an unstable eigenvalue~? Compare it with exact unstable eigenvalue given above.
 
 \item With $\omega=0.4$, run the program. Observe that the energy is increasing exponentially with time.
 
 \end{enumerate}
+
+\pagebreak
 %-----------------------------------------------------------------
 \section{Feedback control}
 The feedback control is determined by solving the lqr problem using the matrices $\M$, $\A$ and $\B$. Since the dimensions of these matrices are very large, we determine the feedback matrix $\K$ by considering only the unstable components of the system.
