@@ -1,6 +1,5 @@
 % Partial observation with noise
 
-clc
 clear all
 close all
 
@@ -38,8 +37,7 @@ Q = sparse(N,N);
 R = 1;
 K = feedback_matrix(M,A,B,Q,R);
 
-disp('Eigenvalues of (A-B*K,M)')
-eig(full(A-B*sparse(K)),full(M))
+ec=eig(full(A-B*sparse(K)),full(M));
 
 % Noise in state
 eta = (5e-2)^2 * randn(nT+1,N);
@@ -55,15 +53,13 @@ Rmu = sparse(Rmu);
 [S,T,L] = care(full(A)', full(H)', full(Reta), full(Rmu),[],full(M));
 L = real(L');
 
-disp('Eigenvalues of (A-L*H,M)')
-eig(full(A-L*H),full(M))
+el=eig(full(A-L*H),full(M));
 
 % Coupled system
 Ae = [A,   -B*sparse(K); ...
       sparse(L)*H,  A-sparse(L)*H-B*sparse(K)];
 
-disp('Eigenvalues of coupled system')
-eig(full(Ae))
+ee=eig(full(Ae));
 
 % Noise matrix
 Be = [speye(N),   sparse(N,1); ...
@@ -78,7 +74,7 @@ Me = [M , sparse(N,N); ...
 
 
 % Set initial condition
-delta = 1;
+delta = 0.1; % This controls size of initial perturbation
 z0(1:N) = delta*sin(pi*x(2:N+1)/2);
 
 z = zeros(2*N,nT+1);
@@ -101,10 +97,10 @@ Am = (1/(beta*dt))*Me - Ae;
 [L1,U1,P1,Q1] = lu(Am);
 
 i = 2;
-rhs = -(a1/(beta*dt))*Me*z(:,i-1);% + Be*[eta(i,:)';mu(i,:)'];
+rhs = -(a1/(beta*dt))*Me*z(:,i-1) + Be*[eta(i,:)';mu(i,:)'];
 z(:,i) = Q1 * (U1 \ (L1 \ (P1 * rhs)));
 u(i) = -K*z(N+1:2*N,i);
-y(:,i) = He*z(:,i);% + [mu(i,:)';0];
+y(:,i) = He*z(:,i) + [mu(i,:)';0];
 
 % Remaining time steps: use BDF2
 beta = 2/3; a1 = -4/3; a2 = 1/3;
@@ -112,23 +108,28 @@ Am = (1/(beta*dt))*Me - Ae;
 [L1,U1,P1,Q1] = lu(Am);
 
 for i=3:nT+1
-   rhs = -(1/(beta*dt))*Me*(a1*z(:,i-1) + a2*z(:,i-2));% + Be*[eta(i,:)';mu(i,:)'];
+   rhs = -(1/(beta*dt))*Me*(a1*z(:,i-1) + a2*z(:,i-2)) + Be*[eta(i,:)';mu(i,:)'];
    z(:,i) = Q1 * (U1 \ (L1 \ (P1 * rhs)));
    u(i) = -K*z(N+1:2*N,i);
-   if mod(i,50)==0
+   y(:,i) = He*z(:,i) + [mu(i,:)';0];
+   if mod(i,5)==0
       figure(5)
       zz=[u(i),z(1:N,i)'];
       zze = [u(i),z(N+1:2*N,i)'];
-      subplot(1,3,1), plot(x,zz,'-','LineWidth',1)
+      subplot(1,2,1), plot(x,zz,'-','LineWidth',1)
       hold all
       plot(x,zze,'o','LineWidth',1),
       title('Solution')
       xlabel('x'); ylabel('z')
       legend('z','ze')
       hold off
-      subplot(1,3,3), plot(1:i, u(1:i), 'LineWidth', 1)
+      subplot(1,2,2), plot(1:i, u(1:i), 'LineWidth', 1)
       title('Control')
       xlabel('Time step')
+      figure(6)
+      plot(1:i,y(1,1:i),'r-',1:i,y(2,1:i),'b--')
+      legend('True observation','Estimated observation')
+      xlabel('Time')
    end
 end
 
