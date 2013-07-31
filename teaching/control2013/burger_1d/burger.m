@@ -1,6 +1,5 @@
 % Non-linear Burgers' without control
 
-clc
 clear all
 close all
 
@@ -25,7 +24,7 @@ delta = 0;
 z0(1:N) = delta*sin(pi*x(2:N+1)/2);
 
 % Solving the system
-options = odeset('RelTol',1e-14,'AbsTol',1e-14);
+options = odeset('RelTol',1e-8,'AbsTol',1e-8);
 [t,z] = ode15s(@rhs_burger,tspan,z0,[],L,U,A1,A2,D1,N,nu,us,ws);
 
 for i = 1:nT

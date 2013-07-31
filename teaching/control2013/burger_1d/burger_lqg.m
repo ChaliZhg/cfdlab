@@ -1,4 +1,3 @@
-clc
 clear all
 close all
 
@@ -50,7 +49,7 @@ Rmu = sparse(Rmu);
 L = real(L');
 
 % Set initial condition
-delta = 10;
+delta = 0.1; % This controls size of initial perturbation
 z0(1:N) = delta*sin(pi*x(2:N+1)/2);
 z0c = [z0(1:N)';zeros(N,1)];
 
@@ -60,7 +59,7 @@ Me = [M , sparse(N,N); ...
 [Lc,Uc] = lu(Me);
 
 % Solving the system
-options = odeset('RelTol',1e-14,'AbsTol',1e-14);
+options = odeset('RelTol',1e-8,'AbsTol',1e-8);
 [t,zc] = ode15s(@rhs_burger_lqg,tspan,z0c,[],Lc,Uc,A1,A2,d1,d2,D1,H,A,B,K,L,N,nu,us,ws);
 
 u = -K*zc(:,N+1:2*N)';
