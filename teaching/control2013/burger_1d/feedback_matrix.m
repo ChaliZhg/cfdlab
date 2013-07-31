@@ -8,14 +8,14 @@ h = 1/N;
 [X,L,K] = care(full(A),full(B), full(Q),R,[],full(M));
 
 % plot control operator
-k_EF = [0 K];
-x = 0:h:1;
+x = h:h:1;
 figure(10)
-plot(x,k_EF,'o-')
+plot(x,K,'o-')
 hold all
 xlabel('x','fontsize',24)
 ylabel('k(x)','fontsize',24)
 legend('K')
 
+K = sparse(K);
 
 end

@@ -37,7 +37,13 @@ Q = sparse(N,N);
 R = 1;
 K = feedback_matrix(M,A,B,Q,R);
 
-ec=eig(full(A-B*sparse(K)),full(M));
+ec=eig(full(A-B*K),full(M));
+
+figure(1)
+plot(real(eo),imag(eo),'o',real(ec),imag(ec),'*')
+grid on
+legend('A','A-BK')
+title('Eigenvalues')
 
 % Noise in state
 eta = (5e-2)^2 * randn(nT+1,N);
@@ -52,14 +58,17 @@ Rmu = sparse(Rmu);
 % Obtaining gain matrix L
 [S,T,L] = care(full(A)', full(H)', full(Reta), full(Rmu),[],full(M));
 L = real(L');
+L = sparse(L);
 
 el=eig(full(A-L*H),full(M));
+figure(2)
+plot(real(el),imag(el),'o')
+grid on
+title('Eigenvalues of (A-LH,M)')
 
 % Coupled system
-Ae = [A,   -B*sparse(K); ...
-      sparse(L)*H,  A-sparse(L)*H-B*sparse(K)];
-
-ee=eig(full(Ae));
+Ae = [A,   -B*K; ...
+      L*H,  A-L*H-B*K];
 
 % Noise matrix
 Be = [speye(N),   sparse(N,1); ...
@@ -72,6 +81,11 @@ He = [H,          sparse(1,N); ...
 Me = [M , sparse(N,N); ...
       sparse(N,N), M];
 
+ee=eig(full(Ae),full(Me));
+figure(3)
+plot(real(ee),imag(ee),'o')
+grid on
+title('Eigenvalues of coupled system')
 
 % Set initial condition
 delta = 0.1; % This controls size of initial perturbation
@@ -81,15 +95,16 @@ z = zeros(2*N,nT+1);
 y = zeros(2,nT+1);
 u = zeros(nT+1,1);
 
-figure(3)
-plot(x(2:N+1),z0,'o-')
-title('Initial condition')
-xlabel('x')
-
 % Set initial condition
 i=1;
 z(:,1) = [z0';zeros(N,1)]; 
 u(i) = -K*z(N+1:2*N,i);
+
+figure(4)
+plot(x(2:N+1),z(1:N,1),'o-',x(2:N+1),z(N+1:end,1),'*--')
+legend('True model','Estimator')
+title('Initial condition')
+xlabel('x')
 
 % First time step: use BDF1 (Backward Euler)
 beta = 1; a1 = -1;
@@ -116,22 +131,22 @@ for i=3:nT+1
       figure(5)
       zz=[u(i),z(1:N,i)'];
       zze = [u(i),z(N+1:2*N,i)'];
-      subplot(1,2,1), plot(x,zz,'-','LineWidth',1)
+      subplot(2,2,1), plot(x,zz,'-','LineWidth',1)
       hold all
       plot(x,zze,'o','LineWidth',1),
+      grid on
       title('Solution')
       xlabel('x'); ylabel('z')
       legend('z','ze')
       hold off
-      subplot(1,2,2), plot(1:i, u(1:i), 'LineWidth', 1)
+      subplot(2,2,2), plot(1:i, u(1:i), 'LineWidth', 1)
+      grid on
       title('Control')
       xlabel('Time step')
-      figure(6)
+      subplot(2,2,3)
       plot(1:i,y(1,1:i),'r-',1:i,y(2,1:i),'b--')
+      grid on
       legend('True observation','Estimated observation')
       xlabel('Time')
    end
 end
-
-
-

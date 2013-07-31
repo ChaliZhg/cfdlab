@@ -8,7 +8,7 @@ h = 1/N;
 
 % Space and time discretization
 x = (0:h:1);
-nT=10000; dt=0.01; tspan=0:dt:nT*dt;
+nT=500; dt=0.01; tspan=0:dt:nT*dt;
 
 % Obtaining stationary solution and other stationary conditions
 [ws,epsn,c,us,gs] = stationarysol(x,nu);
@@ -32,7 +32,6 @@ eo=eig(full(A),full(M));
 Q = speye(N,N);
 R = 10;
 K = feedback_matrix(M,A,B,Q,R);
-A=A-B*sparse(K); 
 
 % Noise in state
 eta = (5e-2)^2 * randn(nT+1,N);
@@ -65,14 +64,14 @@ options = odeset('RelTol',1e-8,'AbsTol',1e-8);
 u = -K*zc(:,N+1:2*N)';
 
 for i = 1:nT
-    if mod(i,50)==0
+    if mod(i,5)==0
         zz = [u(i), zc(i,1:N)];
         zze = [u(i), zc(i,N+1:2*N)];
         figure(2)
         subplot(1,2,1)
-        plot(x,zz,'-','LineWidth',1)
+        plot(x,zz+ws,'-','LineWidth',1)
         hold all
-        plot(x,zz,'o','LineWidth',1)
+        plot(x,zz+ws,'o','LineWidth',1)
         xlabel('x') 
         ylabel('z')
         titletext = sprintf('Solution at t=%f',tspan(i));

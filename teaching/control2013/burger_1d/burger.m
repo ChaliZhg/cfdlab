@@ -1,4 +1,4 @@
-% Non-linear Burgers' without control
+% on-linear Burgers' without control
 
 clear all
 close all
@@ -31,7 +31,7 @@ for i = 1:nT
     if mod(i,10)==0
         zz = [0, z(i,:)];
         figure(2)
-        plot(x,zz,'-','LineWidth',2)
+        plot(x,zz+ws,'-','LineWidth',2)
         xlabel('x') 
         ylabel('z')
         titletext = sprintf('Solution at t=%f',tspan(i));
