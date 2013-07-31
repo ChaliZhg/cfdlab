@@ -52,18 +52,6 @@ function heat2d(to_control)
    end
 %--------------------------------------------------------------------------   
 
-% Compute eigenvalues and eigenfunctions
- %[V,D] = eigs(A-B*K, M, 5, 'LR');
- %e = diag(D);
- %figure(11)
- %plot(real(e),imag(e),'o')
-% fprintf(1,'Most unstable eigenvalue (numerical) = %f\n', e(1))
-% fprintf(1,'Most unstable eigenvalue (exact)     = %f\n', -pi^2/40 + omega)
-% ef = zeros(nNodes,1);
-% ef(FreeNodes) = V(:,1);
-% show ( elements3, coordinates, full ( ef ) );
-% pause(2)
-
   za = sparse ( nNodes, 1 );        % Complete solution
   z  = sparse ( nFreeNodes, 1 );    % Interior solution
   u  = sparse ( nControlNodes, 1 ); % Control vector

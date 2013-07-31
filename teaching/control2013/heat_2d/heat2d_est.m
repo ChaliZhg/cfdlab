@@ -15,6 +15,7 @@ function heat2d_est ( )
 %==========================================================================
    
    %Unstable eigenvalues and eigenvectors
+   %For omega=0.4 there is only one unstable eigenvalue
    nu = 1;
    [V,D] = eigs(A,M,nu,'lr');
    
@@ -59,9 +60,7 @@ function heat2d_est ( )
    Rwu = V'*Rw*V;
    Peu = care(D',full(Hu)',full(Rwu),full(Rv));
    Pe = sparse(V*Peu*V');
-
-   [Ll,Ul] = lu(Rv);
-   L = sparse(((M*Pe*H')/Ul)/Ll);
+   L = sparse((M*Pe*H')/Rv);
 
   zac = sparse ( 2*nNodes, 1 );        % Complete solution
   zc  = sparse ( 2*nFreeNodes, 1 );    % Interior solution
@@ -112,7 +111,6 @@ function heat2d_est ( )
      if mod(it,10) == 0
       show_c ( elements3, coordinates, full(zac),nNodes);
      end
-     v = -sparse(K)*zc(nFreeNodes +1:2*nFreeNodes);
   end
   show_c ( elements3, coordinates, full(zac),nNodes);
   % Plot energy

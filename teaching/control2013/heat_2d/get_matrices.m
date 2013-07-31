@@ -56,6 +56,6 @@ function [M,A,B,Q,H] = get_matrices ( )
   H = H(:, FreeNodes);
 
 % LQR problem
-  Q = sparse(nNodes,nNodes);
+  Q = sparse(nFreeNodes,nFreeNodes);
 
 end
