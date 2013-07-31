@@ -3,7 +3,7 @@
 \geometry{a4paper}                   % ... or a4paper or a5paper or ... 
 %\geometry{landscape}                % Activate for for rotated page geometry
 %\usepackage[parfill]{parskip}    % Activate to begin paragraphs with an empty line rather than an indent
-\usepackage{graphicx}
+%\usepackage{graphinlcx}
 \usepackage{amssymb}
 \usepackage{amsmath}
 \usepackage{aliases}
@@ -217,13 +217,13 @@ where
 \begin{eqnarray*}
  \textbf{RHS}(i) = - \z^\top \D1(:,:,i) \z - \left[ \nu \A1(i,:) + u_s \A2(i,:) + \w_s^\top (\D1(:,:,i) + \D1(:,:,i)^\top) \right] \z
 \end{eqnarray*}
-This is implemented and solved in {\tt nlp.m}
+This is implemented and solved in {\tt burger.m}
 
 \paragraph{Excercises}
 
 \begin{enumerate}
 
-\item Run program {\tt nlp.m}
+\item Run program {\tt burger.m}
 
 \item Notice that for zero initial condition, i.e, {\tt delta = 0}, the solution will be stationary. This corresponds to the stationary solution for the original Burgers's equation.
 
@@ -396,13 +396,13 @@ The initial condition is given by
 \[
 \z(0) = \z_0, \qquad \z_e(0) = 0
 \]
-This is implemented in program {\tt lp\_est.m}
+This is implemented in program {\tt lin\_est.m}
 
 \paragraph{Excercises}
 
 \begin{enumerate}
 
-\item Run program {\tt lp\_est.m}
+\item Run program {\tt lin\_est.m}
 
 \item Check stabilizabilty of $(\A,\B)$ using the Hautus criterion.
 
@@ -472,17 +472,17 @@ We solve the non-linear system and the linear estimator in a coupled manner.
 \[
 \z(0) = \z_0, \qquad \z_e(0) = 0
 \]
-This is implemented in {\tt nlp\_est.m}
+This is implemented in {\tt burger\_lqg.m}
 
 \paragraph{Excercises}
 
 \begin{enumerate}
 
-\item Run program {\tt nlp\_est.m}
+\item Run program {\tt burger\_lqg.m}
 
-\item Vary $\R$ in the range $(0.01,10)$ and observe how the feedback gain $\K$ varies. How does the solution and control vary with $\R$.
+\item Vary $\R$ in the range $(0.01,10)$ and observe how the feedback gain $\K$ varies. How does the solution and control change with $\R$.
 
-\item How does the solution and control change when $\nu$ is decreased?
+\item How does the solution and control change when $\nu$ is decreased ?
 
 \end{enumerate}
 
@@ -496,15 +496,15 @@ This is implemented in {\tt nlp\_est.m}
 
 \item {\tt stationarysol.m}: Computes exact unstable stationary solution
 
-\item {\tt nlp.m}: Solves the non-linear model, without feedback
+\item {\tt burger.m}: Solves the non-linear model, without feedback
 
-\item {\tt lp\_est.m}: Solves the coupled estimation and control system for the linear problem
+\item {\tt lin\_est.m}: Solves the coupled estimation and control system for the linear problem
 
-\item {\tt nlp\_est.m}: Solves the coupled estimation and control system for the non-linear problem
+\item {\tt burger\_lqg.m}: Solves the coupled estimation and control system for the non-linear problem
 
-\item {\tt rhs\_nlp.m}: Computes the right hand side for the non-linear problem, without feedback
+\item {\tt rhs\_burger.m}: Computes the right hand side for the non-linear problem, without feedback
 
-\item {\tt rhs\_nlpest.m}: Computes the right hand side for coupled estimation and control system with the non-linear problem
+\item {\tt rhs\_burger\_lqg.m}: Computes the right hand side for coupled estimation and control system with the non-linear problem
 
 \end{enumerate}
 \end{document} 
