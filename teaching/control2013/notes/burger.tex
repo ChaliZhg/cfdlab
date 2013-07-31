@@ -85,7 +85,10 @@ with the conditions
 \[
  0 < \epsilon < 1, \qquad -\frac{\pi}{4} < C_0 < 0, \qquad (1 + \epsilon) \tan{\left( \frac{\pi}{4}(1+ \epsilon) + C_0 \right)} = 1
 \]
-We choose $\epsilon = 0.6$ and evaluate the corresponding value for $C_0$, which turns out to be $C_0 \approx -0.698$. We shall use this in the following sections.
+We choose 
+\[
+\epsilon = 0.6 \qquad \Longrightarrow \qquad C_0 = \arctan(1/(1+\epsilon)) - \frac{\pi}{4}(1 + \epsilon) = -0.69803774609235
+\]
 
 % %-----------------------------------------------------------------------------------------
 % \section{Nonlinear Burgers' equation without control}
@@ -219,13 +222,15 @@ where
 \end{eqnarray*}
 This is implemented and solved in {\tt burger.m}
 
-\paragraph{Excercises}
+\subsection{Excercises}
 
 \begin{enumerate}
 
-\item Run program {\tt burger.m}
-
-\item Notice that for zero initial condition, i.e, {\tt delta = 0}, the solution will be stationary. This corresponds to the stationary solution for the original Burgers's equation.
+\item The initial condition is chosen as
+\[
+z(x,0) = \delta \sin(\pi x)
+\]
+Run program {\tt burger.m} with {\tt delta = 0}. The zero solution does not change with time. This corresponds to the stationary solution for the original Burgers's equation.
 
 \item Take different initial conditions by varying {\tt delta}, and convince yourself that the zero solution is unstable. Choose values for {\tt delta} to observe the following behaviors
    \begin{itemize}
@@ -359,7 +364,7 @@ In the FEM setup, we have
 \]
 The filtering gain $\bL$ is given by 
 \[
-\bL = - \M \bdP_e \bH^\top \R^{-1}_{\boldsymbol\mu}
+\bL = \M \bdP_e \bH^\top \R^{-1}_{\boldsymbol\mu}
 \]
 where $\bdP_e$ is solution of
 \[
@@ -396,23 +401,23 @@ The initial condition is given by
 \[
 \z(0) = \z_0, \qquad \z_e(0) = 0
 \]
-This is implemented in program {\tt lin\_est.m}
+This is implemented in program {\tt lin\_lqg.m}
 
 \paragraph{Excercises}
 
 \begin{enumerate}
 
-\item Run program {\tt lin\_est.m}
+\item Run program {\tt lin\_lqg.m}
 
 \item Check stabilizabilty of $(\A,\B)$ using the Hautus criterion.
 
 \item Set $(\Q = 0)$ which corresponds to minimal norm control. Run the code and observe the solution and control.
 
-\item Set $(\Q = I)$ and run the code. How has the solution and control beaviour changed?
+\item Set $(\Q = I)$ and run the code. How has the solution and control beaviour changed~?
 
 \item Vary $\R$ in the range $(0.01,10)$ and observe how the feedback gain $\K$ varies.
 
-\item How does the solution and control change when $\nu$ is decreased?
+\item How does the solution and control change when $\nu$ is decreased~?
 
 \item For $\Q = 0$, modify the code to solve the control and estimation problem for only the unstable components. Refer to the codes used for the 1D heat problem.
 \end{enumerate}
@@ -474,15 +479,13 @@ We solve the non-linear system and the linear estimator in a coupled manner.
 \]
 This is implemented in {\tt burger\_lqg.m}
 
-\paragraph{Excercises}
+\subsection{Excercises}
 
 \begin{enumerate}
 
 \item Run program {\tt burger\_lqg.m}
 
-\item Vary $\R$ in the range $(0.01,10)$ and observe how the feedback gain $\K$ varies. How does the solution and control change with $\R$.
-
-\item How does the solution and control change when $\nu$ is decreased ?
+\item Vary $\R$ in the range $(0.01,10)$ and observe how the feedback gain $\K$ changes. How does the solution and control change with $\R$.
 
 \end{enumerate}
 
