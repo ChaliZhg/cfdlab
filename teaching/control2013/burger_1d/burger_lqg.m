@@ -61,7 +61,7 @@ Me = [M , sparse(N,N); ...
 
 % Solving the system
 options = odeset('RelTol',1e-14,'AbsTol',1e-14);
-[t,zc] = ode15s(@rhs_nlpest,tspan,z0c,[],Lc,Uc,A1,A2,d1,d2,D1,H,A,B,K,L,N,nu,us,ws);
+[t,zc] = ode15s(@rhs_burger_lqg,tspan,z0c,[],Lc,Uc,A1,A2,d1,d2,D1,H,A,B,K,L,N,nu,us,ws);
 
 u = -K*zc(:,N+1:2*N)';
 
