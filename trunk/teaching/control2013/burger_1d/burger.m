@@ -26,7 +26,7 @@ z0(1:N) = delta*sin(pi*x(2:N+1)/2);
 
 % Solving the system
 options = odeset('RelTol',1e-14,'AbsTol',1e-14);
-[t,z] = ode15s(@rhs_nlp,tspan,z0,[],L,U,A1,A2,D1,N,nu,us,ws);
+[t,z] = ode15s(@rhs_burger,tspan,z0,[],L,U,A1,A2,D1,N,nu,us,ws);
 
 for i = 1:nT
     if mod(i,10)==0

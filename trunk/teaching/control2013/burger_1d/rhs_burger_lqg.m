@@ -1,6 +1,6 @@
 % RHS of nonlinear model
 % no control, no noise
-function dxdt = rhs_nlpest(t,x,Lc,Uc,A1,A2,d1,d2,D1,H,A,B,K,L,N,nu,us,ws)                  
+function dxdt = rhs_burger_lqg(t,x,Lc,Uc,A1,A2,d1,d2,D1,H,A,B,K,L,N,nu,us,ws)                  
 
 dxdt = zeros(2*N,1);
 
