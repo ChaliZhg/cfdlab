@@ -16,4 +16,5 @@ dxdt(1:N,1) = dxdt(1:N,1) - u*(A2*(x(1:N) + ws(2:N+1)') + 2*us*d1 + nu*d2) ...
 
 dxdt(N+1:2*N,1) = L*H*x(1:N) + (A-L*H-B*K)*x(N+1:2*N);
 
-dxdt = Uc\(Lc\dxdt);
+dxdt(1:N,1)     = Uc \ Lc \ dxdt(1:N,1);
+dxdt(N+1:2*N,1) = Uc \ Lc \ dxdt(N+1:2*N,1);
