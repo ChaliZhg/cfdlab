@@ -55,7 +55,7 @@ z0c = [z0(1:N)';zeros(N,1)];
 Me = [M , sparse(N,N); ...
       sparse(N,N), M];
 
-[Lc,Uc] = lu(Me);
+[Lc,Uc] = lu(M);
 
 % Solving the system
 options = odeset('RelTol',1e-8,'AbsTol',1e-8);
