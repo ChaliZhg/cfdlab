@@ -221,6 +221,10 @@ where
  \textbf{RHS}(i) = - \z^\top \D1(:,:,i) \z - \left[ \nu \A1(i,:) + u_s \A2(i,:) + \w_s^\top (\D1(:,:,i) + \D1(:,:,i)^\top) \right] \z
 \end{eqnarray*}
 This is implemented and solved in {\tt burger.m}
+%-----------------------------------------------------------------------------------------
+
+\paragraph{Warning} It is not good computational practice to compute the three dimensional matrices like $\D1$ since it requires large storage. But we will use this approach here since we are only in 1-D case.
+%-----------------------------------------------------------------------------------------
 
 \subsection{Excercises}
 
@@ -235,7 +239,7 @@ Run program {\tt burger.m} with {\tt delta = 0}. The zero solution does not chan
 \item Take different initial conditions by varying {\tt delta}, and convince yourself that the zero solution is unstable. Try {\tt delta = 0.1} and {\tt delta = -0.1} and see how the solution evolves.
 \end{enumerate}
 
-%------------------------------------------------------------------------------------------------------
+%-----------------------------------------------------------------------------------------
 
 \section{Linearized Burgers' equation}
 
@@ -413,12 +417,13 @@ This is implemented in program {\tt lin\_lqg.m}
 
 \item Vary $\R$ in the range $(0.01,10)$ and observe how the feedback gain $\K$ varies.
 
-\item For $\Q = 0$, modify the code to solve the control and estimation problem for only the unstable components. Refer to the codes used for the 1D heat problem.
+\item For $\Q = 0$, modify the code to solve the control and estimation problem for only the unstable components.
 \end{enumerate}
 
 
 %-------------------------------------------------------------------------------------------------------------
-\section{Non-linear system with control}
+\section{Non-linear system with control and estimation}
+We will solve the non-linear equation for the perturbation $z = w - w_s$.
 \begin{equation*}
 \df{z}{t} + w_s \df{z}{x} + z \dd{w_s}{x} + z \dd{z}{x} = \nu \df{^2 z}{x^2}
 \end{equation*}
