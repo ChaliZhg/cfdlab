@@ -31,11 +31,48 @@
 
 using namespace dealii;
 
+//------------------------------------------------------------------------------
+template <int dim>
+class RightHandSide : public Function<dim>
+{
+public:
+   RightHandSide () : Function<dim>() {}
+   
+   virtual double value (const Point<dim>   &p,
+                         const unsigned int  component = 0) const;
+};
+
+template <int dim>
+double RightHandSide<dim>::value (const Point<dim> &p,
+                                  const unsigned int /*component*/) const
+{
+   return 4*sin(2*p[0]);
+}
+
+//------------------------------------------------------------------------------
+template <int dim>
+class BoundaryValues : public Function<dim>
+{
+public:
+   BoundaryValues () : Function<dim>() {}
+   
+   virtual double value (const Point<dim>   &p,
+                         const unsigned int  component = 0) const;
+};
+
+template <int dim>
+double BoundaryValues<dim>::value (const Point<dim> &p,
+                                   const unsigned int /*component*/) const
+{
+   return sin(2*p[0]);
+}
+
+//------------------------------------------------------------------------------
 template <int dim>
 class LaplaceProblem
 {
 public:
-    LaplaceProblem ();
+    LaplaceProblem (int degree);
     void run ();
 
 private:
@@ -44,6 +81,7 @@ private:
     void solve ();
     void output_results () const;
 
+    int                  degree;
     Triangulation<dim>   triangulation;
     FE_Q<dim>            fe;
     DoFHandler<dim>      dof_handler;
@@ -55,53 +93,16 @@ private:
     Vector<double>       system_rhs;
 };
 
+
+//------------------------------------------------------------------------------
 template <int dim>
-class RightHandSide : public Function<dim>
-{
-public:
-    RightHandSide () : Function<dim>() {}
-
-    virtual double value (const Point<dim>   &p,
-                          const unsigned int  component = 0) const;
-};
-
-
-
-template <int dim>
-class BoundaryValues : public Function<dim>
-{
-public:
-    BoundaryValues () : Function<dim>() {}
-
-    virtual double value (const Point<dim>   &p,
-                          const unsigned int  component = 0) const;
-};
-
-
-
-
-template <int dim>
-double RightHandSide<dim>::value (const Point<dim> &p,
-                                  const unsigned int /*component*/) const
-{
-    return 4*sin(2*p[0]);
-}
-
-
-template <int dim>
-double BoundaryValues<dim>::value (const Point<dim> &p,
-                                   const unsigned int /*component*/) const
-{
-    std::cout << "===" << p[0] << std::endl;
-    return sin(2*p[0]);
-}
-
-template <int dim>
-LaplaceProblem<dim>::LaplaceProblem () :
-    fe (1),
+LaplaceProblem<dim>::LaplaceProblem (int degree) :
+    degree (degree),
+    fe (degree),
     dof_handler (triangulation)
 {}
 
+//------------------------------------------------------------------------------
 template <int dim>
 void LaplaceProblem<dim>::make_grid_and_dofs ()
 {
@@ -131,10 +132,11 @@ void LaplaceProblem<dim>::make_grid_and_dofs ()
     system_rhs.reinit (dof_handler.n_dofs());
 }
 
+//------------------------------------------------------------------------------
 template <int dim>
 void LaplaceProblem<dim>::assemble_system ()
 {
-    QGauss<dim>  quadrature_formula(2);
+    QGauss<dim>  quadrature_formula(2*degree);
 
     const RightHandSide<dim> right_hand_side;
 
@@ -183,11 +185,6 @@ void LaplaceProblem<dim>::assemble_system ()
         }
     }
 
-    //MatrixCreator::create_laplace_matrix(dof_handler, QGauss<dim>(3), system_matrix);
-    //system_matrix *= -1;
-    //RightHandSide<dim> rhs_function;
-    //VectorTools::create_right_hand_side(dof_handler, QGauss<dim>(2), rhs_function, system_rhs);
-
 	// left boundary condition
     std::map<unsigned int,double> boundary_values;
     VectorTools::interpolate_boundary_values (dof_handler,
@@ -209,6 +206,7 @@ void LaplaceProblem<dim>::assemble_system ()
                                         system_rhs);
 }
 
+//------------------------------------------------------------------------------
 template <int dim>
 void LaplaceProblem<dim>::solve ()
 {
@@ -222,6 +220,7 @@ void LaplaceProblem<dim>::solve ()
               << std::endl;
 }
 
+//------------------------------------------------------------------------------
 template <int dim>
 void LaplaceProblem<dim>::output_results () const
 {
@@ -230,14 +229,13 @@ void LaplaceProblem<dim>::output_results () const
     data_out.attach_dof_handler (dof_handler);
     data_out.add_data_vector (solution, "solution");
 
-    data_out.build_patches ();
+    data_out.build_patches (degree);
 
-    std::ofstream output (dim == 1 ?
-                          "solution-1d.gnuplot" :
-                          "solution-2d.gnuplot");
+    std::ofstream output ("solution.gnuplot");
     data_out.write_gnuplot (output);
 }
 
+//------------------------------------------------------------------------------
 template <int dim>
 void LaplaceProblem<dim>::run ()
 {
@@ -249,11 +247,13 @@ void LaplaceProblem<dim>::run ()
     output_results ();
 }
 
+//------------------------------------------------------------------------------
 int main ()
 {
     deallog.depth_console (0);
     {
-        LaplaceProblem<1> laplace_problem_1d;
+        int degree = 2;
+        LaplaceProblem<1> laplace_problem_1d (degree);
         laplace_problem_1d.run ();
     }
 
