@@ -8,6 +8,7 @@
 \usepackage{amsmath}
 \usepackage{aliases}
 \usepackage{color}
+\usepackage{url}
 
 \usepackage{listings}
 \usepackage{cancel}
@@ -38,16 +39,21 @@
 }
 
 \title{Two dimensional Burgers' equation}
-\author{Praveen. C, Deep Ray, Jean-Pierre Raymond}
-%\date{}                                           % Activate to display a given date or no date
+\author{Deep Ray, Ritesh Kumar, Praveen. C, Mythily Ramaswamy, J.-P. Raymond}
+\date{}
 
 \begin{document}
 
 
 
 \maketitle
-%\section{}
-%\subsection{}
+\begin{center}
+IFCAM Summer School on Numerics and Control of PDE\\
+22 July - 2 August 2013\\
+IISc, Bangalore\\
+\url{http://praveen.cfdlab.net/teaching/control2013}
+\end{center}
+
 
 %-----------------------------------------------------------------------------------------
 \section{Non-linear Burgers' equation}
@@ -281,7 +287,7 @@ Thus we have a non-linear system of first order ODEs in $\z$
 \end{eqnarray*}
 %------------------------------------------------------------------------------------------
 
-\subsection{Excercises}
+%\subsection{Excercises}
 
 %\begin{enumerate}
 
@@ -349,7 +355,7 @@ $v(t)$ is obtained in terms of the feedback matix $\K$
 \[
  v(t) = - \K \z
 \]
-
+The computation of $\K$ is explained in the last section.
 %------------------------------------------------------------------------------------------
 \subsection{Partial information with noise}
 Consider the linearized model with noise in the model
@@ -393,7 +399,7 @@ In the FEM setup, we have
 \[
 \M \dd{\z_e}{t} = \A \z_e + \B v + \bL(\y - \bH \z_e)
 \]
-
+The computation of $\bL$ is explained in the last section.
 %--------------------------------------------------------------------------------
 
 \subsection{Coupled linear system}
@@ -421,15 +427,23 @@ The initial condition is given by
 \[
 \z(0) = \z_0, \qquad \z_e(0) = 0
 \]
-%-------------------------------------------------------------------------------------------
+%------------------------------------------------------------------------------
 
 \subsection{Excercises}
 
+\begin{enumerate}
+\item Compute eigenvalues of $(\A,\M)$ and check that the problem is unstable.
+\item Check stabilizability and detectability using Hautus criterion.
+
+\item Using the method given in the last section,
 \begin{enumerate}
 
 \item Compute feedback gain $\K$
 
 \item Compute filtering gain $\bL$
+\end{enumerate}
+
+\item Solve the coupled linear system as in the 2-d heat equation case.
 
 %\item Check stabilizabilty of $(\A,\B)$ using the Hautus criterion.
 
@@ -445,7 +459,7 @@ The initial condition is given by
 \end{enumerate}
 
 
-%-------------------------------------------------------------------------------------------
+%-----------------------------------------------------------------------------
 \section{Non-linear system with control}
 \begin{equation*}
 \df{z}{t} + w_s \df{z}{x} + z \df{w_s}{x} + z \df{z}{x} = \nu \Delta z \qquad \mbox{in} \quad \Omega \times (0,\infty)
@@ -463,8 +477,8 @@ The Galerkin method leads the following set of ODE
 \[
 \M \dd{\z}{t} = \A \z + \B v + N(\z)
 \]
-
-\paragraph{Excercises}
+This model can be coupled with the linear estimator and the control is computed using the estimated solution, $v = -\K \z_e$.
+%\paragraph{Excercises}
 
 %\begin{enumerate}
 
@@ -476,7 +490,7 @@ The Galerkin method leads the following set of ODE
 
 %\end{enumerate}
 
-\section{List of Programs}
+%\section{List of Programs}
 
 %\begin{enumerate}
 
@@ -497,5 +511,101 @@ The Galerkin method leads the following set of ODE
 %\item {\tt rhs\_nlpest.m}: Computes the right hand side for coupled estimation and control system with the non-linear problem
 
 %\end{enumerate}
+
+%------------------------------------------------------------------------------------
+\section{Control and estimation based on the unstable components}
+Let $\lambda_i$ be the eigenvalues and $\V_i, \W_i$ be the eigenvectors of the pair $(\A,\M)$ and $(\A^\top,\M^\top)$ respectively.
+\[
+ \A \V_i = \lambda_i \M \V_i, \qquad \A^\top \W_i = \lambda_i \M \W_i, \quad \forall i = 1,...,N
+\]
+Assume that the eigenvectors are normalized with repsect to $\M$
+\begin{equation}
+ \W_i^\top \M \V_j = \delta_{i,j}, \qquad
+ \W_i^\top \A \V_j = \lambda_i \delta_{i,j}
+\label{eq:orthcond}
+\end{equation}
+Let there be $N_u$ unstable eigenvalues
+\[
+ Real(\lambda_{N}) < .... < Real(\lambda_{N_u +1}) < 0 < Real(\lambda_{N_u}) < ... < Real(\lambda_1)
+\]
+We will use the following notations 
+\begin{eqnarray*}
+\Lambda &=& \mbox{Diagonal matrix of eigenvalues} \\
+\Lambda_u &=& \mbox{Diagonal matrix of unstable eigenvalues} \\
+\V &=& \mbox{Matrix with the right eigenvector as columns} \\
+\V_u &=& \mbox{Matrix with the unstable right eigenvector as columns} \\
+\W &=& \mbox{Matrix with the left eigenvector as columns} \\
+\W_u &=& \mbox{Matrix with the unstable left eigenvector as columns} \\
+\end{eqnarray*}
+\[
+\V = [\V_1, \ldots, \V_N], \qquad \V_u = [\V_1, \ldots, \V_{N_u}], \qquad \W = [\W_1, \ldots, \W_N], \qquad \W_u = [\W_1, \ldots, \W_{N_u}]
+\]
+Consider the variable change
+\[
+ \z = \V \zz
+\]
+The system in terms of $\zz$ is written as
+\[
+ \M \V \dd{\zz}{t} = \A \V \zz + \B u
+\]
+Premultiplying by $\W^\top$ gives us
+\[
+ \dd{\zz}{t} = \Lambda \zz + \BB u
+\]
+where
+\[
+ \BB = \W^\top \B
+\]
+Projecting the system onto the unstable subspace gives
+\[
+ \dd{\zzu}{t} = \Lambda_u \zzu + \BBu u
+\]
+where
+\[
+\BBu = \W^\top_u \B
+\]
+
+\subsection{Control}
+We find the feedback matrix for this reduced system, by solving the Bernoulli equation
+\begin{equation}
+ \PPu \Lambda_u + \Lambda^\top_u \PPu - \PPu \BB_u \BB_u^\top \PPu = 0
+\label{eq:ricu}
+\end{equation}
+\[
+ \Lambda_u - \BBu \BBu^\top \PPu \text{ is stable}
+\]
+The corresponding matrix $\bdP \in \LL(\re^{N})$ such that $(\M,\A - \B\B^\top\bdP\M)$ is stable is given by
+\[
+ \bdP = \W_u \PPu \V_u^\top
+\]
+The feedback matrix $\K$ is given by
+\[
+ \K = \B^\top\bdP\M
+\]
+
+\subsection{Estimation}
+Define the operator $\HH$ and $\HHu$ by
+\[
+ \HH \zz = \bH \z, \qquad \HHu = \bH \V_u
+\]
+The filtering gain $\PP_e$ for the reduced projected system is obtained as the solution of the ARE
+\[
+ \PP_e \Lambda_u^\top + \Lambda_u \PP_e - \PP_e \HHu^\top \R_{\boldsymbol\mu}^{-1} \HHu \PP_e + \QQ_\eta = 0
+\]
+\[
+ \Lambda_u - \PP_e \HHu^\top \R_{\boldsymbol\mu}^{-1} \HHu \text{ is stable} 
+\]
+where $\QQ_\eta = \W_u^\top \R_{\boldsymbol\eta} \V_u$. The corresponding $\bdP_e$ such that $(\M,\A - \M \bdP_e \bH^\top \R_{\boldsymbol\mu}^{-1} \bH)$ is stable is given by
+\[
+ \bdP_e = \W_u \PP_e \V_u^\top
+\]
+Thus the filtering gain matrix $\bdL$ is
+\[
+ \bdL = \M \bdP_e \bH^\top \R_{\boldsymbol\mu}^{-1}
+\]
+%---------------------------------------------------------------------------------------
+\paragraph{Matlab tips}
+To implement the above approach we need to compute only the unstable eigenvalues and eigenvectors of ($\A,\M)$ and $(\A^\top,\M^\top)$. They must also satisfy the orthonormality condition as given in equation~(\ref{eq:orthcond}). In matlab, this condition may not be automatically satisfied and you need to scale the eigenvectors appropriately.
+
 \end{document} 
 
