@@ -1,6 +1,15 @@
 % Program to solve 2d Burger equation
 %
-% z_t + ws*z_x + z*ws_x - nu*z_xx = 0
+% ws = stationary solution
+%      -nu*(ws_xx + ws_yy) + ws*ws_x = fs
+%
+% z  = w - ws
+%
+% PDE for perturbation z
+%         z_t + ws*z_x + z*ws_x + z*z_x - nu*(z_xx + z_yy) = 0
+%
+% FEM approximation
+%        M z' = A z + N(z)
 %
 globals;
 parameters;
@@ -21,7 +30,7 @@ za(:)= -sin(0.5*pi*coordinates(:,1)/a) .* sin(pi*coordinates(:,2)/b);
 z(:) = za(FreeNodes);
 u(:) = sin(pi*coordinates(ControlNodes,1)/a); % sin(pi*x/a)
 show ( elements3, coordinates, full(za) );
-pause
+pause(2)
 
 % Time loop
 t = 0;
