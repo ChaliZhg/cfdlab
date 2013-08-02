@@ -475,7 +475,7 @@ z(\x,0) = w_0(\x) - w_s(\x) \quad \text{ on } \Omega
 \end{equation*}
 The Galerkin method leads the following set of ODE
 \[
-\M \dd{\z}{t} = \A \z + \B v + N(\z)
+\M \dd{\z}{t} = \A \z + \B v + N(\z,v)
 \]
 This model can be coupled with the linear estimator and the control is computed using the estimated solution, $v = -\K \z_e$.
 %\paragraph{Excercises}
@@ -516,17 +516,17 @@ This model can be coupled with the linear estimator and the control is computed 
 \section{Control and estimation based on the unstable components}
 Let $\lambda_i$ be the eigenvalues and $\V_i, \W_i$ be the eigenvectors of the pair $(\A,\M)$ and $(\A^\top,\M^\top)$ respectively.
 \[
- \A \V_i = \lambda_i \M \V_i, \qquad \A^\top \W_i = \lambda_i \M \W_i, \quad \forall i = 1,...,N
+ \A \V_i = \lambda_i \M \V_i, \qquad \A^\top \W_i = \lambda_i \M^\top \W_i, \quad \forall i = 1,...,N
 \]
-Assume that the eigenvectors are normalized with repsect to $\M$
+Assume that the eigenvectors are normalized with respect to $\M$
 \begin{equation}
- \W_i^\top \M \V_j = \delta_{i,j}, \qquad
- \W_i^\top \A \V_j = \lambda_i \delta_{i,j}
+ \W_i^\top \M \V_j = \delta_{ij}, \qquad
+ \W_i^\top \A \V_j = \lambda_i \delta_{ij}
 \label{eq:orthcond}
 \end{equation}
 Let there be $N_u$ unstable eigenvalues
 \[
- Real(\lambda_{N}) < .... < Real(\lambda_{N_u +1}) < 0 < Real(\lambda_{N_u}) < ... < Real(\lambda_1)
+ Real(\lambda_{N}) \le \ldots \le Real(\lambda_{N_u +1}) < 0 < Real(\lambda_{N_u}) \le \ldots \le Real(\lambda_1)
 \]
 We will use the following notations 
 \begin{eqnarray*}
