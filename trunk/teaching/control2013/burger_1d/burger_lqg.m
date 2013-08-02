@@ -69,9 +69,9 @@ for i = 1:nT
         zze = [u(i), zc(i,N+1:2*N)];
         figure(2)
         subplot(1,2,1)
-        plot(x,zz+ws,'-','LineWidth',1)
+        plot(x,zz,'-','LineWidth',1)
         hold all
-        plot(x,zze+ws,'o','LineWidth',1)
+        plot(x,zze,'o','LineWidth',1)
         xlabel('x') 
         ylabel('z')
         titletext = sprintf('Solution at t=%f',tspan(i));
