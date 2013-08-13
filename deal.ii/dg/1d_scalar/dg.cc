@@ -9,8 +9,8 @@
 #include <fe/fe_values.h>
 #include <base/quadrature_lib.h>
 #include <base/function.h>
-#include <numerics/vectors.h>
-#include <numerics/matrices.h>
+#include <numerics/vector_tools.h>
+#include <numerics/matrix_tools.h>
 #include <lac/vector.h>
 #include <lac/full_matrix.h>
 #include <lac/sparse_matrix.h>
@@ -176,6 +176,7 @@ private:
    double residual0;
    
    ConvergenceTable  convergence_table;
+   typename DoFHandler<dim>::active_cell_iterator firstc, lastc;
    
 };
 
@@ -186,10 +187,10 @@ template <int dim>
 ScalarProblem<dim>::ScalarProblem (Parameter param,
                                    bool debug) :
     test_case (param.test_case),
-    cfl (param.cfl),
-    n_cells (param.n_cells),
-    nstep (param.nstep),
     debug(debug),
+    n_cells (param.n_cells),
+    cfl (param.cfl),
+    nstep (param.nstep),
     fe (param.degree),
     dof_handler (triangulation)
 {
@@ -261,7 +262,20 @@ void ScalarProblem<dim>::make_grid_and_dofs (unsigned int step)
     rhs.reinit (dof_handler.n_dofs());
    
     average.resize (triangulation.n_cells(), Vector<double>(fe.degree+1));
+   
+   // Find first and last cell
+   // We need these for periodic bc
+   // WARNING: This could be wrong with adaptive refinement.
+   typename DoFHandler<dim>::active_cell_iterator
+   cell = dof_handler.begin_active(),
+   endc = dof_handler.end();
+   firstc = dof_handler.begin_active();
+   for (unsigned int c=0; cell!=endc; ++cell, ++c)
+   {
+      if(c == triangulation.n_active_cells()-1)
+         lastc = cell;
    }
+}
 
 //------------------------------------------------------------------------------
 // Set initial conditions
@@ -495,9 +509,7 @@ void ScalarProblem<dim>::assemble_rhs ()
 
     typename DoFHandler<dim>::active_cell_iterator 
       cell = dof_handler.begin_active(),
-      endc = dof_handler.end(),
-      firstc = dof_handler.begin_active(),
-      lastc  = dof_handler.last_active();
+      endc = dof_handler.end();
    
     residual = 0.0;
    
@@ -847,25 +859,14 @@ void ScalarProblem<dim>::process_solution (unsigned int step)
                                       VectorTools::L2_norm);
    const double L2_error = difference_per_cell.l2_norm();
    
-   VectorTools::integrate_difference (dof_handler,
-                                      solution,
-                                      Solution<dim>(),
-                                      difference_per_cell,
-                                      QGauss<dim>(4),
-                                      VectorTools::H1_seminorm);
-   const double H1_error = difference_per_cell.l2_norm();
-   
    const unsigned int n_active_cells=triangulation.n_active_cells();
    const unsigned int n_dofs=dof_handler.n_dofs();
    convergence_table.add_value("step", step);
    convergence_table.add_value("cells", n_active_cells);
    convergence_table.add_value("dofs", n_dofs);
    convergence_table.add_value("L2", L2_error);
-   convergence_table.add_value("H1", H1_error);
-   //convergence_table.add_value("Linfty", Linfty_error);
    
    convergence_table.set_scientific("L2", true);
-   convergence_table.set_scientific("H1", true);
    
    std::cout << std::endl;
    convergence_table.write_text(std::cout);
@@ -886,23 +887,15 @@ void ScalarProblem<dim>::run ()
    }
 
    convergence_table.set_precision("L2", 3);
-   convergence_table.set_precision("H1", 3);
-   //convergence_table.set_precision("Linfty", 3);
    
    convergence_table.set_scientific("L2", true);
-   convergence_table.set_scientific("H1", true);
-   //convergence_table.set_scientific("Linfty", true);
    
    convergence_table
    .evaluate_convergence_rates("L2", ConvergenceTable::reduction_rate_log2);
-   convergence_table
-   .evaluate_convergence_rates("H1", ConvergenceTable::reduction_rate_log2);
    
    convergence_table.set_tex_caption("cells", "\\# cells");
    convergence_table.set_tex_caption("dofs", "\\# dofs");
    convergence_table.set_tex_caption("L2", "L^2-error");
-   convergence_table.set_tex_caption("H1", "H^1-error");
-   //convergence_table.set_tex_caption("Linfty", "L^\\infty-error");
    
    convergence_table.set_tex_format("cells", "r");
    convergence_table.set_tex_format("dofs", "r");
