@@ -37,6 +37,7 @@
 #include <fe/fe_dgq.h>
 				 
 #include <numerics/derivative_approximation.h>
+#include <numerics/solution_transfer.h>
 
 #include <meshworker/dof_info.h>
 #include <meshworker/integration_info.h>
@@ -524,11 +525,9 @@ void Step12<dim>::solve ()
    
    std::cout << "Solving by RK ...\n";
 
-   double residue0 = 0.0;
-   double residue = 1.0e20;
    unsigned int iter = 0;
    double time = 0;
-   while (time < 2*M_PI && iter < 10000 && residue > 1.0e-8)
+   while (time < 2*M_PI && iter < 10000)
    {
       solution_old = solution;
 
@@ -541,20 +540,13 @@ void Step12<dim>::solve ()
             solution(i) = a_rk[r] * solution_old(i) +
                           b_rk[r] * (solution(i) + dt * right_hand_side(i));
       }
-
-      residue = right_hand_side.l2_norm ();
-      if(iter==0) residue0 = residue;
-      residue /= residue0;
       
       ++iter; time += dt;
       std::cout << "Iterations=" << iter 
-                << ", t = " << time
-                << ", Residue=" << residue << endl;
+                << ", t = " << time << endl;
       if(std::fmod(iter,10)==0) output_results(iter);
    }
    
-   std::cout << "Iterations=" << iter << ", Residue=" << residue << endl;
-
 }
 
 //------------------------------------------------------------------------------
@@ -563,6 +555,7 @@ void Step12<dim>::solve ()
 template <int dim>
 void Step12<dim>::refine_grid ()
 {
+   std::cout << "Refining grid ...\n";
    Vector<float> gradient_indicator (triangulation.n_active_cells());
    
    DerivativeApproximation::approximate_gradient (mapping,
@@ -576,11 +569,19 @@ void Step12<dim>::refine_grid ()
    for (unsigned int cell_no=0; cell!=endc; ++cell, ++cell_no)
       gradient_indicator(cell_no)*=std::pow(cell->diameter(), 1+1.0*dim/2);
    
-   GridRefinement::refine_and_coarsen_fixed_number (triangulation,
-                                                    gradient_indicator,
-                                                    0.3, 0.1);
-   
+   SolutionTransfer<dim, Vector<double> > soltrans(dof_handler);
+   GridRefinement::refine_and_coarsen_fixed_fraction (triangulation,
+                                                      gradient_indicator,
+                                                      0.3, 0.0);
+   triangulation.prepare_coarsening_and_refinement();
+   soltrans.prepare_for_coarsening_and_refinement(solution);
    triangulation.execute_coarsening_and_refinement ();
+   dof_handler.distribute_dofs (fe);
+   solution_old.reinit(dof_handler.n_dofs());
+   soltrans.interpolate(solution, solution_old);
+   soltrans.clear();
+   solution.reinit(dof_handler.n_dofs());
+   solution = solution_old;
 }
 
 //------------------------------------------------------------------------------
@@ -609,35 +610,23 @@ void Step12<dim>::output_results (const unsigned int cycle) const
 template <int dim>
 void Step12<dim>::run ()
 {
-   for (unsigned int cycle=0; cycle<1; ++cycle)
-   {
-      std::cout << "Cycle " << cycle << std::endl;
-      
-      if (cycle == 0)
-      {
-         GridGenerator::hyper_cube (triangulation,-1.0,+1.0);
-         triangulation.refine_global (6);
-      }
-      else
-         refine_grid ();
-      
-      
-      std::cout << "Number of active cells:       "
-              << triangulation.n_active_cells()
-              << std::endl;
-      
-      setup_system ();
-      
-      std::cout << "Number of degrees of freedom: "
-              << dof_handler.n_dofs()
-              << std::endl;
-      
-      assemble_mass_matrix ();
-      set_initial_condition ();
-      output_results(0);
-      solve ();
-      //output_results (cycle);
-   }
+   GridGenerator::hyper_cube (triangulation,-1.0,+1.0);
+   triangulation.refine_global (6);
+   
+   std::cout << "Number of active cells:       "
+             << triangulation.n_active_cells()
+             << std::endl;
+   
+   setup_system ();
+   
+   std::cout << "Number of degrees of freedom: "
+             << dof_handler.n_dofs()
+             << std::endl;
+   
+   assemble_mass_matrix ();
+   set_initial_condition ();
+   output_results(0);
+   solve ();
 }
 
 //------------------------------------------------------------------------------
