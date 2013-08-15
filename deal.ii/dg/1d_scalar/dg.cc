@@ -802,7 +802,7 @@ void ScalarProblem<dim>::solve ()
     //make_grid_and_dofs();
     assemble_mass_matrix ();
     initialize ();
-    output_results (0.0); system("cp solution.gpl init.gpl");
+    output_results (0.0);
     compute_averages ();
 
     double time = 0.0;

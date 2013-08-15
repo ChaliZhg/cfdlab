@@ -1,0 +1,7 @@
+Steps to run
+
+cmake .
+make release
+make
+./dg
+gnuplot anim.gnu
