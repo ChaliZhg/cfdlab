@@ -10,7 +10,7 @@ def Inlet(x, on_boundary):
 
 np = 100
 
-mesh = UnitSquare(np, np)
+mesh = UnitSquareMesh(np, np)
 h = CellSize(mesh)
 
 X = FunctionSpace(mesh, "CG", 1)

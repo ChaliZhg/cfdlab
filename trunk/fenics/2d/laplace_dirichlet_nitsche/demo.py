@@ -8,7 +8,7 @@ Note: gamma in this code is reciprocal of gamma in the paper
 
 from dolfin import *
 
-mesh = UnitSquare(20,20)
+mesh = UnitSquareMesh(20,20)
 
 V = FunctionSpace(mesh, "CG", 1)
 u = TrialFunction(V)
