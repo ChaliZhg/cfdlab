@@ -542,9 +542,9 @@ void Step12<dim>::output_results (const unsigned int cycle) const
    filename += ('0' + cycle);
    Assert (cycle < 10, ExcInternalError());
    
-   filename += ".plt";
+   filename += ".vtk";
    std::cout << "Writing solution to <" << filename << ">" << std::endl;
-   std::ofstream tecplot_output (filename.c_str());
+   std::ofstream outfile (filename.c_str());
    
    DataOut<dim> data_out;
    data_out.attach_dof_handler (dof_handler);
@@ -552,7 +552,7 @@ void Step12<dim>::output_results (const unsigned int cycle) const
    
    data_out.build_patches ();
    
-   data_out.write_tecplot (tecplot_output);
+   data_out.write_vtk (outfile);
 }
 
 //------------------------------------------------------------------------------
