@@ -13,7 +13,7 @@ def Inlet(x, on_boundary):
 
 np = 100
 
-mesh = UnitSquare(np, np)
+mesh = UnitSquareMesh(np, np)
 
 X = FunctionSpace(mesh, "DG", 1)
 

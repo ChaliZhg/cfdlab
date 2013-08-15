@@ -15,7 +15,7 @@ and boundary conditions given by
 from dolfin import *
 
 # Read mesh
-mesh = UnitSquare(20,20)
+mesh = UnitSquareMesh(20,20)
 
 # FE function space
 V    = FunctionSpace(mesh, "CG", 1)
