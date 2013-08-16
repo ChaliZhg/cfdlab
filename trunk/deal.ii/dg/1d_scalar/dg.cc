@@ -656,9 +656,7 @@ void ScalarProblem<dim>::apply_limiter_TVD ()
    
    FEValues<dim> fe_values (fe, quadrature_formula, update_values);
    std::vector<double> face_values(2);
-   
-   const double theta = 1.0;
-   
+      
    const unsigned int   dofs_per_cell = fe.dofs_per_cell;   
    std::vector<unsigned int> local_dof_indices (dofs_per_cell);
    
@@ -693,8 +691,8 @@ void ScalarProblem<dim>::apply_limiter_TVD ()
       double DF = face_values[1] - average[c](0);
       double DB = average[c](0) - face_values[0];
       
-      double dl = minmod ( DB, theta * db, theta * df);
-      double dr = minmod ( DF, theta * db, theta * df);
+      double dl = minmod ( DB, db, df);
+      double dr = minmod ( DF, db, df);
 
       cell->get_dof_indices (local_dof_indices);
       solution(local_dof_indices[0]) = average[c](0) - dl;
