@@ -756,46 +756,34 @@ void ScalarProblem<dim>::output_results (const double& time) const
        data_out.build_patches (2*fe.degree);
    
     std::string filename = "sol_" + Utilities::int_to_string(c) + ".gpl";
-    ++c;
     cout << filename << endl;
    
    std::ofstream output (filename);
    data_out.write_gnuplot (output);
-
-   // compute shear stress and heat flux at cell center
-   // use midpoint quadtrature to get cell center values
-   QMidpoint<dim> quadrature;
-   FEValues<dim> fe_values (fe, quadrature, update_quadrature_points |
-                            update_values   | update_gradients);
-   const unsigned int   dofs_per_cell = fe.dofs_per_cell;   
-   std::vector<unsigned int> local_dof_indices (dofs_per_cell);
-   std::vector<double> solution_values (1);
    
    Solution<dim> exact;
-   double exact_solution;
    
    typename DoFHandler<dim>::active_cell_iterator 
       cell = dof_handler.begin_active(),
       endc = dof_handler.end();
 
    std::ofstream fo;
-   fo.open ("cell_center.dat");
+   filename = "avg_" + Utilities::int_to_string(c) + ".gpl";
+   fo.open (filename);
    
    for (unsigned int c=0; cell!=endc; ++c, ++cell)
    {
-      fe_values.reinit (cell);
-      fe_values.get_function_values (solution, solution_values);
-            
-      Point<dim> x = fe_values.quadrature_point (0);
-      exact_solution = exact.value(x);
+      Point<dim> x = cell->center();
       
-      fo << fe_values.quadrature_point (0)(0) << " " 
-         << exact_solution << "  "
-         << solution_values[0] << endl;
+      fo << x(0) << " "
+         << exact.value(x) << "  "
+         << average[c](0) << endl;
 
    }
    
    fo.close ();
+   
+   ++c;
 }
 
 //------------------------------------------------------------------------------
