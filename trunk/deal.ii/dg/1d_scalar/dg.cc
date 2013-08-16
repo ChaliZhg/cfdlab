@@ -31,7 +31,6 @@ using namespace dealii;
 // Number of variables: mass, momentum and energy
 double xmin, xmax, xmid;
 double u_left, u_right;
-double beta = 1.0;
 double final_time;
 
 // Coefficients for 3-stage SSP RK scheme of Shu-Osher
@@ -39,8 +38,9 @@ const double a_rk[3] = {0.0, 3.0/4.0, 1.0/3.0};
 const double b_rk[3] = {1.0, 1.0/4.0, 2.0/3.0};
 
 // Numerical flux functions
-enum FluxType {lxf, kfvs};
-enum TestCase {sine, sine2};
+enum FluxType {upwind};
+enum TestCase {sine, hat};
+enum LimiterType {none, TVD};
 
 //------------------------------------------------------------------------------
 // Scheme parameters
@@ -53,6 +53,7 @@ struct Parameter
    TestCase test_case;
    unsigned int n_cells;
    unsigned int nstep;
+   LimiterType limiter_type;
 };
 
 //------------------------------------------------------------------------------
@@ -85,6 +86,7 @@ public:
    
    virtual void value (const Point<dim>   &p,
                        double& values) const;
+   TestCase test_case;
 };
 
 // Initial condition
@@ -95,7 +97,17 @@ void InitialCondition<dim>::value (const Point<dim>   &p,
    double x = p[0];
    
    // test case: sine
-   values = -std::sin (M_PI * x);
+   if(test_case == sine)
+   {
+      values = -std::sin (M_PI * x);
+   }
+   else if(test_case == hat)
+   {
+      if(std::fabs(x) < 0.25)
+         values = 1.0;
+      else
+         values = 0.0;
+   }
 }
 
 //------------------------------------------------------------------------------
@@ -143,6 +155,7 @@ private:
    void compute_averages ();
    void compute_dt ();
    void apply_limiter ();
+   void apply_limiter_TVD ();
    void update (const unsigned int rk_stage);
    void output_results (const double& time) const;
    void process_solution (unsigned int step);
@@ -156,6 +169,7 @@ private:
    double               min_residue;
    unsigned int         n_rk_stages;
    FluxType             flux_type;
+   LimiterType          limiter_type;
    unsigned int         nstep;
    
    
@@ -190,6 +204,7 @@ ScalarProblem<dim>::ScalarProblem (Parameter param,
     debug(debug),
     n_cells (param.n_cells),
     cfl (param.cfl),
+    limiter_type (param.limiter_type),
     nstep (param.nstep),
     fe (param.degree),
     dof_handler (triangulation)
@@ -199,7 +214,7 @@ ScalarProblem<dim>::ScalarProblem (Parameter param,
    final_time = param.final_time;
    
    n_rk_stages = 3;
-   flux_type = kfvs;
+   flux_type = upwind;
    
    if(test_case == sine)
    {
@@ -207,10 +222,10 @@ ScalarProblem<dim>::ScalarProblem (Parameter param,
       xmax    = +1.0;
       min_residue= 1.0e20;
    }
-   else if(test_case == sine2)
+   else if(test_case == hat)
    {
       xmin    = -1.0;
-      xmax    = +3.0;
+      xmax    = +1.0;
       min_residue= 1.0e20;
    }
    else
@@ -302,6 +317,8 @@ void ScalarProblem<dim>::initialize ()
    std::vector<unsigned int> local_dof_indices (dofs_per_cell);
    
    InitialCondition<dim> initial_condition;
+   initial_condition.test_case = test_case;
+   
    double initial_value;
 
    typename DoFHandler<dim>::active_cell_iterator cell = dof_handler.begin_active(),
@@ -407,49 +424,13 @@ double physical_flux (const double& u)
 }
 
 //------------------------------------------------------------------------------
-// Lax-Friedrichs flux
+// Upwind flux
 //------------------------------------------------------------------------------
-void LaxFlux (const double& left_state,
-              const double& right_state,
-              double& flux)
+void UpwindFlux (const double& left_state,
+                 const double& right_state,
+                 double& flux)
 {
-   flux = 0.0;
-   cout << "Lax flux not finished\n";
-   abort();
-}
-
-//------------------------------------------------------------------------------
-// Convective KFVS split fluxes: sign=+1 give positive flux and
-// sign=-1 gives negative flux
-//------------------------------------------------------------------------------
-void kfvs_c_split_flux (const double& u,
-                        const int sign,
-                        double& flux)
-{
-   double s, A, B;
-   
-   s    = sqrt(beta);
-   A    = 0.5 * (1.0 + sign * erf(s));
-   B    = sign * 0.5 * exp(-s * s) / sqrt(beta * M_PI);
-   
-   // inviscid flux
-   flux = u * (A + B);
-}
-
-//------------------------------------------------------------------------------
-// KFVS flux for navier-stokes
-//------------------------------------------------------------------------------
-void KFVSFlux (const double& left_state,
-               const double& right_state,
-               double& flux)
-{
-   double flux_c_pos;
-   double flux_c_neg;
-   
-   kfvs_c_split_flux (left_state,  +1, flux_c_pos);
-   kfvs_c_split_flux (right_state, -1, flux_c_neg);
-   
-  flux = flux_c_pos + flux_c_neg;
+   flux = left_state;
 }
 
 //------------------------------------------------------------------------------
@@ -462,14 +443,10 @@ void numerical_flux (const FluxType& flux_type,
 {
    switch (flux_type) 
    {
-      case lxf:
-         LaxFlux (left_state, right_state, flux);
+      case upwind:
+         UpwindFlux (left_state, right_state, flux);
          break;
-         
-      case kfvs:
-         KFVSFlux (left_state, right_state, flux);
-         break;
-         
+
       default:
          cout << "Unknown flux_type !!!\n";
          abort ();
@@ -637,8 +614,7 @@ void ScalarProblem<dim>::compute_averages ()
    QGauss<dim>  quadrature_formula(fe.degree+1);
       
    FEValues<dim> fe_values (fe, quadrature_formula,
-                            update_values   | update_gradients |
-                            update_quadrature_points | 
+                            update_values   |  
                             update_JxW_values);
    
    const unsigned int   dofs_per_cell = fe.dofs_per_cell;
@@ -669,14 +645,19 @@ void ScalarProblem<dim>::compute_averages ()
 }
 
 //------------------------------------------------------------------------------
-// Compute cell average values
+// Apply TVD limiter
 //------------------------------------------------------------------------------
 template <int dim>
-void ScalarProblem<dim>::apply_limiter ()
+void ScalarProblem<dim>::apply_limiter_TVD ()
 {
    Assert (fe.degree==1, ExcIndexRange(fe.degree, 1, 2));
    
-   const double bb = 1.5;
+   QTrapez<dim>  quadrature_formula;
+   
+   FEValues<dim> fe_values (fe, quadrature_formula, update_values);
+   std::vector<double> face_values(2);
+   
+   const double theta = 1.0;
    
    const unsigned int   dofs_per_cell = fe.dofs_per_cell;   
    std::vector<unsigned int> local_dof_indices (dofs_per_cell);
@@ -685,26 +666,53 @@ void ScalarProblem<dim>::apply_limiter ()
       cell = dof_handler.begin_active(),
       endc = dof_handler.end();
    
-   // dont limit in first cell, skip it.
-   ++cell;
-   
-   double db, df, dl;
-   for (unsigned int c=1; c<n_cells-1; ++c, ++cell)
+   for (unsigned int c=0; c<n_cells; ++c, ++cell)
    {
+      fe_values.reinit(cell);
+      fe_values.get_function_values(solution, face_values);
+
+      unsigned int cl, cr;
+      if(c==0)
+      {
+         cl = n_cells-1;
+         cr = c+1;
+      }
+      else if(c==n_cells-1)
+      {
+         cl = c-1;
+         cr = 0;
+      }
+      else
+      {
+         cl = c - 1;
+         cr = c + 1;
+      }
+      double db = average[c](0)  - average[cl](0);
+      double df = average[cr](0) - average[c](0);
+      
+      double DF = face_values[1] - average[c](0);
+      double DB = average[c](0) - face_values[0];
+      
+      double dl = minmod ( DB, theta * db, theta * df);
+      double dr = minmod ( DF, theta * db, theta * df);
+
       cell->get_dof_indices (local_dof_indices);
-      
-      db = (average[c](0) - average[c-1](0)) / dx;
-      df = (average[c+1](0) - average[c](0)) / dx;
-      dl = minmod ( average[c](1), bb * db, bb * df);
-      
-      solution(local_dof_indices[0]) = average[c](0) - 
-         0.5 * dx * dl;
-      solution(local_dof_indices[1]) = average[c](0) + 
-         0.5 * dx * dl;
-      
+      solution(local_dof_indices[0]) = average[c](0) - dl;
+      solution(local_dof_indices[1]) = average[c](0) + dr;
    }
 }
 
+//------------------------------------------------------------------------------
+// Apply TVD limiter
+//------------------------------------------------------------------------------
+template <int dim>
+void ScalarProblem<dim>::apply_limiter ()
+{
+   if (fe.degree ==0) return;
+   
+   if(limiter_type == TVD)
+      apply_limiter_TVD();
+}
 //------------------------------------------------------------------------------
 // Update solution by one stage of RK
 //------------------------------------------------------------------------------
@@ -765,7 +773,6 @@ void ScalarProblem<dim>::output_results (const double& time) const
    
    Solution<dim> exact;
    double exact_solution;
-
    
    typename DoFHandler<dim>::active_cell_iterator 
       cell = dof_handler.begin_active(),
@@ -820,7 +827,7 @@ void ScalarProblem<dim>::solve ()
          assemble_rhs ();
          update (rk);
          compute_averages ();
-         //apply_limiter ();
+         apply_limiter ();
        }
        
        if(iter==0)
@@ -840,7 +847,7 @@ void ScalarProblem<dim>::solve ()
                 << " Res =" << residual << endl;
     }
    std::cout << "Iter = " << iter << " time = " << time 
-   << " Res =" << residual << endl;
+             << " Res =" << residual << endl;
 
     output_results (time);
 }
@@ -918,9 +925,10 @@ int main ()
        param.degree = 1;
        param.n_cells = 100;
        param.nstep = 1;
-       param.test_case = sine;
+       param.test_case = hat;
        param.cfl = 1.0/(2.0*param.degree+1.0);
        param.final_time = 10;
+       param.limiter_type = TVD;
        
        bool debug = true;
        
