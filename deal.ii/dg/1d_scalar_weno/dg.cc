@@ -26,12 +26,15 @@
 
 #include <base/logstream.h>
 
+#define sign(a)   ((a>0.0) ? 1 : -1)
+
 using namespace dealii;
 
 // Number of variables: mass, momentum and energy
 double xmin, xmax, xmid;
 double u_left, u_right;
 double final_time;
+double Mlim; // used in TVB limiter
 
 // Coefficients for 3-stage SSP RK scheme of Shu-Osher
 const double a_rk[3] = {0.0, 3.0/4.0, 1.0/3.0};
@@ -59,17 +62,25 @@ struct Parameter
 //------------------------------------------------------------------------------
 // minmod of three numbers
 //------------------------------------------------------------------------------
-double minmod (const double& a, const double& b, const double& c)
+double minmod (const double& a, const double& b, const double& c, const double& h)
 {
+   double aa = std::fabs(a);
+   if(aa < Mlim*h*h) return a;
+   
+   int sa = sign(a);
+   int sb = sign(b);
+   int sc = sign(c);
+   
    double result;
-   if( a*b > 0.0 && b*c > 0.0)
-   {
-      result  = std::min( std::fabs(a), std::min(std::fabs(b), std::fabs(c)));
-      result *= ((a>0.0) ? 1.0 : -1.0);
-   }
-   else 
+
+   if( sa != sb || sb != sc)
    {
       result = 0.0;
+   }
+   else
+   {
+      result  = std::min( aa, std::min(std::fabs(b), std::fabs(c)));
+      result *= sa;
    }
    
    return result;
@@ -647,7 +658,7 @@ void ScalarProblem<dim>::compute_averages ()
 template <int dim>
 void ScalarProblem<dim>::mark_troubled_cells ()
 {
-   const double EPS = 1.0e-10;
+   const double EPS = 1.0e-14;
       
    QTrapez<dim>  quadrature_formula;
    
@@ -658,6 +669,7 @@ void ScalarProblem<dim>::mark_troubled_cells ()
       cell = dof_handler.begin_active(),
       endc = dof_handler.end();
    
+   unsigned int n_troubled_cells = 0;
    for (unsigned int c=0; c<n_cells; ++c, ++cell)
    {
       fe_values.reinit(cell);
@@ -685,8 +697,8 @@ void ScalarProblem<dim>::mark_troubled_cells ()
       double DF = face_values[1] - average[c](0);
       double DB = average[c](0) - face_values[0];
       
-      double dl = minmod ( DB, db, df);
-      double dr = minmod ( DF, db, df);
+      double dl = minmod ( DB, db, df, dx);
+      double dr = minmod ( DF, db, df, dx);
       
       limited_face_values[0] = average[c](0) - dl;
       limited_face_values[1] = average[c](0) + dr;
@@ -696,8 +708,13 @@ void ScalarProblem<dim>::mark_troubled_cells ()
                 > EPS * std::fabs(face_values[1]);
 
       troubled_cell[c] = false;
-      if(c0 || c1) troubled_cell[c] = true;
+      if(c0 || c1)
+      {
+         troubled_cell[c] = true;
+         ++n_troubled_cells;
+      }
    }
+   //std::cout << "No of troubled cells = " << n_troubled_cells << std::endl;
 }
 
 //------------------------------------------------------------------------------
@@ -770,7 +787,8 @@ void ScalarProblem<dim>::output_results (const double& time) const
    for (unsigned int c=0; cell!=endc; ++c, ++cell)
    {
       Point<dim> x = cell->center();
-      fo << x(0) << " " << average[c](0) << endl;
+      int tc = (troubled_cell[c] ? 1 : 0);
+      fo << x(0) << " " << average[c](0) << "  " << tc << endl;
    }
    
    fo.close ();
@@ -911,6 +929,7 @@ int main ()
        param.limiter_type = none;
        
        bool debug = true;
+       Mlim = 10.0;
        
        ScalarProblem<1> scalar_problem(param, debug);
        scalar_problem.run ();
