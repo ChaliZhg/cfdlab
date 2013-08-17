@@ -123,16 +123,17 @@ public:
                          const unsigned int  component = 0) const;
 };
 
-// Exact solution
+// Exact solution: works correctly only for periodic case
 template<int dim>
 double Solution<dim>::value (const Point<dim>   &p,
                              const unsigned int) const
 {
-   double x = p[0] - final_time;
-   
-   // test case: sine
-   return - std::sin (M_PI * x);
-
+   double values;
+   Point<dim> pp(p);
+   pp[0] -= final_time;
+   InitialCondition<dim> initial_condition;
+   initial_condition.value(pp, values);
+   return values;
 }
 
 //------------------------------------------------------------------------------
@@ -758,9 +759,7 @@ void ScalarProblem<dim>::output_results (const double& time) const
    
    std::ofstream output (filename);
    data_out.write_gnuplot (output);
-   
-   Solution<dim> exact;
-   
+      
    typename DoFHandler<dim>::active_cell_iterator 
       cell = dof_handler.begin_active(),
       endc = dof_handler.end();
@@ -772,11 +771,7 @@ void ScalarProblem<dim>::output_results (const double& time) const
    for (unsigned int c=0; cell!=endc; ++c, ++cell)
    {
       Point<dim> x = cell->center();
-      
-      fo << x(0) << " "
-         << exact.value(x) << "  "
-         << average[c](0) << endl;
-
+      fo << x(0) << " " << average[c](0) << endl;
    }
    
    fo.close ();
