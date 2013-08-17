@@ -79,8 +79,7 @@ double minmod (const double& a, const double& b, const double& c, const double& 
    }
    else
    {
-      result  = std::min( aa, std::min(std::fabs(b), std::fabs(c)));
-      result *= sa;
+      result  = sa * std::min( aa, std::min(std::fabs(b), std::fabs(c)));
    }
    
    return result;
@@ -167,6 +166,7 @@ private:
    void compute_averages ();
    void compute_dt ();
    void apply_limiter ();
+   void apply_weno_limiter ();
    void mark_troubled_cells ();
    void update (const unsigned int rk_stage);
    void output_results (const double& time) const;
@@ -653,7 +653,7 @@ void ScalarProblem<dim>::compute_averages ()
 }
 
 //------------------------------------------------------------------------------
-// Apply TVD limiter
+// Use TVB limiter to identify troubled cells
 //------------------------------------------------------------------------------
 template <int dim>
 void ScalarProblem<dim>::mark_troubled_cells ()
@@ -718,6 +718,31 @@ void ScalarProblem<dim>::mark_troubled_cells ()
 }
 
 //------------------------------------------------------------------------------
+// Apply weno limiter
+//------------------------------------------------------------------------------
+template <int dim>
+void ScalarProblem<dim>::apply_weno_limiter ()
+{
+   QGauss<dim> quadrature_formula(fe.degree + 1);
+   FEValues<dim> fe_values_left (fe, quadrature_formula, update_values);
+
+   
+   typename DoFHandler<dim>::active_cell_iterator
+            cell = dof_handler.begin_active(),
+            endc = dof_handler.end();
+   
+   for (unsigned int c=0; cell!=endc; ++c, ++cell)
+   {
+      // extend neigbouring solution to current cell
+      fe_values_left.reinit(lcell[c]);
+      
+      // compute smoothness indicators
+      // compute weights
+      // compute limited solution
+   }
+}
+
+//------------------------------------------------------------------------------
 // Apply TVD limiter
 //------------------------------------------------------------------------------
 template <int dim>
@@ -728,6 +753,7 @@ void ScalarProblem<dim>::apply_limiter ()
    mark_troubled_cells ();
    //apply_weno_limiter ();
 }
+
 //------------------------------------------------------------------------------
 // Update solution by one stage of RK
 //------------------------------------------------------------------------------
