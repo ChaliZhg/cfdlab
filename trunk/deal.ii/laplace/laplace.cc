@@ -5,10 +5,10 @@
 #include <dofs/dof_tools.h>
 #include <lac/sparse_matrix.h>
 #include <lac/compressed_sparsity_pattern.h>
-#include <numerics/matrices.h>
+#include <numerics/matrix_tools.h>
 #include <base/quadrature_lib.h>
 #include <lac/vector.h>
-#include <numerics/vectors.h>
+#include <numerics/vector_tools.h>
 #include <base/function.h>
 #include <lac/solver_cg.h>
 #include <lac/precondition.h>
