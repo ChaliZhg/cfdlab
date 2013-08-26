@@ -48,10 +48,31 @@
 #include <fstream>
 #include <cmath>
 
+#define sign(a)  ( (a) > 0 ? 1 : -1 )
+
 using namespace dealii;
 
 const double a_rk[] = {0.0, 3.0/4.0, 1.0/3.0};
 const double b_rk[] = {1.0, 1.0/4.0, 2.0/3.0};
+
+enum LimiterType {none, tvd};
+enum TestCase {expo, circ};
+
+//------------------------------------------------------------------------------
+// Minmod function
+//------------------------------------------------------------------------------
+double minmod(double a, double b, double c)
+{
+   int sa = sign(a);
+   int sb = sign(b);
+   int sc = sign(c);
+
+   if(sa != sb) return 0;
+   if(sa != sc) return 0;
+
+   return sa * std::min( sa*a, std::min( sb*b, sc*c ) );
+}
+
 //------------------------------------------------------------------------------
 // Speed of advection
 //------------------------------------------------------------------------------
@@ -72,6 +93,7 @@ public:
    virtual void value_list (const std::vector<Point<dim> > &points,
                             std::vector<double> &values,
                             const unsigned int component=0) const;
+   TestCase test_case;
 };
 
 // Computes boundary condition value at a list of boundary points
@@ -83,15 +105,29 @@ void InitialCondition<dim>::value_list(const std::vector<Point<dim> > &points,
    Assert(values.size()==points.size(),
           ExcDimensionMismatch(values.size(),points.size()));
    
-   for (unsigned int i=0; i<values.size(); ++i)
-   {
-      double r2 = std::pow(points[i](0)-0.5, 2.0) + std::pow(points[i](1), 2.0);
-      double r = std::sqrt(r2);
-      if(r < 0.25)
-         values[i] = std::pow(std::cos(2.0*M_PI*r), 2.0);
-      else
+   if(test_case == expo)
+      for (unsigned int i=0; i<values.size(); ++i)
+      {
+         double r2 = std::pow(points[i](0)-0.5, 2.0) + std::pow(points[i](1), 2.0);
+         double r = std::sqrt(r2);
+         if(r < 0.25)
+            values[i] = std::pow(std::cos(2.0*M_PI*r), 2.0);
+         else
+            values[i] = 0.0;
+      }
+   else if(test_case == circ)
+      for (unsigned int i=0; i<values.size(); ++i)
+      {
+         double r2 = std::pow(points[i](0)-0.5, 2.0) + std::pow(points[i](1), 2.0);
+         double r = std::sqrt(r2);
+         if(r < 0.25)
+            values[i] = 1.0;
+         else
+            values[i] = 0.0;
+      }
+   else
+      for (unsigned int i=0; i<values.size(); ++i)
          values[i] = 0.0;
-   }
 }
 
 //------------------------------------------------------------------------------
@@ -145,7 +181,9 @@ template <int dim>
 class Step12
 {
    public:
-      Step12 (unsigned int degree);
+      Step12 (unsigned int degree, 
+              LimiterType  limiter_type,
+              TestCase     test_case);
       void run ();
       
    private:
@@ -156,6 +194,7 @@ class Step12
       void assemble_rhs (RHSIntegrator<dim>&);
       void compute_dt ();
       void solve ();
+      void apply_limiter ();
       void refine_grid ();
       void output_results (const unsigned int cycle) const;
       
@@ -173,9 +212,11 @@ class Step12
       Vector<double>       right_hand_side;
       double               dt;
       double               cfl;
+      LimiterType          limiter_type;
+      TestCase             test_case;
    
       std::vector<typename DoFHandler<dim>::active_cell_iterator>
-         left, right, bottom, top;
+         lcell, rcell, bcell, tcell;
    
       typedef MeshWorker::DoFInfo<dim> DoFInfo;
       typedef MeshWorker::IntegrationInfo<dim> CellInfo;
@@ -190,12 +231,16 @@ class Step12
 // Constructor
 //------------------------------------------------------------------------------
 template <int dim>
-Step12<dim>::Step12 (unsigned int degree)
+Step12<dim>::Step12 (unsigned int degree,
+                     LimiterType  limiter_type,
+                     TestCase     test_case)
       :
       mapping (),
       degree (degree),
       fe (degree),
-      dof_handler (triangulation)
+      dof_handler (triangulation),
+      limiter_type (limiter_type),
+      test_case (test_case)
 {
    cfl = 0.8/(2.0*degree + 1.0);
 }
@@ -220,16 +265,22 @@ void Step12<dim>::setup_system ()
    
    // For each cell, find neighbourig cell
    // This is needed for limiter
-   left.resize(triangulation.n_cells());
-   right.resize(triangulation.n_cells());
-   bottom.resize(triangulation.n_cells());
-   top.resize(triangulation.n_cells());
+   lcell.resize(triangulation.n_cells());
+   rcell.resize(triangulation.n_cells());
+   bcell.resize(triangulation.n_cells());
+   tcell.resize(triangulation.n_cells());
    
    const double EPS = 1.0e-10;
    typename DoFHandler<dim>::active_cell_iterator
    cell = dof_handler.begin_active(),
    endc = dof_handler.end();
    for (unsigned int c = 0; cell!=endc; ++cell, ++c)
+   {
+      lcell[c] = endc;
+      rcell[c] = endc;
+      bcell[c] = endc;
+      tcell[c] = endc;
+
       for (unsigned int face_no=0; face_no<GeometryInfo<dim>::faces_per_cell; ++face_no)
          if (! cell->at_boundary(face_no))
          {
@@ -239,30 +290,26 @@ void Step12<dim>::setup_system ()
             {
                Point<dim> dr = neighbor->center() - cell->center();
                if(dr(0) < 0 && std::fabs(dr(1)) < EPS)
-                  left[c] = neighbor;
+                  lcell[c] = neighbor;
                else if(dr(0) > 0 && std::fabs(dr(1)) < EPS)
-                  right[c] = neighbor;
+                  rcell[c] = neighbor;
                else if(dr(1) < 0 && std::fabs(dr(0)) < EPS)
-                  bottom[c] = neighbor;
+                  bcell[c] = neighbor;
                else if(dr(1) > 0 && std::fabs(dr(0)) < EPS)
-                  top[c] = neighbor;
+                  tcell[c] = neighbor;
                else
                {
                   std::cout << "Did not find all neighbours\n";
+                  exit(0);
                }
             }
             else
             {
                std::cout << "Not active cell\n";
+                  exit(0);
             }
          }
-         else
-         {
-            left[c] = endc;
-            right[c] = endc;
-            bottom[c] = endc;
-            top[c] = endc;
-         }
+   }
 }
 
 //------------------------------------------------------------------------------
@@ -311,9 +358,11 @@ void Step12<dim>::assemble_mass_matrix ()
 template <int dim>
 void Step12<dim>::set_initial_condition ()
 {
+   InitialCondition<dim> initial_condition;
+   initial_condition.test_case = test_case;
    VectorTools::create_right_hand_side(dof_handler,
                                        QGauss<dim>(2),
-                                       InitialCondition<dim>(),
+                                       initial_condition,
                                        solution);
    
    // Multiply by inverse mass matrix
@@ -329,6 +378,8 @@ void Step12<dim>::set_initial_condition ()
       for (unsigned int i=0; i<dofs_per_cell; ++i)
          solution(local_dof_indices[i]) *= inv_mass_matrix[c](i);
    }
+
+   if(limiter_type == tvd) apply_limiter ();
 }
 //------------------------------------------------------------------------------
 // Create mesh worker for integration
@@ -550,6 +601,72 @@ void Step12<dim>::integrate_face_term (DoFInfo& dinfo1, DoFInfo& dinfo2,
 }
 
 //------------------------------------------------------------------------------
+// Slope limiter based on minmod
+//------------------------------------------------------------------------------
+template <int dim>
+void Step12<dim>::apply_limiter ()
+{
+   if(fe.degree == 0) return;
+
+   Assert (fe.degree == 1, ExcInternalError() );
+
+   QMidpoint<dim> qrule;
+   FEValues<dim> fe_values (fe, qrule, update_gradients);
+
+   std::vector<unsigned int> dof_indices     (fe.dofs_per_cell);
+   std::vector<unsigned int> dof_indices_nbr (fe.dofs_per_cell);
+
+   typename DoFHandler<dim>::active_cell_iterator
+      cell = dof_handler.begin_active(),
+      endc = dof_handler.end();
+
+   // mesh width: we assume uniform mesh
+   double h = cell->diameter() / std::sqrt(2.0);
+
+   for(unsigned int c=0; cell != endc; ++c, ++cell)
+   {
+      fe_values.reinit(cell);
+      cell->get_dof_indices (dof_indices);
+      const Tensor<1,dim>& grad_phi1 = fe_values.shape_grad (1,0);
+      const Tensor<1,dim>& grad_phi2 = fe_values.shape_grad (2,0);
+      Tensor<1,dim> grad_u = solution(dof_indices[1]) * grad_phi1
+                           + solution(dof_indices[2]) * grad_phi2;
+
+      double dal = 0, dar = 0;
+      double dab = 0, dat = 0;
+
+      if(lcell[c] != endc)
+      {
+         lcell[c]->get_dof_indices (dof_indices_nbr);
+         dal = (solution(dof_indices[0]) - solution(dof_indices_nbr[0]))/h;
+      }
+
+      if(rcell[c] != endc)
+      {
+         rcell[c]->get_dof_indices (dof_indices_nbr);
+         dar = (solution(dof_indices_nbr[0]) - solution(dof_indices[0]))/h;
+      }
+
+      if(bcell[c] != endc)
+      {
+         bcell[c]->get_dof_indices (dof_indices_nbr);
+         dab = (solution(dof_indices[0]) - solution(dof_indices_nbr[0]))/h;
+      }
+
+      if(tcell[c] != endc)
+      {
+         tcell[c]->get_dof_indices (dof_indices_nbr);
+         dat = (solution(dof_indices_nbr[0]) - solution(dof_indices[0]))/h;
+      }
+
+      double u_x = minmod(grad_u[0], dal, dar);
+      double u_y = minmod(grad_u[1], dab, dat);
+      solution(dof_indices[1]) = u_x / grad_phi1[0];
+      solution(dof_indices[2]) = u_y / grad_phi2[1];
+   }
+}
+
+//------------------------------------------------------------------------------
 // Solve the problem to convergence by RK time integration
 //------------------------------------------------------------------------------
 template <int dim>
@@ -575,6 +692,9 @@ void Step12<dim>::solve ()
          for(unsigned int i=0; i<dof_handler.n_dofs(); ++i)
             solution(i) = a_rk[r] * solution_old(i) +
                           b_rk[r] * (solution(i) + dt * right_hand_side(i));
+
+         if(limiter_type == tvd)
+            apply_limiter ();
       }
       
       ++iter; time += dt;
@@ -672,7 +792,10 @@ int main ()
 {
    try
    {
-      Step12<2> dgmethod(1);
+      unsigned int degree = 1;
+      LimiterType limiter_type = none;
+      TestCase test_case = expo;
+      Step12<2> dgmethod(degree, limiter_type, test_case);
       dgmethod.run ();
    }
    catch (std::exception &exc)
