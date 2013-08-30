@@ -54,6 +54,8 @@ using namespace dealii;
 
 const double a_rk[] = {0.0, 3.0/4.0, 1.0/3.0};
 const double b_rk[] = {1.0, 1.0/4.0, 2.0/3.0};
+double Mlim;
+double dx;
 
 enum LimiterType {none, tvd};
 enum TestCase {expo, circ};
@@ -63,6 +65,10 @@ enum TestCase {expo, circ};
 //------------------------------------------------------------------------------
 double minmod(double a, double b, double c)
 {
+
+   double aa = std::fabs(a);
+   if(aa < Mlim*dx*dx) return a;
+
    int sa = sign(a);
    int sb = sign(b);
    int sc = sign(c);
@@ -70,7 +76,7 @@ double minmod(double a, double b, double c)
    if(sa != sb) return 0;
    if(sa != sc) return 0;
 
-   return sa * std::min( sa*a, std::min( sb*b, sc*c ) );
+   return sa * std::min( aa, std::min( sb*b, sc*c ) );
 }
 
 //------------------------------------------------------------------------------
@@ -621,7 +627,7 @@ void Step12<dim>::apply_limiter ()
       endc = dof_handler.end();
 
    // mesh width: we assume uniform mesh
-   double h = cell->diameter() / std::sqrt(2.0);
+   dx = cell->diameter() / std::sqrt(2.0);
 
    for(unsigned int c=0; cell != endc; ++c, ++cell)
    {
@@ -638,25 +644,25 @@ void Step12<dim>::apply_limiter ()
       if(lcell[c] != endc)
       {
          lcell[c]->get_dof_indices (dof_indices_nbr);
-         dal = (solution(dof_indices[0]) - solution(dof_indices_nbr[0]))/h;
+         dal = (solution(dof_indices[0]) - solution(dof_indices_nbr[0]))/dx;
       }
 
       if(rcell[c] != endc)
       {
          rcell[c]->get_dof_indices (dof_indices_nbr);
-         dar = (solution(dof_indices_nbr[0]) - solution(dof_indices[0]))/h;
+         dar = (solution(dof_indices_nbr[0]) - solution(dof_indices[0]))/dx;
       }
 
       if(bcell[c] != endc)
       {
          bcell[c]->get_dof_indices (dof_indices_nbr);
-         dab = (solution(dof_indices[0]) - solution(dof_indices_nbr[0]))/h;
+         dab = (solution(dof_indices[0]) - solution(dof_indices_nbr[0]))/dx;
       }
 
       if(tcell[c] != endc)
       {
          tcell[c]->get_dof_indices (dof_indices_nbr);
-         dat = (solution(dof_indices_nbr[0]) - solution(dof_indices[0]))/h;
+         dat = (solution(dof_indices_nbr[0]) - solution(dof_indices[0]))/dx;
       }
 
       double u_x = minmod(grad_u[0], dal, dar);
@@ -793,8 +799,9 @@ int main ()
    try
    {
       unsigned int degree = 1;
-      LimiterType limiter_type = none;
-      TestCase test_case = expo;
+      LimiterType limiter_type = tvd;
+      TestCase test_case = circ;
+      Mlim = 100.0;
       Step12<2> dgmethod(degree, limiter_type, test_case);
       dgmethod.run ();
    }
