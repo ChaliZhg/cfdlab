@@ -32,8 +32,10 @@ for n=1:nadapt
       fprintf('Satisfied error tolerance\n')
       break
    end
+   % Following two lines for adaptation
    %x = [x(1:i), 0.5*(x(i)+x(i+1)), x(i+1:end)];
    %f = [f(1:i), fun(x(i+1)), f(i+1:end)];
+   % Following two lines do uniform refinement
    x = linspace(xmin,xmax,2*N);
    f = fun(x);
    plot(xe,fe,'-',x,f,'or--','LineWidth',2);
