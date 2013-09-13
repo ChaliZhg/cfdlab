@@ -1,3 +1,10 @@
+/*
+ Compile as
+     g++ main.cc
+ Run the program by specifying input file
+     ./a.out test.in
+*/
+
 #include <iostream>
 #include <fstream>
 #include <vector>
