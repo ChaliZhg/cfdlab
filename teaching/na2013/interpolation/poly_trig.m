@@ -1,8 +1,9 @@
 %
 % Compare trignometric and polynomial interpolation of a periodic function
 %
-fun = @(x) max(0,1-abs(x-pi)/2); 
-%fun = @(x) exp(sin(x));
+fun = @(x) max(0,1-abs(x-pi)/2);       % cont, diff a.e.
+fun = @(x) exp(sin(x));                % inf diff, periodic
+fun = @(x) ( abs(x-pi) < 0.5*pi ) + 0; % Hat function
 
 ng = 500;
 xg = linspace(0,2*pi,ng);
@@ -31,7 +32,8 @@ for n=N
    err_poly = max(abs(fe - fp));
 
    figure(1)
-   plot(x,v,'o',xg,fg,'-',xg,fp,'--')
+   plot(x,v,'o',xg,fg,'-',xg,fp,'--',xg,fe,':')
+   legend('Data trig','Trigonometric','Polynomial','Exact')
    data = [data; n, err_trig, err_poly];
    pause
 end
