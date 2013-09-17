@@ -108,6 +108,15 @@ public:
 
 
   /**
+   * Compute all shape function values at the specified points @p p.
+   * @p values[i][q] is the @p i th shape function value at point @p p[q].
+   */
+  void
+  shape_values (const typename Triangulation<dim,spacedim>::cell_iterator & cell,
+                const std::vector< Point<dim> > &p,
+                std::vector< std::vector<double> >& values) const;
+
+  /**
    * Return the value of the
    * @p componentth vector
    * component of the @p ith shape
