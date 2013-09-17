@@ -1,0 +1,54 @@
+-------------------------------------------------------------------------------
+New Taylor fe space
+-------------------------------------------------------------------------------
+
+Put the header file
+   fe_dgt.h 
+in folder deal.II/include/deal.II/fe
+
+Put the following files 
+   fe_dgt.cc 
+   fe_dgt.inst.in 
+in folder deal.II/source/fe
+
+In deal.II/source/fe/CMakeLists.txt add two additional file entries
+
+SET(_src
+  .
+  .
+  .
+  fe_dgp_nonparametric.cc
+  fe_dgt.cc                        <== New entry
+  fe_dgq.cc
+  .
+  .
+  .
+  )
+
+SET(_inst
+  .
+  .
+  .
+  fe_dgp_nonparametric.inst.in
+  fe_dgt.inst.in                   <== New entry
+  fe_dgq.inst.in
+  .
+  .
+  .
+  )
+
+-------------------------------------------------------------------------------
+New reinit function in FEValues class
+-------------------------------------------------------------------------------
+
+Add the contents from fe_values.h into this file
+
+deal.II/include/deal.II/fe/fe_values.h
+
+at around line 3514.
+
+Add contents of fe_values.cc into this file
+
+deal.II/source/fe/fe_values.cc
+
+at around line 3393.
