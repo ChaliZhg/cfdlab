@@ -2,16 +2,16 @@
 New Taylor fe space
 -------------------------------------------------------------------------------
 
-Put the header file
+(1) Put the header file
    fe_dgt.h 
 in folder deal.II/include/deal.II/fe
 
-Put the following files 
+(2) Put the following files 
    fe_dgt.cc 
    fe_dgt.inst.in 
 in folder deal.II/source/fe
 
-In deal.II/source/fe/CMakeLists.txt add two additional file entries
+(3) In deal.II/source/fe/CMakeLists.txt add two additional file entries
 
 SET(_src
   .
@@ -41,14 +41,20 @@ SET(_inst
 New reinit function in FEValues class
 -------------------------------------------------------------------------------
 
-Add the contents from fe_values.h into this file
+(1) Add the contents from fe_values.h into this file
 
 deal.II/include/deal.II/fe/fe_values.h
 
-at around line 3514.
+at around line 3514 where other reinit functions are defined.
 
-Add contents of fe_values.cc into this file
+(2) Add contents of fe_values.cc into this file
 
 deal.II/source/fe/fe_values.cc
 
-at around line 3393.
+at around line 3393 where other reinit functions are defined.
+
+(3) Add the contents of fe_values.inst.in into this file
+
+deal.II/source/fe/fe_values.inst.in
+
+along with the other reinit functions.
