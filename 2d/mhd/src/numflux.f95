@@ -12,7 +12,8 @@ subroutine numflux(lx, ly, prijm1, prij, prijp1, prijp2, flux)
    call reconstruct(prijm1, prij, prijp1, prijp2, pril, prir)
 
    if(fluxtype == ient)then
-      call ent_flux(lx, ly, prij, prijp1, pril, prir, flux)
+      !call ent_flux(lx, ly, prij, prijp1, pril, prir, flux)
+      call ent_flux(lx, ly, pril, prir, pril, prir, flux)
    else
       write(*,*)'Uknown flux type fluxtype =', fluxtype
       stop
