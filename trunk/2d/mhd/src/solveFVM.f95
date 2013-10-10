@@ -1,4 +1,4 @@
-subroutine solveFVM(pri, co0, co1, res)
+subroutine solveFVM(pri, co0, co1, res, divB)
 
    use comvar
 
@@ -8,6 +8,7 @@ subroutine solveFVM(pri, co0, co1, res)
    real :: co0(nvar, -1:nx+2, -1:ny+2)
    real :: co1(nvar, -1:nx+2, -1:ny+2)
    real :: res(nvar,  0:nx+1,  0:ny+1)
+   real :: divB(1:nx+1, 1:ny+1)
 
    integer :: it, i, j, rks
    real    :: lambda
@@ -15,7 +16,7 @@ subroutine solveFVM(pri, co0, co1, res)
    real    :: time
    real    :: resid(nvar), resid1(nvar)
    real    :: ke, entropy
-   real    :: divB, source(nvar)
+   real    :: div, source(nvar), maxdivB
    logical :: tostop
 
 
@@ -24,12 +25,13 @@ subroutine solveFVM(pri, co0, co1, res)
    call periodic(co1)
    call cons2prim(co1, pri)
    call saveprim(0.0, pri)
-   call timestep(pri)
 
    time   = 0.0
    it     = 0
 
    do while(time < final_time .and. it < itmax)
+
+      call timestep(pri)
 
       ! Exactly match final time
       tostop = .false.
@@ -78,15 +80,15 @@ subroutine solveFVM(pri, co0, co1, res)
          resid = 0.0
          do i=1,nx
             do j=1,ny
-               divB = 0.5*( pri(6,i+1,j) - pri(6,i-1,j) ) / dx + &
-                      0.5*( pri(7,i,j+1) - pri(7,i,j-1) ) / dy
+               div = 0.5*( pri(6,i+1,j) - pri(6,i-1,j) ) / dx + &
+                     0.5*( pri(7,i,j+1) - pri(7,i,j-1) ) / dy
                source(1) = 0.0
                source(2:4) = pri(6:8,i,j)
                source(5) = pri(2,i,j)*pri(6,i,j) + &
                            pri(3,i,j)*pri(7,i,j) + &
                            pri(4,i,j)*pri(8,i,j)
                source(6:8) = pri(2:4,i,j)
-               source = source * divB
+               source = source * div
 
                co1(:,i,j) = ark(rks)*co0(:,i,j) + &
                             brk(rks)*(co1(:,i,j) - lambda*res(:,i,j) - dt*source)
@@ -109,9 +111,12 @@ subroutine solveFVM(pri, co0, co1, res)
       endif
 
       !call global_quantities(rho,vex,vey,pre,ke,entropy)
+      call compute_divB(pri,divB,maxdivB)
 
       time = time + dt
       write(*,'(I6,E12.3,8E12.4)')it,time,resid(:)/resid1(:)
+      write(*,'("     Div B = ", E12.3)') maxdivB
+      call flush()
 
       if(mod(it,itsave)==0 .or. it==itmax .or. tostop)then
          call saveprim(time, pri)

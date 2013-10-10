@@ -4,18 +4,18 @@ program main
 
    implicit none
 
-   real, dimension(:), allocatable :: pri, co0, co1, res
+   real, dimension(:), allocatable :: pri, co0, co1, res, divB
 
    integer :: fid
 
-   nx = 100
-   ny = 100
+   nx = 600
+   ny = 600
 
    ! Default value, modified in initial condition function
    final_time = 10.0
 
-   itmax = 1000
-   itsave= 100
+   itmax = 500000
+   itsave= 200
 
    ! Material properties
    gas_const = 1.0
@@ -29,13 +29,13 @@ program main
    fluxtype = ient
 
    ! limiter: ford, muscl3, mmod
-   limtype = ford
+   limtype = mmod
 
    ! file id for saving solution
    fileid_sol = 0
    fileid_omg = 0
 
-   cfl = 0.1
+   cfl = 0.4
 
    nrk    = 3
 
@@ -52,9 +52,10 @@ program main
    allocate( pri( nvar*(nx+4)*(ny+4) ) )
    allocate( co0( nvar*(nx+4)*(ny+4) ) )
    allocate( co1( nvar*(nx+4)*(ny+4) ) )
+   allocate( divB( (nx+1)*(ny+1) ) )
 
    allocate( res(nvar*(nx+2)*(ny+2)) )
 
-   call solveFVM(pri, co0, co1, res)
+   call solveFVM(pri, co0, co1, res, divB)
 
 end program main
