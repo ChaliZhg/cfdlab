@@ -1,0 +1,143 @@
+c-----------------------------------------------------------------------
+      subroutine uservp (ix,iy,iz,ieg)
+      include 'SIZE'
+      include 'TOTAL'
+      include 'NEKUSE'
+      common /mygeom/ xmin,xmax
+      common /myparam/ r_k,Rey_no,Pr_no,Sc_no,visc_rat
+
+      if(ifield.eq.1)then   ! momentum equation
+         utrans= 1.0
+         udiff = exp(PS(1)*log(visc_rat) - temp)/Rey_no
+      else if(ifield.eq.2)then ! temperature eqn
+         utrans= 1.0
+         udiff = PS(1)*(r_k - 1.0) + 1.0
+         udiff = udiff/(Rey_no*Pr_no)
+      else if(ifield.eq.3)then  ! passive scalar
+         utrans= 1.0
+         udiff = 1.0/(Rey_no*Sc_no)
+      else
+         print*,'Only 3 fields'
+         call exitt()
+      endif
+
+      return
+      end
+c-----------------------------------------------------------------------
+      subroutine userf  (ix,iy,iz,ieg)
+      include 'SIZE'
+      include 'TOTAL'
+      include 'NEKUSE'
+
+      ffx = 0.0
+      ffy = 0.0
+      ffz = 0.0
+
+      return
+      end
+c-----------------------------------------------------------------------
+      subroutine userq  (ix,iy,iz,ieg)
+      include 'SIZE'
+      include 'TOTAL'
+      include 'NEKUSE'
+C
+      qvol   = 0.0
+      source = 0.0
+      return
+      end
+c-----------------------------------------------------------------------
+      subroutine userchk
+      include 'SIZE'  
+      include 'TOTAL' 
+
+      ! Save initial condition
+      if(istep.eq.0)then
+         ifxyo = .true.
+         call outpost2(vx,vy,vz,pr,t,2,'   ')
+      else
+         ifxyo = .false.
+      endif
+
+      if(mod(istep,10).eq.0)then
+         n    = nx1*ny1*nz1*nelv
+         cmin = glmin(t(1,1,1,1,2),n)
+         cmax = glmax(t(1,1,1,1,2),n)
+         write(*,'(5X,6I,5X,"Scalar min, max = ",2E12.4)') istep, cmin, cmax
+      endif
+
+      return
+      end
+c-----------------------------------------------------------------------
+      subroutine userbc (ix,iy,iz,iside,ieg)
+      include 'SIZE'
+      include 'TOTAL'
+      include 'NEKUSE'
+      ux    = 4.0*y*(1.0-y)
+      uy    = 0.0
+      uz    = 0.0
+      temp  = 0.0
+
+      if(ifield.eq.2)then      ! temperature
+         temp  = 0.0
+      else if(ifield.eq.3)then ! passive scalar
+         temp = 0.0
+      endif
+
+      return
+      end
+c-----------------------------------------------------------------------
+      subroutine useric (ix,iy,iz,ieg)
+      include 'SIZE'
+      include 'TOTAL'
+      include 'NEKUSE'
+
+      ux    = 4.0*y*(1.0-y)*(1.0 - erf(5.0*x))
+      uy    = 0.0
+      uz    = 0.0
+
+      if(ifield.eq.2)then       ! temperature
+         temp  = 0.0
+      else if(ifield.eq.3)then  ! passive scalar
+         temp = erf(5.0*x)
+      endif
+
+      return
+      end
+c-----------------------------------------------------------------------
+      subroutine usrdat
+      include 'SIZE'
+      include 'TOTAL'
+      common /myparam/ r_k,Rey_no,Pr_no,Sc_no,visc_rat
+      integer e
+
+      param(66) = 4
+      param(67) = 4
+
+      r_k    = 1.0
+      Rey_no = 500.0
+      Sc_no  = 100.0
+      Pr_no  = 7.0
+      visc_rat = 10.0
+
+      return
+      end
+c-----------------------------------------------------------------------
+      subroutine usrdat2
+      include 'SIZE'
+      include 'TOTAL'
+      common /mygeom/ xmin,xmax
+
+      ifuservp = .true.
+      ifstrs   = .true.
+
+      n    = nx1*ny1*nz1*nelv
+      xmin = glmin(xm1,n)
+      xmax = glmax(xm1,n)
+
+      return
+      end
+c-----------------------------------------------------------------------
+      subroutine usrdat3
+      return
+      end
+c-----------------------------------------------------------------------
