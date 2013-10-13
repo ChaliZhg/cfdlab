@@ -1,0 +1,17 @@
+input.rea
+2   dimension
+3   no of fields
+Box
+-32 -4
+0.0  10.0  1.0
+0.0   0.5  1.1
+v  ,O  ,W  ,E  ,   ,
+t  ,ON ,t  ,E  ,   ,
+t  ,ON ,I  ,E  ,   ,
+
+-32 -4
+0.0  10.0  1.0
+0.5   1.0  0.9
+v  ,O  ,E  ,W  ,   ,
+t  ,ON ,E  ,t  ,   ,
+t  ,ON ,E  ,I  ,   ,
