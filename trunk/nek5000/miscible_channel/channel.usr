@@ -6,18 +6,21 @@ c-----------------------------------------------------------------------
       common /mygeom/ xmin,xmax
       common /myparam/ r_k,Rey_no,Pr_no,Sc_no,visc_rat
 
+      sc    = max(0.0, ps(1))
+      sc    = min(1.0, sc)
+
       if(ifield.eq.1)then   ! momentum equation
          utrans= 1.0
-         udiff = exp(PS(1)*log(visc_rat) - temp)/Rey_no
+         udiff = exp(sc*log(visc_rat) - temp)/Rey_no
       else if(ifield.eq.2)then ! temperature eqn
          utrans= 1.0
-         udiff = PS(1)*(r_k - 1.0) + 1.0
+         udiff = sc*(r_k - 1.0) + 1.0
          udiff = udiff/(Rey_no*Pr_no)
       else if(ifield.eq.3)then  ! passive scalar
          utrans= 1.0
          udiff = 1.0/(Rey_no*Sc_no)
       else
-         print*,'Only 3 fields'
+         if(nid.eq.0) write(6,'("Only 3 fields")')
          call exitt()
       endif
 
@@ -50,19 +53,35 @@ c-----------------------------------------------------------------------
       include 'SIZE'  
       include 'TOTAL' 
 
+c     Calculate min, max values of concentration
+      if(mod(istep,10).eq.0)then
+         n    = nx1*ny1*nz1*nelv
+         cmin = glmin(t(1,1,1,1,2),n)
+         cmax = glmax(t(1,1,1,1,2),n)
+         if(nid.eq.0)then
+         write(6,'(5X,I6,5X,"Scalar min, max = ",2E12.4)') istep, 
+     1             cmin, cmax
+         endif
+      endif
+
+c     Clip the concentration to [0,1]
+      do e=1,nelv
+      do k=1,nz1
+      do j=1,ny1
+      do i=1,nx1
+         t(i,j,k,e,2) = max(0.0, t(i,j,k,e,2))
+         t(i,j,k,e,2) = min(1.0, t(i,j,k,e,2))
+      enddo
+      enddo
+      enddo
+      enddo
+
       ! Save initial condition
       if(istep.eq.0)then
          ifxyo = .true.
          call outpost2(vx,vy,vz,pr,t,2,'   ')
       else
          ifxyo = .false.
-      endif
-
-      if(mod(istep,10).eq.0)then
-         n    = nx1*ny1*nz1*nelv
-         cmin = glmin(t(1,1,1,1,2),n)
-         cmax = glmax(t(1,1,1,1,2),n)
-         write(*,'(5X,6I,5X,"Scalar min, max = ",2E12.4)') istep, cmin, cmax
       endif
 
       return
