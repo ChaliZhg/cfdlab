@@ -1,0 +1,15 @@
+Grid is specified in box.box
+Parameters are set in input.rea file
+
+genbox
+< box.box
+
+mv box.rea channel.rea
+
+genmap
+< channel
+< 0.01
+
+makenek channel
+
+nek channel
