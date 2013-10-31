@@ -1,5 +1,6 @@
 subroutine timestep(pri)
    use comvar
+   use omp_lib
    implicit none
 
    real    :: pri(nvar, -1:nx+2, -1:ny+2)
@@ -9,6 +10,7 @@ subroutine timestep(pri)
 
    speed = 0.0
 
+   !$omp parallel do private(c2,b2,f,bx,cfx,eigx,by,cfy,eigy) shared(speed)
    do i=1,nx
       do j=1,ny
          c2= gamma*pri(5,i,j)/pri(1,i,j)
@@ -27,6 +29,7 @@ subroutine timestep(pri)
          speed = max(speed, eigy)
       enddo
    enddo
+   !$omp end parallel do
 
    dt = cfl*dx/speed
 

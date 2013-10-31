@@ -24,7 +24,7 @@ module comvar
    integer :: fileid_sol, fileid_omg
 
    integer :: fluxtype
-   integer :: ient=1
+   integer :: ient=1, ifent=2
 
    integer :: limtype
    integer :: ford=0, muscl3=1, mmod=2
@@ -32,10 +32,11 @@ module comvar
    integer :: scheme
    integer :: fvm=1, gmd=2, kep=3, mvf=4
 
-   integer :: vconf
-
    integer :: no=0, yes=1
 
    integer :: xperiod, yperiod
+
+   integer :: iot=1, ikh=2
+   integer :: test_case
 
 end module comvar

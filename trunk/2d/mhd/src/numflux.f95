@@ -8,12 +8,12 @@ subroutine numflux(lx, ly, prijm1, prij, prijp1, prijp2, flux)
 
    real :: pril(nvar), prir(nvar)
 
-   ! reconstructed states
-   call reconstruct(prijm1, prij, prijp1, prijp2, pril, prir)
-
    if(fluxtype == ient)then
-      !call ent_flux(lx, ly, prij, prijp1, pril, prir, flux)
+      ! reconstructed states
+      call reconstruct(prijm1, prij, prijp1, prijp2, pril, prir)
       call ent_flux(lx, ly, pril, prir, pril, prir, flux)
+   elseif(fluxtype == ifent)then
+      call fent_flux(lx, ly, prijm1, prij, prijp1, prijp2, flux)
    else
       write(*,*)'Uknown flux type fluxtype =', fluxtype
       stop

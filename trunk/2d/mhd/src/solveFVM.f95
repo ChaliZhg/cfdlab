@@ -1,6 +1,7 @@
 subroutine solveFVM(pri, co0, co1, res, divB)
 
    use comvar
+   use omp_lib
 
    implicit none
 
@@ -16,9 +17,11 @@ subroutine solveFVM(pri, co0, co1, res, divB)
    real    :: time
    real    :: resid(nvar), resid1(nvar)
    real    :: ke, entropy
-   real    :: div, source(nvar), maxdivB
+   real    :: div, source(nvar), maxdivB, divf_l(nvar), divf_r(nvar)
+   real    :: minmod, minmod2, Bx, By
    logical :: tostop
 
+   call omp_set_num_threads(4)
 
    ! set initial condition
    call init_cond(pri, co1)
@@ -49,6 +52,7 @@ subroutine solveFVM(pri, co0, co1, res, divB)
          res = 0.0
 
          ! x fluxes
+         !$omp parallel do private(xflux) shared(res)
          do i=0,nx
             do j=1,ny
                call numflux(1.0, 0.0,     &
@@ -57,12 +61,22 @@ subroutine solveFVM(pri, co0, co1, res, divB)
                             pri(:,i+1,j), &
                             pri(:,i+2,j), &
                             xflux)
+               !call divflux(1.0, 0.0,     &
+               !             pri(:,i-1,j), &
+               !             pri(:,i,j),   &
+               !             pri(:,i+1,j), &
+               !             pri(:,i+2,j), &
+               !             divf_l, divf_r)
+               !res(:,i,j)   = res(:,i,j)   + dy*(xflux(:) + divf_l(:))
+               !res(:,i+1,j) = res(:,i+1,j) - dy*(xflux(:) + divf_r(:))
                res(:,i,j)   = res(:,i,j)   + dy*xflux(:)
                res(:,i+1,j) = res(:,i+1,j) - dy*xflux(:)
             enddo
          enddo
+         !$omp end parallel do
 
          ! y fluxes
+         !$omp parallel do private(yflux) shared(res)
          do j=0,ny
             do i=1,nx
                call numflux(0.0, 1.0,     &
@@ -71,15 +85,35 @@ subroutine solveFVM(pri, co0, co1, res, divB)
                             pri(:,i,j+1), &
                             pri(:,i,j+2), &
                             yflux)
+               !call divflux(0.0, 1.0,     &
+               !             pri(:,i,j-1), &
+               !             pri(:,i,j),   &
+               !             pri(:,i,j+1), &
+               !             pri(:,i,j+2), &
+               !             divf_l, divf_r)
+               !res(:,i,j)   = res(:,i,j)   + dx*(yflux(:) + divf_l(:))
+               !res(:,i,j+1) = res(:,i,j+1) - dx*(yflux(:) + divf_r(:))
                res(:,i,j)   = res(:,i,j)   + dx*yflux(:)
                res(:,i,j+1) = res(:,i,j+1) - dx*yflux(:)
             enddo
          enddo
+         !$omp end parallel do
 
          ! update conserved variables
          resid = 0.0
+         !$omp parallel do private(Bx,By,div,source) shared(resid)
          do i=1,nx
             do j=1,ny
+               !source = 0.0
+               ! Limited divergence
+               !Bx = minmod2(2.0*(pri(6,i,j)-pri(6,i-1,j)), &
+               !            0.5*(pri(6,i+1,j)-pri(6,i-1,j)), &
+               !            2.0*(pri(6,i+1,j)-pri(6,i,j)))
+               !By = minmod2(2.0*(pri(7,i,j)-pri(7,i,j-1)), &
+               !            0.5*(pri(7,i,j+1)-pri(7,i,j-1)), &
+               !            2.0*(pri(7,i,j+1)-pri(7,i,j)))
+               !div = Bx/dx + By/dy
+               ! Central divergence
                div = 0.5*( pri(6,i+1,j) - pri(6,i-1,j) ) / dx + &
                      0.5*( pri(7,i,j+1) - pri(7,i,j-1) ) / dy
                source(1) = 0.0
@@ -95,6 +129,7 @@ subroutine solveFVM(pri, co0, co1, res, divB)
                resid = resid + res(:,i,j)**2
             enddo
          enddo
+         !$omp end parallel do
          resid = sqrt(resid)
 
          call periodic(co1)

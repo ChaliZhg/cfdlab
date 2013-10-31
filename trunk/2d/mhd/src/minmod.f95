@@ -10,3 +10,16 @@ real function minmod(a, b, c)
    endif
 
 end function minmod
+
+real function minmod2(a, b, c)
+   implicit none
+
+   real :: a, b, c
+
+   if(a*c > 0.0)then
+      minmod2 = b
+   else
+      minmod2 = 0.0
+   endif
+
+end function minmod2

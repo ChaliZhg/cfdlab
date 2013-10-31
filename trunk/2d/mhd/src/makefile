@@ -2,7 +2,8 @@ FC = ifort
 FFLAGS = -O3 -diag-disable vec -r8 -free -Tf
 
 FC = gfortran
-FFLAGS = -O3 -fdefault-real-8 -Wall
+OFLAGS = -fopenmp
+FFLAGS = -O3 -fdefault-real-8 -Wall $(OFLAGS)
 
 TARGETS = mhd
 
@@ -12,7 +13,7 @@ SRC = $(wildcard *.f95)
 OBJ = $(patsubst %.f95,%.o,$(SRC))
 
 mhd: $(OBJ)
-	$(FC) -o mhd $(OBJ)
+	$(FC) $(OFLAGS) -o mhd $(OBJ)
 
 comvar.mod: comvar.f95
 	$(FC) -c $(FFLAGS) comvar.f95
