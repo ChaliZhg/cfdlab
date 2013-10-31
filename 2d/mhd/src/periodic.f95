@@ -1,5 +1,6 @@
 subroutine periodic(con)
    use comvar
+   use omp_lib
    implicit none
 
    real :: con(nvar,-1:nx+2,-1:ny+2)
@@ -7,21 +8,25 @@ subroutine periodic(con)
    integer :: i, j
 
    if(xperiod == yes)then
+      !$omp parallel do
       do j=1,ny
          con(:,-1,  j) = con(:,nx-1,j)
          con(:, 0,  j) = con(:,nx,  j)
          con(:,nx+1,j) = con(:,1,   j)
          con(:,nx+2,j) = con(:,2,   j)
       enddo
+      !$omp end parallel do
    endif
 
    if(yperiod == yes)then
+      !$omp parallel do
       do i=1,nx
          con(:,i,  -1) = con(:,i,ny-1)
          con(:,i,   0) = con(:,i,ny  )
          con(:,i,ny+1) = con(:,i,1   )
          con(:,i,ny+2) = con(:,i,2   )
       enddo
+      !$omp end parallel do
    endif
 
    if(xperiod == yes .and. yperiod == yes)then

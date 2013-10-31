@@ -25,17 +25,22 @@ program main
    xperiod = yes
    yperiod = yes
 
-   ! options: iroe, irusanov, ikep
+   ! options: 
+   ! ient  = muscl type
+   ! ifent = entropy stable
    fluxtype = ient
 
    ! limiter: ford, muscl3, mmod
-   limtype = mmod
+   limtype = ford
+
+   ! testcase: iot=orszag-tang, ikh=kelvin-helmholtz
+   test_case = iot
 
    ! file id for saving solution
    fileid_sol = 0
    fileid_omg = 0
 
-   cfl = 0.4
+   cfl = 0.25
 
    nrk    = 3
 

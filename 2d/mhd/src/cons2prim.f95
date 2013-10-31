@@ -1,5 +1,6 @@
 subroutine cons2prim(con, pri)
    use comvar
+   use omp_lib
    implicit none
 
    real :: con(nvar, -1:nx+2, -1:ny+2)
@@ -7,6 +8,7 @@ subroutine cons2prim(con, pri)
 
    integer :: i, j
 
+   !$omp parallel do
    do i=-1,nx+2
       do j=-1,ny+2
          ! density
@@ -21,5 +23,6 @@ subroutine cons2prim(con, pri)
          pri(6:8,i,j) = con(6:8,i,j)
       enddo
    enddo
+   !$omp end parallel do
 
 end subroutine cons2prim
