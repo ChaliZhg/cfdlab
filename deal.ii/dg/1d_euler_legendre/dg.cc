@@ -29,9 +29,10 @@ using namespace dealii;
 const unsigned int n_var = 3;
 double gas_gamma;
 double gas_const;
-double               d_left, u_left, p_left;
-double               d_right, u_right, p_right;
-double               xmin, xmax, xmid;
+double d_left, u_left, p_left;
+double d_right, u_right, p_right;
+double xmin, xmax, xmid;
+double Mdx2; // for TVB limiter
 
 // Coefficients for 3-stage SSP RK scheme of Shu-Osher
 const double a_rk[3] = {0.0, 3.0/4.0, 1.0/3.0};
@@ -39,13 +40,15 @@ const double b_rk[3] = {1.0, 1.0/4.0, 2.0/3.0};
 
 // Numerical flux functions
 enum FluxType {lxf, kfvs};
-enum TestCase {sod};
+enum TestCase {sod, blast, lax, shuosher, lowd};
 
 //------------------------------------------------------------------------------
 // minmod of three numbers
 //------------------------------------------------------------------------------
 double minmod (const double& a, const double& b, const double& c)
 {
+   if(std::fabs(a) < Mdx2) return a;
+   
    double result;
    if( a*b > 0.0 && b*c > 0.0)
    {
@@ -71,6 +74,7 @@ public:
    
    virtual void vector_value (const Point<dim>   &p,
                               Vector<double>& values) const;
+   TestCase test_case;
 };
 
 // Initial condition for density, velocity, pressure
@@ -78,17 +82,56 @@ template<int dim>
 void InitialCondition<dim>::vector_value (const Point<dim>   &p,
                                           Vector<double>& values) const
 {
-   if(p[0] < xmid)
+   if(test_case == sod || test_case == lax || test_case == lowd)
    {
-      values(0) = d_left; // left density
-      values(1) = u_left; // left velocity
-      values(2) = p_left; // left pressure
+      if(p[0] < xmid)
+      {
+         values(0) = d_left; // left density
+         values(1) = u_left; // left velocity
+         values(2) = p_left; // left pressure
+      }
+      else
+      {
+         values(0) = d_right; // right density
+         values(1) = u_right; // right velocity
+         values(2) = p_right; // right pressure
+      }
    }
-   else
+   else if(test_case == blast)
    {
-      values(0) = d_right; // right density
-      values(1) = u_right; // right velocity
-      values(2) = p_right; // right pressure
+      if(p[0] < 0.1)
+      {
+         values(0) = 1; // left density
+         values(1) = 0; // left velocity
+         values(2) = 1000; // left pressure
+      }
+      else if(p[0] > 0.9)
+      {
+         values(0) = 1; // right density
+         values(1) = 0; // right velocity
+         values(2) = 100; // right pressure
+      }
+      else
+      {
+         values(0) = 1; // right density
+         values(1) = 0; // right velocity
+         values(2) = 0.01; // right pressure
+      }
+   }
+   else if(test_case == shuosher)
+   {
+      if(p[0] < -4.0)
+      {
+         values(0) = 3.857143;
+         values(1) = 2.629369;
+         values(2) = 10.333333;
+      }
+      else
+      {
+         values(0) = 1 + 0.2*std::sin(5.0*p[0]);
+         values(1) = 0;
+         values(2) = 1;
+      }
    }
 
 }
@@ -100,7 +143,7 @@ template <int dim>
 class EulerProblem
 {
 public:
-   EulerProblem (unsigned int degree, TestCase test_case);
+   EulerProblem (unsigned int degree, unsigned int n_cells, TestCase test_case);
    void run ();
    
 private:
@@ -111,11 +154,12 @@ private:
    void compute_averages ();
    void compute_dt ();
    void apply_limiter ();
+   void apply_positivity_limiter ();
    void update (const unsigned int rk_stage);
    void output_results () const;
    
-   TestCase             test_case;
    unsigned int         n_cells;
+   TestCase             test_case;
    double               dt;
    double               dx;
    double               cfl;
@@ -123,6 +167,8 @@ private:
    double               min_residue;
    unsigned int         n_rk_stages;
    FluxType             flux_type;
+   bool                 lbc_reflect, rbc_reflect;
+   unsigned int         save_freq;
    
    
    Triangulation<dim>   triangulation;
@@ -160,18 +206,21 @@ private:
 // Constructor
 //------------------------------------------------------------------------------
 template <int dim>
-EulerProblem<dim>::EulerProblem (unsigned int degree, TestCase test_case) :
-    test_case (test_case),
-    fe (degree),
-    dof_handler (triangulation)
+EulerProblem<dim>::EulerProblem (unsigned int degree,
+                                 unsigned int n_cells,
+                                 TestCase test_case) :
+   n_cells (n_cells),
+   test_case (test_case),
+   fe (degree),
+   dof_handler (triangulation)
 {
    Assert (dim==1, ExcIndexRange(dim, 0, 1));
    
-
-   n_cells = 200;
-
    n_rk_stages = 3;
    flux_type = kfvs;
+   
+   lbc_reflect = rbc_reflect = false;
+   double M = 0;
    
    if(test_case == sod)
    {
@@ -181,7 +230,6 @@ EulerProblem<dim>::EulerProblem (unsigned int degree, TestCase test_case) :
       final_time = 0.2;
       min_residue= 1.0e20;
       cfl      = 0.8;
-      cfl     *= 1.0/(2.0*fe.degree+1);
       
       gas_gamma = 1.4;
       gas_const = 1.0;
@@ -194,6 +242,80 @@ EulerProblem<dim>::EulerProblem (unsigned int degree, TestCase test_case) :
       
       p_left  = 1.0;
       p_right = 0.1;
+      save_freq = 10;
+      
+   }
+   else if(test_case == blast)
+   {
+      xmin    = 0.0;
+      xmax    = 1.0;
+      final_time = 0.038;
+      min_residue= 1.0e20;
+      cfl      = 0.1;
+      
+      gas_gamma = 1.4;
+      gas_const = 1.0;
+      lbc_reflect = rbc_reflect = true;
+      save_freq = 1;
+   }
+   else if(test_case == shuosher)
+   {
+      xmin    = -5;
+      xmax    = 5;
+      final_time = 1.8;
+      min_residue= 1.0e20;
+      cfl      = 0.4;
+      
+      gas_gamma = 1.4;
+      gas_const = 1.0;
+      save_freq = 100;
+      M         = 100;
+   }
+   else if(test_case == lax)
+   {
+      xmin    = -5;
+      xmax    = 5;
+      xmid    = 0.0;
+      final_time = 1.3;
+      min_residue= 1.0e20;
+      cfl      = 0.8;
+      
+      gas_gamma = 1.4;
+      gas_const = 1.0;
+      
+      d_left  = 0.445;
+      d_right = 0.5;
+      
+      u_left  = 0.698;
+      u_right = 0.0;
+      
+      p_left  = 3.528;
+      p_right = 0.571;
+      save_freq = 10;
+      
+   }
+   else if(test_case == lowd)
+   {
+      xmin    = 0;
+      xmax    = 1;
+      xmid    = 0.5;
+      final_time = 0.15;
+      min_residue= 1.0e20;
+      cfl      = 0.1;
+      
+      gas_gamma = 1.4;
+      gas_const = 1.0;
+      
+      d_left  = 1.0;
+      d_right = 1.0;
+      
+      u_left  = -2.0;
+      u_right =  2.0;
+      
+      p_left  = 0.4;
+      p_right = 0.4;
+      save_freq = 10;
+      M = 100.0;
       
    }
    else
@@ -201,7 +323,9 @@ EulerProblem<dim>::EulerProblem (unsigned int degree, TestCase test_case) :
       std::cout << "Unknown test case\n";
    }
    
-   dx      = (xmax - xmin) / n_cells;
+   cfl *= 1.0/(2.0*fe.degree+1);
+   dx   = (xmax - xmin) / n_cells;
+   Mdx2 = M * dx * dx;
 
 }
 
@@ -323,6 +447,8 @@ void EulerProblem<dim>::initialize ()
    std::vector<unsigned int> local_dof_indices (dofs_per_cell);
    
    InitialCondition<dim> initial_condition;
+   initial_condition.test_case = test_case;
+   
    Vector<double> initial_value(n_var);
    double initial_density;
    double initial_momentum;
@@ -411,8 +537,8 @@ void EulerProblem<dim>::assemble_mass_matrix ()
       for (unsigned int q_point=0; q_point<n_q_points; ++q_point)
          for (unsigned int i=0; i<dofs_per_cell; ++i)
             cell_matrix(i) += fe_values.shape_value (i, q_point) *
-            fe_values.shape_value (i, q_point) *
-            fe_values.JxW (q_point);
+                              fe_values.shape_value (i, q_point) *
+                              fe_values.JxW (q_point);
       
       for (unsigned int i=0; i<dofs_per_cell; ++i)
          inv_mass_matrix[c](i) = 1.0/cell_matrix(i);
@@ -498,7 +624,7 @@ void kfvs_split_flux (const std::vector<double>& prim,
    // inviscid flux
    flux[0] = prim[0] * fact;
    flux[1] = (prim[2] + prim[0] * pow(prim[1], 2)) * A +
-   prim[0] * prim[1] * B;
+             prim[0] * prim[1] * B;
    flux[2] = prim[1] * (E + prim[2]) * A +
              (E + 0.5 * prim[2]) * B;
 
@@ -661,9 +787,21 @@ void EulerProblem<dim>::assemble_rhs ()
        
        if(c==0)
        {
-          lf_left_state(0) = d_left;
-          lf_left_state(1) = d_left * u_left;
-          lf_left_state(2) = p_left/(gas_gamma-1.0) + 0.5 * d_left * std::pow(u_left,2);
+          if(lbc_reflect)
+          {
+             lf_left_state(0) = lf_right_state(0);
+             lf_left_state(1) =-lf_right_state(1);
+             lf_left_state(2) = lf_right_state(2);
+          }
+          else
+          {
+             lf_left_state(0) = lf_right_state(0);
+             lf_left_state(1) = lf_right_state(1);
+             lf_left_state(2) = lf_right_state(2);
+//             lf_left_state(0) = d_left;
+//             lf_left_state(1) = d_left * u_left;
+//             lf_left_state(2) = p_left/(gas_gamma-1.0) + 0.5 * d_left * std::pow(u_left,2);
+          }
        }
        else
        {
@@ -695,9 +833,22 @@ void EulerProblem<dim>::assemble_rhs ()
        
        if(c==triangulation.n_cells()-1)
        {
-          rf_right_state(0) = d_right;
-          rf_right_state(1) = d_right * u_right;
-          rf_right_state(2) = p_right/(gas_gamma-1.0) + 0.5 * d_right * std::pow(u_right,2);
+          if(rbc_reflect)
+          {
+             rf_right_state(0) = rf_left_state(0);
+             rf_right_state(1) =-rf_left_state(1);
+             rf_right_state(2) = rf_left_state(2);
+          }
+          else
+          {
+             rf_right_state(0) = rf_left_state(0);
+             rf_right_state(1) = rf_left_state(1);
+             rf_right_state(2) = rf_left_state(2);
+//             rf_right_state(0) = d_right;
+//             rf_right_state(1) = d_right * u_right;
+//             rf_right_state(2) = p_right/(gas_gamma-1.0) +
+//                                 0.5 * d_right * std::pow(u_right,2);
+          }
        }
        else
        {          
@@ -825,7 +976,7 @@ void EulerProblem<dim>::compute_averages ()
 
 //------------------------------------------------------------------------------
 // Apply TVD limiter
-// currently works only for P1 case
+// currently works only for P1/P2 case
 //------------------------------------------------------------------------------
 template <int dim>
 void EulerProblem<dim>::apply_limiter ()
@@ -847,11 +998,12 @@ void EulerProblem<dim>::apply_limiter ()
       cell = dof_handler.begin_active(),
       endc = dof_handler.end();
    
-   // dont limit in first cell, skip it.
-   ++cell;
-   
    double db, df, DB, DF;
-   for (unsigned int c=1; c<n_cells-1; ++c, ++cell)
+   double density_left, density_right;
+   double momentum_left, momentum_right;
+   double energy_left, energy_right;
+   
+   for (unsigned int c=0; c<n_cells; ++c, ++cell)
    {
       fe_values.reinit(cell);
       cell->get_dof_indices (local_dof_indices);
@@ -859,25 +1011,62 @@ void EulerProblem<dim>::apply_limiter ()
       fe_values.get_function_values(momentum, momentum_face_values);
       fe_values.get_function_values(energy, energy_face_values);
       
+      if(c==0)
+      {
+         density_left = density_average[c](0);
+         if(lbc_reflect)
+            momentum_left = -momentum_average[c](0);
+         else
+            momentum_left = momentum_average[c](0);
+         energy_left = energy_average[c](0);
+         
+         density_right = density_average[c+1](0);
+         momentum_right = momentum_average[c+1](0);
+         energy_right = energy_average[c+1](0);
+      }
+      else if(c == n_cells-1)
+      {
+         density_left = density_average[c-1](0);
+         momentum_left = momentum_average[c-1](0);
+         energy_left = energy_average[c-1](0);
+         
+         density_right = density_average[c](0);
+         if(rbc_reflect)
+            momentum_right = -momentum_average[c](0);
+         else
+            momentum_right = momentum_average[c](0);
+         energy_right = energy_average[c](0);
+      }
+      else
+      {
+         density_left = density_average[c-1](0);
+         momentum_left = momentum_average[c-1](0);
+         energy_left = energy_average[c-1](0);
+         
+         density_right = density_average[c+1](0);
+         momentum_right = momentum_average[c+1](0);
+         energy_right = energy_average[c+1](0);
+      }
+      
       // density
-      db = density_average[c](0) - density_average[c-1](0);
-      df = density_average[c+1](0) - density_average[c](0);
+      db = density_average[c](0) - density_left;
+      df = density_right - density_average[c](0);
       DB = density_average[c](0) - density_face_values[0];
       DF = density_face_values[1] - density_average[c](0);
       double dl_density = minmod (DB, db, df);
       double dr_density = minmod (DF, db, df);
       
       // momentum
-      db = momentum_average[c](0) - momentum_average[c-1](0);
-      df = momentum_average[c+1](0) - momentum_average[c](0);
+      db = momentum_average[c](0) - momentum_left;
+      df = momentum_right - momentum_average[c](0);
       DB = momentum_average[c](0) - momentum_face_values[0];
       DF = momentum_face_values[1] - momentum_average[c](0);
       double dl_mom = minmod (DB, db, df);
       double dr_mom = minmod (DF, db, df);
       
       // energy
-      db = energy_average[c](0) - energy_average[c-1](0);
-      df = energy_average[c+1](0) - energy_average[c](0);
+      db = energy_average[c](0) - energy_left;
+      df = energy_right - energy_average[c](0);
       DB = energy_average[c](0) - energy_face_values[0];
       DF = energy_face_values[1] - energy_average[c](0);
       double dl_energy = minmod (DB, db, df);
@@ -907,6 +1096,112 @@ void EulerProblem<dim>::apply_limiter ()
       
    }
 }
+
+//------------------------------------------------------------------------------
+// Apply positivity limiter
+//------------------------------------------------------------------------------
+template <int dim>
+void EulerProblem<dim>::apply_positivity_limiter ()
+{
+   if(fe.degree == 0) return;
+   
+   unsigned int N = (fe.degree + 3)/2;
+   if((fe.degree+3)%2 != 0) N += 1;
+   QGaussLobatto<dim>  quadrature_formula(N);
+   const unsigned int n_q_points = quadrature_formula.size();
+   FEValues<dim> fe_values (fe, quadrature_formula, update_values);
+   std::vector<double> density_values(n_q_points), momentum_values(n_q_points),
+                       energy_values(n_q_points);
+   
+   const unsigned int   dofs_per_cell = fe.dofs_per_cell;
+   std::vector<unsigned int> local_dof_indices (dofs_per_cell);
+   
+   double eps = 1.0e-13;
+   for (unsigned int c=0; c<n_cells; ++c)
+   {
+      double velocity = momentum_average[c](0) / density_average[c](0);
+      double pressure = (gas_gamma-1.0) * ( energy_average[c](0) -
+                                           0.5 * momentum_average[c](0) * velocity );
+      eps = std::min(eps, density_average[c](0));
+      eps = std::min(eps, pressure);
+   }
+
+   typename DoFHandler<dim>::active_cell_iterator
+      cell = dof_handler.begin_active(),
+      endc = dof_handler.end();
+
+   for (unsigned int c=0; cell!=endc; ++cell, ++c)
+   {
+      fe_values.reinit(cell);
+      cell->get_dof_indices (local_dof_indices);
+      
+      // First limit density
+      fe_values.get_function_values(density, density_values);
+      
+      // find minimum density at GLL points
+      double rho_min = 1.0e20;
+      for(unsigned int q=0; q<n_q_points; ++q)
+         rho_min = std::min(rho_min, density_values[q]);
+      
+      double theta1 =
+         std::min(std::fabs((density_average[c](0) - eps)/(density_average[c](0) - rho_min)), 1.0);
+      
+      for(unsigned int i=1; i<dofs_per_cell; ++i)
+         density(local_dof_indices[i]) *= theta1;
+      
+      // now limit pressure
+      fe_values.get_function_values(density, density_values);
+      fe_values.get_function_values(momentum, momentum_values);
+      fe_values.get_function_values(energy, energy_values);
+      
+      double theta2 = 1.0;
+      for(unsigned int q=0; q<n_q_points; ++q)
+      {
+         double pressure = (gas_gamma-1.0)*(energy_values[q] -
+                              0.5*std::pow(momentum_values[q],2)/density_values[q]);
+         if(pressure < eps)
+         {
+            double drho = density_average[c](0) - density_values[q];
+            double dm = momentum_average[c](0) - momentum_values[q];
+            double dE = energy_average[c](0) - energy_values[q];
+            double a1 = 2.0*drho*dE - dm*dm;
+            double b1 = 2.0*energy_values[q]*drho + 2.0*density_values[q]*dE
+                        - 2.0*momentum_values[q]*dm - 2.0*eps*drho/(gas_gamma-1.0);
+            double c1 = 2.0*density_values[q]*energy_values[q]
+                        - std::pow(momentum_values[q],2.0)
+                        - 2.0*eps*density_values[q]/(gas_gamma-1.0);
+            double D = std::sqrt( std::fabs(b1*b1 - 4.0*a1*c1) );
+            double t1 = 0.5*(-b1 - D)/a1;
+            double t2 = 0.5*(-b1 + D)/a1;
+            double t;
+            if(t1 > -1.0e-12 && t1 < 1.0 + 1.0e-12)
+               t = t1;
+            else if(t2 > -1.0e-12 && t2 < 1.0 + 1.0e-12)
+                  t = t2;
+            else
+            {
+               std::cout << "Problem t1, t2 = " << t1 << " " << t2 << "\n";
+               std::cout << "eps, rho_min = " << eps << " " << rho_min << "\n";
+               std::cout << "theta1 = " << theta1 << "\n";
+               std::cout << "pressure = " << pressure << "\n";
+               exit(0);
+            }
+            // t should strictly lie in [0,1]
+            t = std::min(1.0, t);
+            t = std::max(0.0, t);
+            theta2 = std::min(theta2, 1.0-t);
+         }
+      }
+      
+      for(unsigned int i=1; i<dofs_per_cell; ++i)
+      {
+         density(local_dof_indices[i])  *= theta2;
+         momentum(local_dof_indices[i]) *= theta2;
+         energy(local_dof_indices[i])   *= theta2;
+      }
+   }
+}
+
 
 //------------------------------------------------------------------------------
 // Update solution by one stage of RK
@@ -998,6 +1293,7 @@ void EulerProblem<dim>::run ()
     initialize ();
     output_results ();
     compute_averages ();
+    apply_limiter ();
 
     double time = 0.0;
     unsigned int iter = 0;
@@ -1018,6 +1314,7 @@ void EulerProblem<dim>::run ()
          update (rk);
          compute_averages ();
          apply_limiter ();
+         apply_positivity_limiter ();
        }
        
        if(iter==0)
@@ -1034,7 +1331,7 @@ void EulerProblem<dim>::run ()
        
       time += dt;
       ++iter;
-       if(iter % 10 == 0) output_results ();
+       if(iter % save_freq == 0) output_results ();
        
       std::cout << "Iter = " << iter << " time = " << time 
                 << " Res =" << residual[0] << " " << residual[1] << " "
@@ -1048,11 +1345,16 @@ void EulerProblem<dim>::run ()
 //------------------------------------------------------------------------------
 int main ()
 {
-    deallog.depth_console (0);
-    {
-        EulerProblem<1> euler_problem(2, sod);
-        euler_problem.run ();
-    }
+   deallog.depth_console (0);
+   {
+      //EulerProblem<1> euler_problem(1, 200, sod);
+      //EulerProblem<1> euler_problem(1, 400, blast);
+      //EulerProblem<1> euler_problem(1, 200, lax);
+      EulerProblem<1> euler_problem(2, 200, lowd);
+      //EulerProblem<1> euler_problem(1, 400, shuosher);
+
+      euler_problem.run ();
+   }
 
     return 0;
 }
