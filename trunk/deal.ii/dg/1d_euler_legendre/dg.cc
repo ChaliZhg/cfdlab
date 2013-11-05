@@ -1,3 +1,6 @@
+/* 1d DG code for euler equations. This is not particularly efficient code.
+   TODO : Use MeshWorker to assemble rhs.
+*/
 #include <grid/tria.h>
 #include <dofs/dof_handler.h>
 #include <grid/grid_generator.h>
@@ -61,6 +64,65 @@ double minmod (const double& a, const double& b, const double& c)
    }
    
    return result;
+}
+
+//------------------------------------------------------------------------------
+// Compute matrix of eigenvectors = R
+// and its inverse matrix = Ri
+//------------------------------------------------------------------------------
+void EigMat(double d, double m, double E, double R[][n_var], double Ri[][n_var])
+{
+   double v, p, c, h, f, g1, g2;
+
+   g1 = gas_gamma - 1.0;
+   g2 = g1 / 2.0;
+
+   v = m / d;
+   p = (gas_gamma - 1.0) * (E - 0.5 * d * v * v);
+   c = sqrt(gas_gamma * p / d);
+   h = c * c / g1 + 0.5 * v * v;
+   f = d / c / 2.0;
+
+   /* Inverse eigenvector-matrix */
+   Ri[0][0] = 1.0 - g2 * v * v / c / c;
+   Ri[1][0] = (g2 * v * v - v * c) / d / c;
+   Ri[2][0] = -(g2 * v * v + v * c) / d / c;
+
+   Ri[0][1] = g1 * v / c / c;
+   Ri[1][1] = (c - g1 * v) / d / c;
+   Ri[2][1] = (c + g1 * v) / d / c;
+
+   Ri[0][2] = -g1 / c / c;
+   Ri[1][2] = g1 / d / c;
+   Ri[2][2] = -g1 / d / c;
+
+   /* Eigenvector matrix */
+   R[0][0] = 1.0;
+   R[1][0] = v;
+   R[2][0] = v * v / 2.0;
+
+   R[0][1] = f;
+   R[1][1] = (v + c) * f;
+   R[2][1] = (h + v * c) * f;
+
+   R[0][2] = -f;
+   R[1][2] = -(v - c) * f;
+   R[2][2] = -(h - v * c) * f;
+}
+
+//------------------------------------------------------------------------------
+// U = R*U
+//------------------------------------------------------------------------------
+void Multi(double R[][n_var], std::vector<double>& U)
+{
+   std::vector<double> Ut(U);
+
+   for(unsigned int i = 0; i < n_var; i++) 
+   {
+      U[i] = 0.0;
+      for(unsigned int j = 0; j < n_var; j++)
+         U[i] += R[i][j] * Ut[j];
+   }
 }
 
 //------------------------------------------------------------------------------
@@ -167,6 +229,7 @@ private:
    double               min_residue;
    unsigned int         n_rk_stages;
    FluxType             flux_type;
+   bool                 lim_char;
    bool                 lbc_reflect, rbc_reflect;
    unsigned int         save_freq;
    
@@ -187,8 +250,6 @@ private:
    Vector<double>       rhs_density;
    Vector<double>       rhs_momentum;
    Vector<double>       rhs_energy;
-   
-   std::vector< Vector<double> > face_flux;
    
    std::vector< Vector<double> > density_average;
    std::vector< Vector<double> > momentum_average;
@@ -220,6 +281,7 @@ EulerProblem<dim>::EulerProblem (unsigned int degree,
    flux_type = kfvs;
    
    lbc_reflect = rbc_reflect = false;
+   lim_char = true;
    double M = 0;
    
    if(test_case == sod)
@@ -251,12 +313,12 @@ EulerProblem<dim>::EulerProblem (unsigned int degree,
       xmax    = 1.0;
       final_time = 0.038;
       min_residue= 1.0e20;
-      cfl      = 0.1;
+      cfl      = 0.4;
       
       gas_gamma = 1.4;
       gas_const = 1.0;
       lbc_reflect = rbc_reflect = true;
-      save_freq = 1;
+      save_freq = 100;
    }
    else if(test_case == shuosher)
    {
@@ -371,9 +433,6 @@ void EulerProblem<dim>::make_grid_and_dofs ()
     energy.reinit (dof_handler.n_dofs());
     energy_old.reinit (dof_handler.n_dofs());
     rhs_energy.reinit (dof_handler.n_dofs());   
-   
-    // Array to store flux across cell faces
-    face_flux.resize(triangulation.n_active_cells()+1, Vector<double>(n_var));
    
     density_average.resize (triangulation.n_cells(), Vector<double>(fe.degree+1));
     momentum_average.resize (triangulation.n_cells(), Vector<double>(fe.degree+1));
@@ -998,7 +1057,8 @@ void EulerProblem<dim>::apply_limiter ()
       cell = dof_handler.begin_active(),
       endc = dof_handler.end();
    
-   double db, df, DB, DF;
+   std::vector<double> db(n_var), df(n_var), DB(n_var), DF(n_var);
+   std::vector<double> dl(n_var), dr(n_var);
    double density_left, density_right;
    double momentum_left, momentum_right;
    double energy_left, energy_right;
@@ -1049,49 +1109,67 @@ void EulerProblem<dim>::apply_limiter ()
       }
       
       // density
-      db = density_average[c](0) - density_left;
-      df = density_right - density_average[c](0);
-      DB = density_average[c](0) - density_face_values[0];
-      DF = density_face_values[1] - density_average[c](0);
-      double dl_density = minmod (DB, db, df);
-      double dr_density = minmod (DF, db, df);
+      db[0] = density_average[c](0) - density_left;
+      df[0] = density_right - density_average[c](0);
+      DB[0] = density_average[c](0) - density_face_values[0];
+      DF[0] = density_face_values[1] - density_average[c](0);
       
       // momentum
-      db = momentum_average[c](0) - momentum_left;
-      df = momentum_right - momentum_average[c](0);
-      DB = momentum_average[c](0) - momentum_face_values[0];
-      DF = momentum_face_values[1] - momentum_average[c](0);
-      double dl_mom = minmod (DB, db, df);
-      double dr_mom = minmod (DF, db, df);
+      db[1] = momentum_average[c](0) - momentum_left;
+      df[1] = momentum_right - momentum_average[c](0);
+      DB[1] = momentum_average[c](0) - momentum_face_values[0];
+      DF[1] = momentum_face_values[1] - momentum_average[c](0);
       
       // energy
-      db = energy_average[c](0) - energy_left;
-      df = energy_right - energy_average[c](0);
-      DB = energy_average[c](0) - energy_face_values[0];
-      DF = energy_face_values[1] - energy_average[c](0);
-      double dl_energy = minmod (DB, db, df);
-      double dr_energy = minmod (DF, db, df);
-      
-      if(fe.degree==1) // dl_density = dr_density, etc.
+      db[2] = energy_average[c](0) - energy_left;
+      df[2] = energy_right - energy_average[c](0);
+      DB[2] = energy_average[c](0) - energy_face_values[0];
+      DF[2] = energy_face_values[1] - energy_average[c](0);
+
+      double R[n_var][n_var], Ri[n_var][n_var];
+      if(lim_char)
       {
-         density(local_dof_indices[1]) = dr_density / fe_values.shape_value(1,1);
-         momentum(local_dof_indices[1]) = dr_mom / fe_values.shape_value(1,1);
-         energy(local_dof_indices[1]) = dr_energy / fe_values.shape_value(1,1);
+         EigMat(density_average[c](0), 
+                momentum_average[c](0), 
+                energy_average[c](0), R, Ri);
+         Multi(Ri, db);
+         Multi(Ri, df);
+         Multi(Ri, DB);
+         Multi(Ri, DF);
+      }
+
+      for(unsigned int i=0; i<n_var; ++i)
+      {
+         dl[i] = minmod (DB[i], db[i], df[i]);
+         dr[i] = minmod (DF[i], db[i], df[i]);
+      }
+      
+      if(fe.degree==1) // dl = dr
+      {
+         if(lim_char) Multi(R, dr);
+         density(local_dof_indices[1])  = dr[0] / fe_values.shape_value(1,1);
+         momentum(local_dof_indices[1]) = dr[1] / fe_values.shape_value(1,1);
+         energy(local_dof_indices[1])   = dr[2] / fe_values.shape_value(1,1);
       }
       else if(fe.degree==2)
       {
+         if(lim_char)
+         {
+            Multi(R, dl);
+            Multi(R, dr);
+         }
          double phi1_l = fe_values.shape_value(1,0);
          double phi1_r = fe_values.shape_value(1,1);
          double phi2_l = fe_values.shape_value(2,0);
          double phi2_r = fe_values.shape_value(2,1);
          double det = - phi1_l * phi2_r + phi1_r * phi2_l;
-         density(local_dof_indices[1]) = (phi2_r * dl_density + phi2_l * dr_density)/det;
-         momentum(local_dof_indices[1]) = (phi2_r * dl_mom + phi2_l * dr_mom)/det;
-         energy(local_dof_indices[1]) = (phi2_r * dl_energy + phi2_l * dr_energy)/det;
+         density(local_dof_indices[1])  = (phi2_r * dl[0] + phi2_l * dr[0])/det;
+         momentum(local_dof_indices[1]) = (phi2_r * dl[1] + phi2_l * dr[1])/det;
+         energy(local_dof_indices[1])   = (phi2_r * dl[2] + phi2_l * dr[2])/det;
          
-         density(local_dof_indices[2]) = (-phi1_r * dl_density - phi1_l * dr_density)/det;
-         momentum(local_dof_indices[2]) = (-phi1_r * dl_mom - phi1_l * dr_mom)/det;
-         energy(local_dof_indices[2]) = (-phi1_r * dl_energy - phi1_l * dr_energy)/det;
+         density(local_dof_indices[2])  = (-phi1_r * dl[0] - phi1_l * dr[0])/det;
+         momentum(local_dof_indices[2]) = (-phi1_r * dl[1] - phi1_l * dr[1])/det;
+         energy(local_dof_indices[2])   = (-phi1_r * dl[2] - phi1_l * dr[2])/det;
       }
       
    }
@@ -1350,12 +1428,11 @@ int main ()
       //EulerProblem<1> euler_problem(1, 200, sod);
       //EulerProblem<1> euler_problem(1, 400, blast);
       //EulerProblem<1> euler_problem(1, 200, lax);
-      EulerProblem<1> euler_problem(2, 200, lowd);
-      //EulerProblem<1> euler_problem(1, 400, shuosher);
+      EulerProblem<1> euler_problem(1, 200, lowd);
+      //EulerProblem<1> euler_problem(2, 400, shuosher);
 
       euler_problem.run ();
    }
 
     return 0;
 }
-
