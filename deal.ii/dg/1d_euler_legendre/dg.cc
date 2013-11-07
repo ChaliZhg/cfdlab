@@ -1,5 +1,10 @@
 /* 1d DG code for euler equations. This is not particularly efficient code.
    TODO : Use MeshWorker to assemble rhs.
+   * Legendre basis functions
+   * TVD/TVB limiter for degree = 1,2
+   * Characteristic based limiter
+   * Positivity preserving limiter
+   * Numerical fluxes: Lax-Friedrich, KFVS
 */
 #include <grid/tria.h>
 #include <dofs/dof_handler.h>
@@ -18,6 +23,7 @@
 #include <lac/full_matrix.h>
 #include <lac/sparse_matrix.h>
 #include <lac/compressed_sparsity_pattern.h>
+#include <base/parameter_handler.h>
 
 #include <numerics/data_out.h>
 #include <numerics/fe_field_function.h>
@@ -43,7 +49,7 @@ const double b_rk[3] = {1.0, 1.0/4.0, 2.0/3.0};
 
 // Numerical flux functions
 enum FluxType {lxf, kfvs};
-enum TestCase {sod, blast, lax, shuosher, lowd};
+enum TestCase {sod, blast, blastwc, lax, shuosher, lowd};
 
 //------------------------------------------------------------------------------
 // minmod of three numbers
@@ -136,7 +142,7 @@ public:
    
    virtual void vector_value (const Point<dim>   &p,
                               Vector<double>& values) const;
-   TestCase test_case;
+   string test_case;
 };
 
 // Initial condition for density, velocity, pressure
@@ -144,7 +150,10 @@ template<int dim>
 void InitialCondition<dim>::vector_value (const Point<dim>   &p,
                                           Vector<double>& values) const
 {
-   if(test_case == sod || test_case == lax || test_case == lowd)
+   if(test_case == "sod" || 
+      test_case == "lax" || 
+      test_case == "lowd" || 
+      test_case == "blastwc")
    {
       if(p[0] < xmid)
       {
@@ -159,7 +168,7 @@ void InitialCondition<dim>::vector_value (const Point<dim>   &p,
          values(2) = p_right; // right pressure
       }
    }
-   else if(test_case == blast)
+   else if(test_case == "blast")
    {
       if(p[0] < 0.1)
       {
@@ -180,7 +189,7 @@ void InitialCondition<dim>::vector_value (const Point<dim>   &p,
          values(2) = 0.01; // right pressure
       }
    }
-   else if(test_case == shuosher)
+   else if(test_case == "shuosher")
    {
       if(p[0] < -4.0)
       {
@@ -195,6 +204,11 @@ void InitialCondition<dim>::vector_value (const Point<dim>   &p,
          values(2) = 1;
       }
    }
+   else
+   {
+      std::cout << "Unknown test case\n";
+      exit(0);
+   }
 
 }
 
@@ -205,7 +219,7 @@ template <int dim>
 class EulerProblem
 {
 public:
-   EulerProblem (unsigned int degree, unsigned int n_cells, TestCase test_case);
+   EulerProblem (unsigned int degree, const ParameterHandler& prm);
    void run ();
    
 private:
@@ -221,7 +235,7 @@ private:
    void output_results () const;
    
    unsigned int         n_cells;
-   TestCase             test_case;
+   string               test_case;
    double               dt;
    double               dx;
    double               cfl;
@@ -229,7 +243,7 @@ private:
    double               min_residue;
    unsigned int         n_rk_stages;
    FluxType             flux_type;
-   bool                 lim_char;
+   bool                 lim_char, lim_pos;
    bool                 lbc_reflect, rbc_reflect;
    unsigned int         save_freq;
    
@@ -268,30 +282,33 @@ private:
 //------------------------------------------------------------------------------
 template <int dim>
 EulerProblem<dim>::EulerProblem (unsigned int degree,
-                                 unsigned int n_cells,
-                                 TestCase test_case) :
-   n_cells (n_cells),
-   test_case (test_case),
+                                 const ParameterHandler& prm
+                                 ) :
    fe (degree),
    dof_handler (triangulation)
 {
    Assert (dim==1, ExcIndexRange(dim, 0, 1));
+
+   n_cells  = prm.get_integer("ncells");
+   test_case= prm.get("test case");
+   lim_char = prm.get_bool("characteristic limiter");
+   lim_pos  = prm.get_bool("positivity limiter");
+   cfl      = prm.get_double("cfl");
+   double M = prm.get_double("M");
+   save_freq= prm.get_integer("save frequency");
    
    n_rk_stages = 3;
    flux_type = kfvs;
    
    lbc_reflect = rbc_reflect = false;
-   lim_char = true;
-   double M = 0;
    
-   if(test_case == sod)
+   if(test_case == "sod")
    {
       xmin    = 0.0;
       xmax    = 1.0;
       xmid    = 0.5;
       final_time = 0.2;
       min_residue= 1.0e20;
-      cfl      = 0.8;
       
       gas_gamma = 1.4;
       gas_const = 1.0;
@@ -304,43 +321,35 @@ EulerProblem<dim>::EulerProblem (unsigned int degree,
       
       p_left  = 1.0;
       p_right = 0.1;
-      save_freq = 10;
-      
    }
-   else if(test_case == blast)
+   else if(test_case == "blast")
    {
       xmin    = 0.0;
       xmax    = 1.0;
       final_time = 0.038;
       min_residue= 1.0e20;
-      cfl      = 0.4;
       
       gas_gamma = 1.4;
       gas_const = 1.0;
       lbc_reflect = rbc_reflect = true;
-      save_freq = 100;
    }
-   else if(test_case == shuosher)
+   else if(test_case == "shuosher")
    {
       xmin    = -5;
       xmax    = 5;
       final_time = 1.8;
       min_residue= 1.0e20;
-      cfl      = 0.4;
       
       gas_gamma = 1.4;
       gas_const = 1.0;
-      save_freq = 100;
-      M         = 100;
    }
-   else if(test_case == lax)
+   else if(test_case == "lax")
    {
       xmin    = -5;
       xmax    = 5;
       xmid    = 0.0;
       final_time = 1.3;
       min_residue= 1.0e20;
-      cfl      = 0.8;
       
       gas_gamma = 1.4;
       gas_const = 1.0;
@@ -353,17 +362,14 @@ EulerProblem<dim>::EulerProblem (unsigned int degree,
       
       p_left  = 3.528;
       p_right = 0.571;
-      save_freq = 10;
-      
    }
-   else if(test_case == lowd)
+   else if(test_case == "lowd")
    {
       xmin    = 0;
       xmax    = 1;
       xmid    = 0.5;
       final_time = 0.15;
       min_residue= 1.0e20;
-      cfl      = 0.1;
       
       gas_gamma = 1.4;
       gas_const = 1.0;
@@ -376,8 +382,29 @@ EulerProblem<dim>::EulerProblem (unsigned int degree,
       
       p_left  = 0.4;
       p_right = 0.4;
+   }
+   else if(test_case == "blastwc")
+   {
+      xmin    = 0;
+      xmax    = 1.4;
+      xmid    = 0.7;
+      final_time = 0.012;
+      min_residue= 1.0e20;
+      cfl      = 0.8;
+      
+      gas_gamma = 1.4;
+      gas_const = 1.0;
+      
+      d_left  = 1.0;
+      d_right = 1.0;
+      
+      u_left  = 0.0;
+      u_right = 0.0;
+      
+      p_left  = 1000.0;
+      p_right = 0.01;
       save_freq = 10;
-      M = 100.0;
+      M = 500.0;
       
    }
    else
@@ -385,7 +412,7 @@ EulerProblem<dim>::EulerProblem (unsigned int degree,
       std::cout << "Unknown test case\n";
    }
    
-   cfl *= 1.0/(2.0*fe.degree+1);
+   cfl *= 1.0/(2.0*fe.degree+1.0);
    dx   = (xmax - xmin) / n_cells;
    Mdx2 = M * dx * dx;
 
@@ -1203,6 +1230,11 @@ void EulerProblem<dim>::apply_positivity_limiter ()
       eps = std::min(eps, density_average[c](0));
       eps = std::min(eps, pressure);
    }
+   if(eps < 0.0)
+   {
+      std::cout << "Negative states\n";
+      exit(0);
+   }
 
    typename DoFHandler<dim>::active_cell_iterator
       cell = dof_handler.begin_active(),
@@ -1268,6 +1300,10 @@ void EulerProblem<dim>::apply_positivity_limiter ()
             t = std::min(1.0, t);
             t = std::max(0.0, t);
             theta2 = std::min(theta2, 1.0-t);
+               std::cout << "Problem t1, t2 = " << t1 << " " << t2 << "\n";
+               std::cout << "eps, rho_min = " << eps << " " << rho_min << "\n";
+               std::cout << "theta1,theta2 = " << theta1 << " " << theta2 << "\n";
+               std::cout << "pressure = " << pressure << "\n";
          }
       }
       
@@ -1364,7 +1400,7 @@ void EulerProblem<dim>::output_results () const
 template <int dim>
 void EulerProblem<dim>::run ()
 {
-    std::cout << "Solving 1-D NS problem ...\n";
+    std::cout << "\n Solving 1-D NS problem ...\n";
 
     make_grid_and_dofs();
     assemble_mass_matrix ();
@@ -1392,7 +1428,7 @@ void EulerProblem<dim>::run ()
          update (rk);
          compute_averages ();
          apply_limiter ();
-         apply_positivity_limiter ();
+         if(lim_pos) apply_positivity_limiter ();
        }
        
        if(iter==0)
@@ -1419,18 +1455,47 @@ void EulerProblem<dim>::run ()
 }
 
 //------------------------------------------------------------------------------
+// Declare input parameters
+//------------------------------------------------------------------------------
+void declare_parameters(ParameterHandler& prm)
+{
+   prm.declare_entry("degree","0", Patterns::Integer(0,2),
+                     "Polynomial degree");
+   prm.declare_entry("ncells","100", Patterns::Integer(10,100000),
+                     "Number of elements");
+   prm.declare_entry("save frequency","100000", Patterns::Integer(0,100000),
+                     "How often to save solution");
+   prm.declare_entry("test case","sod", 
+                     Patterns::Selection("sod|lowd|blast|blastwc|lax|shuosher"),
+                     "Test case");
+   prm.declare_entry("characteristic limiter", "false",
+                     Patterns::Bool(), "Characteristic limiter");
+   prm.declare_entry("positivity limiter", "false",
+                     Patterns::Bool(), "positivity limiter");
+   prm.declare_entry("cfl", "1.0",
+                     Patterns::Double(0,1.0), "cfl number");
+   prm.declare_entry("M", "0.0",
+                     Patterns::Double(0,1.0e20), "TVB constant");
+}
+
+//------------------------------------------------------------------------------
 // Main function
 //------------------------------------------------------------------------------
-int main ()
+int main (int argc, char** argv)
 {
    deallog.depth_console (0);
    {
-      //EulerProblem<1> euler_problem(1, 200, sod);
-      //EulerProblem<1> euler_problem(1, 400, blast);
-      //EulerProblem<1> euler_problem(1, 200, lax);
-      EulerProblem<1> euler_problem(1, 200, lowd);
-      //EulerProblem<1> euler_problem(2, 400, shuosher);
-
+      if(argc < 2)
+      {
+         std::cout << "Specify input parameter file\n";
+         return 0;
+      }
+      ParameterHandler prm;
+      declare_parameters (prm);
+      prm.read_input (argv[1]);
+      prm.print_parameters(std::cout, ParameterHandler::Text);
+      unsigned int degree = prm.get_integer("degree");
+      EulerProblem<1> euler_problem(degree, prm);
       euler_problem.run ();
    }
 
