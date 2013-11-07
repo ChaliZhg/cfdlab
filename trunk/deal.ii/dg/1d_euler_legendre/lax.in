@@ -1,0 +1,8 @@
+set degree                 = 1
+set ncells                 = 200
+set test case              = lax
+set characteristic limiter = true
+set positivity limiter     = false
+set M                      = 0.0
+set cfl                    = 0.8
+set save frequency         = 100
