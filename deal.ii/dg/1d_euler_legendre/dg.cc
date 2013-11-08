@@ -901,17 +901,13 @@ void EulerProblem<dim>::assemble_rhs ()
           lf_left_state(0) = density_values_n [1];
           lf_left_state(1) = momentum_values_n[1];
           lf_left_state(2) = energy_values_n  [1];
-          
        }
        
-       Vector<double> left_flux(3);
+       Vector<double> left_flux(n_var);
        numerical_flux (flux_type, lf_left_state, lf_right_state, left_flux);
        
-       std::vector<double> lf_left_prim = con2prim(lf_left_state);
-       std::vector<double> lf_right_prim = con2prim(lf_right_state);
-       
        // right face flux
-       Vector<double> rf_left_state(3), rf_right_state(3);
+       Vector<double> rf_left_state(n_var), rf_right_state(n_var);
        // left state is from current cell
        rf_left_state(0) = density_values [n_q_points-1];
        rf_left_state(1) = momentum_values[n_q_points-1];
@@ -952,9 +948,6 @@ void EulerProblem<dim>::assemble_rhs ()
        
        Vector<double> right_flux(3);
        numerical_flux (flux_type, rf_left_state, rf_right_state, right_flux);
-       
-       std::vector<double> rf_left_prim = con2prim(rf_left_state);
-       std::vector<double> rf_right_prim = con2prim(rf_right_state);
        
         // Add flux at cell boundaries
         for (unsigned int i=0; i<dofs_per_cell; ++i)
@@ -1221,7 +1214,7 @@ void EulerProblem<dim>::apply_positivity_limiter ()
    const unsigned int   dofs_per_cell = fe.dofs_per_cell;
    std::vector<unsigned int> local_dof_indices (dofs_per_cell);
    
-   double eps = 1.0e-13;
+   double eps = 1.0e-10;
    for (unsigned int c=0; c<n_cells; ++c)
    {
       double velocity = momentum_average[c](0) / density_average[c](0);
@@ -1277,9 +1270,7 @@ void EulerProblem<dim>::apply_positivity_limiter ()
             double a1 = 2.0*drho*dE - dm*dm;
             double b1 = 2.0*energy_values[q]*drho + 2.0*density_values[q]*dE
                         - 2.0*momentum_values[q]*dm - 2.0*eps*drho/(gas_gamma-1.0);
-            double c1 = 2.0*density_values[q]*energy_values[q]
-                        - std::pow(momentum_values[q],2.0)
-                        - 2.0*eps*density_values[q]/(gas_gamma-1.0);
+            double c1 = 2.0*(pressure-eps)*density_values[q]/(gas_gamma-1.0);
             double D = std::sqrt( std::fabs(b1*b1 - 4.0*a1*c1) );
             double t1 = 0.5*(-b1 - D)/a1;
             double t2 = 0.5*(-b1 + D)/a1;

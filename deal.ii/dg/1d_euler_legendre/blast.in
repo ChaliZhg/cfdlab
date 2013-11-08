@@ -1,8 +1,8 @@
-set degree                 = 0
+set degree                 = 1
 set ncells                 = 400
 set test case              = blast
 set characteristic limiter = true
 set positivity limiter     = true
-set M                      = 0.0
+set M                      = 100.0
 set cfl                    = 0.1
 set save frequency         = 100
