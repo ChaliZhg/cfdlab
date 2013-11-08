@@ -304,11 +304,17 @@ EulerProblem<dim>::EulerProblem (unsigned int degree,
    double M = prm.get_double("M");
    save_freq= prm.get_integer("save frequency");
    limiter  = prm.get("limiter");
+   string flux  = prm.get("flux");
 
    if(limiter == "BDF") M = 0.0;
    
    n_rk_stages = 3;
-   flux_type = kfvs;
+
+   // Set flux enum type
+   if(flux == "kfvs")
+      flux_type = kfvs;
+   else if(flux == "lxf")
+      flux_type = lxf;
    
    lbc_reflect = rbc_reflect = false;
    
@@ -1146,38 +1152,34 @@ void EulerProblem<dim>::apply_limiter_TVB ()
          Multi(Ri, DF);
       }
 
+      double diff = 0;
       for(unsigned int i=0; i<n_var; ++i)
       {
          dl[i] = minmod (DB[i], db[i], df[i]);
          dr[i] = minmod (DF[i], db[i], df[i]);
+         diff += std::fabs(dl[i] - DB[i]) + std::fabs(dr[i]-DF[i]);
       }
-      
-      if(fe.degree==1) // dl = dr
+      diff /= (2*n_var);
+
+      // If diff is nonzero, then limiter is active.
+      // Then we keep only linear part
+      if(diff > 1.0e-10)
       {
-         if(lim_char) Multi(R, dr);
-         density(local_dof_indices[1])  = dr[0] / fe_values.shape_value(1,1);
-         momentum(local_dof_indices[1]) = dr[1] / fe_values.shape_value(1,1);
-         energy(local_dof_indices[1])   = dr[2] / fe_values.shape_value(1,1);
-      }
-      else if(fe.degree==2)
-      {
-         if(lim_char)
+         if(lim_char) 
          {
             Multi(R, dl);
             Multi(R, dr);
          }
-         double phi1_l = fe_values.shape_value(1,0);
-         double phi1_r = fe_values.shape_value(1,1);
-         double phi2_l = fe_values.shape_value(2,0);
-         double phi2_r = fe_values.shape_value(2,1);
-         double det = - phi1_l * phi2_r + phi1_r * phi2_l;
-         density(local_dof_indices[1])  = (phi2_r * dl[0] + phi2_l * dr[0])/det;
-         momentum(local_dof_indices[1]) = (phi2_r * dl[1] + phi2_l * dr[1])/det;
-         energy(local_dof_indices[1])   = (phi2_r * dl[2] + phi2_l * dr[2])/det;
-         
-         density(local_dof_indices[2])  = (-phi1_r * dl[0] - phi1_l * dr[0])/det;
-         momentum(local_dof_indices[2]) = (-phi1_r * dl[1] - phi1_l * dr[1])/det;
-         energy(local_dof_indices[2])   = (-phi1_r * dl[2] - phi1_l * dr[2])/det;
+         density(local_dof_indices[1])  = 0.5*(dl[0] + dr[0]) / fe_values.shape_value(1,1);
+         momentum(local_dof_indices[1]) = 0.5*(dl[1] + dr[1]) / fe_values.shape_value(1,1);
+         energy(local_dof_indices[1])   = 0.5*(dl[2] + dr[2]) / fe_values.shape_value(1,1);
+         // Higher dofs are set to zero
+         for(unsigned int i=2; i<dofs_per_cell; ++i)
+         {
+            density(local_dof_indices[i])  = 0.0;
+            momentum(local_dof_indices[i]) = 0.0;
+            energy(local_dof_indices[i])   = 0.0;
+         }
       }
       
    }
@@ -1284,20 +1286,35 @@ void EulerProblem<dim>::apply_limiter_BDF ()
       }
 
       // cell average value is unchanged
-      density_n(local_dof_indices[0])  = density(local_dof_indices[0]);
+      density_n(local_dof_indices[0])  = density(local_dof_indices[0]); 
       momentum_n(local_dof_indices[0]) = momentum(local_dof_indices[0]);
       energy_n(local_dof_indices[0])   = energy(local_dof_indices[0]);
 
+      bool to_limit = true;
       for(unsigned int i=dofs_per_cell-1; i>=1; --i)
       {
-         double l = 2*i - 1;
-         DC[i][0] = minmod(l*DC[i][0], db[i-1][0], df[i-1][0])/l;
-         DC[i][1] = minmod(l*DC[i][1], db[i-1][1], df[i-1][1])/l;
-         DC[i][2] = minmod(l*DC[i][2], db[i-1][2], df[i-1][2])/l;
-         if(lim_char) Multi(R, DC[i]);
-         density_n(local_dof_indices[i])  = DC[i][0];
-         momentum_n(local_dof_indices[i]) = DC[i][1];
-         energy_n(local_dof_indices[i])   = DC[i][2];
+         if(to_limit)
+         {
+            double l = 2*i - 1;
+            std::vector<double> dcn(n_var);
+            dcn[0] = minmod(l*DC[i][0], db[i-1][0], df[i-1][0])/l;
+            dcn[1] = minmod(l*DC[i][1], db[i-1][1], df[i-1][1])/l;
+            dcn[2] = minmod(l*DC[i][2], db[i-1][2], df[i-1][2])/l;
+            double diff = std::fabs(dcn[0]-DC[i][0]) 
+                        + std::fabs(dcn[1]-DC[i][1])
+                        + std::fabs(dcn[2]-DC[i][2]);
+            if(lim_char) Multi(R, dcn);
+            density_n(local_dof_indices[i])  = dcn[0];
+            momentum_n(local_dof_indices[i]) = dcn[1];
+            energy_n(local_dof_indices[i])   = dcn[2];
+            if(diff < 1.0e-10) to_limit = false; // Remaining dofs will not be limited
+         }
+         else
+         {
+            density_n(local_dof_indices[i])  = density(local_dof_indices[i]); 
+            momentum_n(local_dof_indices[i]) = momentum(local_dof_indices[i]);
+            energy_n(local_dof_indices[i])   = energy(local_dof_indices[i]);
+         }
       }
 
    }
@@ -1488,11 +1505,37 @@ void EulerProblem<dim>::output_results () const
    if(fe.degree <= 1)
       data_out.build_patches (1);
    else
-      data_out.build_patches (5);
+      data_out.build_patches (fe.degree+1);
    
    std::string filename = "sol_" + Utilities::int_to_string(c) + ".gpl";
    std::ofstream output (filename);
    data_out.write_gnuplot (output);
+
+   // save cell average solution
+   typename DoFHandler<dim>::active_cell_iterator
+      cell = dof_handler.begin_active(),
+      endc = dof_handler.end();
+
+   std::ofstream fo;
+   filename = "avg.gpl";
+   fo.open (filename);
+
+   for (unsigned int c=0; cell!=endc; ++c, ++cell)
+   {
+      Point<dim> x = cell->center();
+      double velocity = momentum_average[c] / density_average[c];
+      double pressure = (gas_gamma-1.0) * ( energy_average[c] -
+                        0.5 * momentum_average[c] * velocity );
+      fo << x(0) << " " 
+         << density_average[c] << "  " 
+         << velocity << "  " 
+         << pressure << "  " 
+         << endl;
+   }
+
+   fo.close ();
+
+   // increment filename counter
    ++c;
 }
 
@@ -1573,6 +1616,9 @@ void declare_parameters(ParameterHandler& prm)
    prm.declare_entry("limiter","TVB", 
                      Patterns::Selection("TVB|BDF"),
                      "limiter");
+   prm.declare_entry("flux","kfvs", 
+                     Patterns::Selection("kfvs|lxf"),
+                     "limiter");
    prm.declare_entry("characteristic limiter", "false",
                      Patterns::Bool(), "Characteristic limiter");
    prm.declare_entry("positivity limiter", "false",
@@ -1597,7 +1643,8 @@ int main (int argc, char** argv)
       }
       ParameterHandler prm;
       declare_parameters (prm);
-      prm.read_input (argv[1]);
+      bool status = prm.read_input (argv[1], true);
+      AssertThrow( status, ExcFileNotOpen(argv[1]) );
       prm.print_parameters(std::cout, ParameterHandler::Text);
       unsigned int degree = prm.get_integer("degree");
       EulerProblem<1> euler_problem(degree, prm);

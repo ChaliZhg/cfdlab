@@ -1,6 +1,7 @@
-set degree                 = 1
+set degree                 = 2
 set ncells                 = 200
 set test case              = shuosher
+set limiter                = TVB
 set characteristic limiter = true
 set positivity limiter     = false
 set M                      = 100.0

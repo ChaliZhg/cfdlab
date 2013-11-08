@@ -1,8 +1,10 @@
-set degree                 = 2
+set degree                 = 1
 set ncells                 = 400
 set test case              = blast
+set flux                   = kfvs
+set limiter                = TVB
 set characteristic limiter = true
 set positivity limiter     = true
-set M                      = 100.0
+set M                      = 500.0
 set cfl                    = 0.8
 set save frequency         = 100
