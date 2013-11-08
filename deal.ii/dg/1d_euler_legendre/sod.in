@@ -1,6 +1,7 @@
 set degree                 = 1
 set ncells                 = 200
 set test case              = sod
+set limiter                = BDF
 set characteristic limiter = true
 set positivity limiter     = false
 set M                      = 100.0

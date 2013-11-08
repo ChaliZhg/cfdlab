@@ -2,9 +2,13 @@
    TODO : Use MeshWorker to assemble rhs.
    * Legendre basis functions
    * TVD/TVB limiter for degree = 1,2
+   * Momentum limiter (BDF) for any degree
    * Characteristic based limiter
    * Positivity preserving limiter
    * Numerical fluxes: Lax-Friedrich, KFVS
+   *
+   * NOTE: Characteristic limiter is applied cell-wise. Standard approach
+   * is to apply it per face.
 */
 #include <grid/tria.h>
 #include <dofs/dof_handler.h>
@@ -157,36 +161,36 @@ void InitialCondition<dim>::vector_value (const Point<dim>   &p,
    {
       if(p[0] < xmid)
       {
-         values(0) = d_left; // left density
-         values(1) = u_left; // left velocity
-         values(2) = p_left; // left pressure
+         values(0) = d_left;
+         values(1) = u_left;
+         values(2) = p_left;
       }
       else
       {
-         values(0) = d_right; // right density
-         values(1) = u_right; // right velocity
-         values(2) = p_right; // right pressure
+         values(0) = d_right;
+         values(1) = u_right;
+         values(2) = p_right;
       }
    }
    else if(test_case == "blast")
    {
       if(p[0] < 0.1)
       {
-         values(0) = 1; // left density
-         values(1) = 0; // left velocity
-         values(2) = 1000; // left pressure
+         values(0) = 1;
+         values(1) = 0;
+         values(2) = 1000;
       }
       else if(p[0] > 0.9)
       {
-         values(0) = 1; // right density
-         values(1) = 0; // right velocity
-         values(2) = 100; // right pressure
+         values(0) = 1;
+         values(1) = 0;
+         values(2) = 100;
       }
       else
       {
-         values(0) = 1; // right density
-         values(1) = 0; // right velocity
-         values(2) = 0.01; // right pressure
+         values(0) = 1;
+         values(1) = 0;
+         values(2) = 0.01;
       }
    }
    else if(test_case == "shuosher")
@@ -230,6 +234,8 @@ private:
    void compute_averages ();
    void compute_dt ();
    void apply_limiter ();
+   void apply_limiter_TVB ();
+   void apply_limiter_BDF ();
    void apply_positivity_limiter ();
    void update (const unsigned int rk_stage);
    void output_results () const;
@@ -243,6 +249,7 @@ private:
    double               min_residue;
    unsigned int         n_rk_stages;
    FluxType             flux_type;
+   string               limiter;
    bool                 lim_char, lim_pos;
    bool                 lbc_reflect, rbc_reflect;
    unsigned int         save_freq;
@@ -265,12 +272,12 @@ private:
    Vector<double>       rhs_momentum;
    Vector<double>       rhs_energy;
    
-   std::vector< Vector<double> > density_average;
-   std::vector< Vector<double> > momentum_average;
-   std::vector< Vector<double> > energy_average;
+   std::vector<double>  density_average;
+   std::vector<double>  momentum_average;
+   std::vector<double>  energy_average;
    
-   std::vector<double> residual;
-   std::vector<double> residual0;
+   std::vector<double>  residual;
+   std::vector<double>  residual0;
    
    typename DoFHandler<dim>::active_cell_iterator firstc, lastc;
    std::vector<typename DoFHandler<dim>::active_cell_iterator> lcell, rcell;
@@ -296,6 +303,9 @@ EulerProblem<dim>::EulerProblem (unsigned int degree,
    cfl      = prm.get_double("cfl");
    double M = prm.get_double("M");
    save_freq= prm.get_integer("save frequency");
+   limiter  = prm.get("limiter");
+
+   if(limiter == "BDF") M = 0.0;
    
    n_rk_stages = 3;
    flux_type = kfvs;
@@ -461,9 +471,9 @@ void EulerProblem<dim>::make_grid_and_dofs ()
     energy_old.reinit (dof_handler.n_dofs());
     rhs_energy.reinit (dof_handler.n_dofs());   
    
-    density_average.resize (triangulation.n_cells(), Vector<double>(fe.degree+1));
-    momentum_average.resize (triangulation.n_cells(), Vector<double>(fe.degree+1));
-    energy_average.resize (triangulation.n_cells(), Vector<double>(fe.degree+1));
+    density_average.resize (triangulation.n_cells());
+    momentum_average.resize (triangulation.n_cells());
+    energy_average.resize (triangulation.n_cells());
    
     residual.resize(3, 1.0);
     residual0.resize(3);
@@ -992,20 +1002,12 @@ void EulerProblem<dim>::assemble_rhs ()
 
 //------------------------------------------------------------------------------
 // Compute cell average values
+// For Legendre, first dof is cell average value
 //------------------------------------------------------------------------------
 template <int dim>
 void EulerProblem<dim>::compute_averages ()
 {
-   QGauss<dim>  quadrature_formula(fe.degree+1);
-      
-   FEValues<dim> fe_values (fe, quadrature_formula,
-                            update_values   | update_gradients |
-                            update_quadrature_points | 
-                            update_JxW_values);
-   
    const unsigned int   dofs_per_cell = fe.dofs_per_cell;
-   const unsigned int   n_q_points    = quadrature_formula.size();
-      
    std::vector<unsigned int> local_dof_indices (dofs_per_cell);
    
    typename DoFHandler<dim>::active_cell_iterator 
@@ -1014,42 +1016,28 @@ void EulerProblem<dim>::compute_averages ()
    
    for (unsigned int c=0; cell!=endc; ++c, ++cell)
    {
-      fe_values.reinit (cell);
       cell->get_dof_indices (local_dof_indices);
       
-      density_average[c] = 0.0;
-      momentum_average[c] = 0.0;
-      energy_average[c] = 0.0;
-      for(unsigned int point=0; point<n_q_points; ++point)
-         for(unsigned int i=0; i<dofs_per_cell; ++i)
-         {
-            density_average[c](0) += density(local_dof_indices[i]) * 
-                                     fe_values.shape_value (i, point) *
-                                     fe_values.JxW (point);
-            momentum_average[c](0) += momentum(local_dof_indices[i]) * 
-                                      fe_values.shape_value (i, point) *
-                                      fe_values.JxW (point);
-            energy_average[c](0) += energy(local_dof_indices[i]) * 
-                                    fe_values.shape_value (i, point) *
-                                    fe_values.JxW (point);
-            
-            if(fe.degree >= 1) // compute average gradient
-            {
-               density_average[c](1) += density(local_dof_indices[i]) * 
-                                        fe_values.shape_grad (i, point)[0] *
-                                        fe_values.JxW (point);
-               momentum_average[c](1) += momentum(local_dof_indices[i]) * 
-                                         fe_values.shape_grad (i, point)[0] *
-                                         fe_values.JxW (point);
-               energy_average[c](1) += energy(local_dof_indices[i]) * 
-                                       fe_values.shape_grad (i, point)[0] *
-                                       fe_values.JxW (point);
-            }
-         }
-      
-      density_average[c]  /= dx;
-      momentum_average[c] /= dx;
-      energy_average[c]   /= dx;
+      density_average[c]  = density  (local_dof_indices[0]);
+      momentum_average[c] = momentum (local_dof_indices[0]);
+      energy_average[c]   = energy   (local_dof_indices[0]);
+   }
+}
+
+//------------------------------------------------------------------------------
+// Apply chosen limiter
+//------------------------------------------------------------------------------
+template <int dim>
+void EulerProblem<dim>::apply_limiter ()
+{
+   if(limiter == "TVB")
+      apply_limiter_TVB ();
+   else if(limiter == "BDF")
+      apply_limiter_BDF ();
+   else
+   {
+      std::cout << "Unknown limiter\n";
+      exit(0);
    }
 }
 
@@ -1058,7 +1046,7 @@ void EulerProblem<dim>::compute_averages ()
 // currently works only for P1/P2 case
 //------------------------------------------------------------------------------
 template <int dim>
-void EulerProblem<dim>::apply_limiter ()
+void EulerProblem<dim>::apply_limiter_TVB ()
 {
    if(fe.degree == 0) return;
    
@@ -1093,65 +1081,65 @@ void EulerProblem<dim>::apply_limiter ()
       
       if(c==0)
       {
-         density_left = density_average[c](0);
+         density_left = density_average[c];
          if(lbc_reflect)
-            momentum_left = -momentum_average[c](0);
+            momentum_left = -momentum_average[c];
          else
-            momentum_left = momentum_average[c](0);
-         energy_left = energy_average[c](0);
+            momentum_left = momentum_average[c];
+         energy_left = energy_average[c];
          
-         density_right = density_average[c+1](0);
-         momentum_right = momentum_average[c+1](0);
-         energy_right = energy_average[c+1](0);
+         density_right = density_average[c+1];
+         momentum_right = momentum_average[c+1];
+         energy_right = energy_average[c+1];
       }
       else if(c == n_cells-1)
       {
-         density_left = density_average[c-1](0);
-         momentum_left = momentum_average[c-1](0);
-         energy_left = energy_average[c-1](0);
+         density_left = density_average[c-1];
+         momentum_left = momentum_average[c-1];
+         energy_left = energy_average[c-1];
          
-         density_right = density_average[c](0);
+         density_right = density_average[c];
          if(rbc_reflect)
-            momentum_right = -momentum_average[c](0);
+            momentum_right = -momentum_average[c];
          else
-            momentum_right = momentum_average[c](0);
-         energy_right = energy_average[c](0);
+            momentum_right = momentum_average[c];
+         energy_right = energy_average[c];
       }
       else
       {
-         density_left = density_average[c-1](0);
-         momentum_left = momentum_average[c-1](0);
-         energy_left = energy_average[c-1](0);
+         density_left = density_average[c-1];
+         momentum_left = momentum_average[c-1];
+         energy_left = energy_average[c-1];
          
-         density_right = density_average[c+1](0);
-         momentum_right = momentum_average[c+1](0);
-         energy_right = energy_average[c+1](0);
+         density_right = density_average[c+1];
+         momentum_right = momentum_average[c+1];
+         energy_right = energy_average[c+1];
       }
       
       // density
-      db[0] = density_average[c](0) - density_left;
-      df[0] = density_right - density_average[c](0);
-      DB[0] = density_average[c](0) - density_face_values[0];
-      DF[0] = density_face_values[1] - density_average[c](0);
+      db[0] = density_average[c] - density_left;
+      df[0] = density_right - density_average[c];
+      DB[0] = density_average[c] - density_face_values[0];
+      DF[0] = density_face_values[1] - density_average[c];
       
       // momentum
-      db[1] = momentum_average[c](0) - momentum_left;
-      df[1] = momentum_right - momentum_average[c](0);
-      DB[1] = momentum_average[c](0) - momentum_face_values[0];
-      DF[1] = momentum_face_values[1] - momentum_average[c](0);
+      db[1] = momentum_average[c] - momentum_left;
+      df[1] = momentum_right - momentum_average[c];
+      DB[1] = momentum_average[c] - momentum_face_values[0];
+      DF[1] = momentum_face_values[1] - momentum_average[c];
       
       // energy
-      db[2] = energy_average[c](0) - energy_left;
-      df[2] = energy_right - energy_average[c](0);
-      DB[2] = energy_average[c](0) - energy_face_values[0];
-      DF[2] = energy_face_values[1] - energy_average[c](0);
+      db[2] = energy_average[c] - energy_left;
+      df[2] = energy_right - energy_average[c];
+      DB[2] = energy_average[c] - energy_face_values[0];
+      DF[2] = energy_face_values[1] - energy_average[c];
 
       double R[n_var][n_var], Ri[n_var][n_var];
       if(lim_char)
       {
-         EigMat(density_average[c](0), 
-                momentum_average[c](0), 
-                energy_average[c](0), R, Ri);
+         EigMat(density_average[c], 
+                momentum_average[c], 
+                energy_average[c], R, Ri);
          Multi(Ri, db);
          Multi(Ri, df);
          Multi(Ri, DB);
@@ -1194,6 +1182,131 @@ void EulerProblem<dim>::apply_limiter ()
       
    }
 }
+//------------------------------------------------------------------------------
+// Apply moment limiter of Biswas, Devine, Flaherty
+//------------------------------------------------------------------------------
+template <int dim>
+void EulerProblem<dim>::apply_limiter_BDF ()
+{
+   if(fe.degree == 0) return;
+   
+   const unsigned int   dofs_per_cell = fe.dofs_per_cell;   
+   std::vector<unsigned int> local_dof_indices (dofs_per_cell);
+   std::vector<unsigned int> left_dof_indices (dofs_per_cell);
+   std::vector<unsigned int> right_dof_indices (dofs_per_cell);
+   
+   std::vector< std::vector<double> > db(dofs_per_cell, std::vector<double>(n_var));
+   std::vector< std::vector<double> > df(dofs_per_cell, std::vector<double>(n_var));
+   std::vector< std::vector<double> > DC(dofs_per_cell, std::vector<double>(n_var));
+
+   // Temporary storage
+   Vector<double> density_n(dof_handler.n_dofs());
+   Vector<double> momentum_n(dof_handler.n_dofs());
+   Vector<double> energy_n(dof_handler.n_dofs());
+
+   typename DoFHandler<dim>::active_cell_iterator 
+      cell = dof_handler.begin_active(),
+      endc = dof_handler.end();
+   
+   for (unsigned int c=0; c<n_cells; ++c, ++cell)
+   {
+      cell->get_dof_indices (local_dof_indices);
+      
+      if(c==0)
+      {
+         rcell[c]->get_dof_indices (right_dof_indices);
+         for(unsigned int i=0; i<dofs_per_cell; ++i)
+         {
+            db[i][0] = 0.0;
+            if(lbc_reflect)
+               db[i][1] = 2.0*momentum(local_dof_indices[i]);
+            else
+               db[i][1] = 0.0;
+            db[i][2] = 0.0;
+
+            df[i][0] = density(right_dof_indices[i]) - density(local_dof_indices[i]);
+            df[i][1] = momentum(right_dof_indices[i]) - momentum(local_dof_indices[i]);
+            df[i][2] = energy(right_dof_indices[i]) - energy(local_dof_indices[i]);
+         }
+      }
+      else if(c == n_cells-1)
+      {
+         lcell[c]->get_dof_indices (left_dof_indices);
+         for(unsigned int i=0; i<dofs_per_cell; ++i)
+         {
+            db[i][0] = density(local_dof_indices[i]) - density(left_dof_indices[i]);
+            db[i][1] = momentum(local_dof_indices[i]) - momentum(left_dof_indices[i]);
+            db[i][2] = energy(local_dof_indices[i]) - energy(left_dof_indices[i]);
+
+            df[i][0] = 0.0;
+            if(rbc_reflect)
+               df[i][1] = 2.0*momentum(local_dof_indices[i]);
+            else
+               df[i][1] = 0.0;
+            df[i][2] = 0.0;
+         }
+      }
+      else
+      {
+         lcell[c]->get_dof_indices (left_dof_indices);
+         rcell[c]->get_dof_indices (right_dof_indices);
+         for(unsigned int i=0; i<dofs_per_cell; ++i)
+         {
+            db[i][0] = density(local_dof_indices[i]) - density(left_dof_indices[i]);
+            db[i][1] = momentum(local_dof_indices[i]) - momentum(left_dof_indices[i]);
+            db[i][2] = energy(local_dof_indices[i]) - energy(left_dof_indices[i]);
+
+            df[i][0] = density(right_dof_indices[i]) - density(local_dof_indices[i]);
+            df[i][1] = momentum(right_dof_indices[i]) - momentum(local_dof_indices[i]);
+            df[i][2] = energy(right_dof_indices[i]) - energy(local_dof_indices[i]);
+         }
+      }
+      
+      for(unsigned int i=0; i<dofs_per_cell; ++i)
+      {
+         DC[i][0] = density(local_dof_indices[i]);
+         DC[i][1] = momentum(local_dof_indices[i]);
+         DC[i][2] = energy(local_dof_indices[i]);
+      }
+
+      double R[n_var][n_var], Ri[n_var][n_var];
+      if(lim_char)
+      {
+         EigMat(density_average[c], 
+                momentum_average[c], 
+                energy_average[c], R, Ri);
+         for(unsigned int i=0; i<dofs_per_cell; ++i)
+         {
+            Multi(Ri, db[i]);
+            Multi(Ri, df[i]);
+            Multi(Ri, DC[i]);
+         }
+      }
+
+      // cell average value is unchanged
+      density_n(local_dof_indices[0])  = density(local_dof_indices[0]);
+      momentum_n(local_dof_indices[0]) = momentum(local_dof_indices[0]);
+      energy_n(local_dof_indices[0])   = energy(local_dof_indices[0]);
+
+      for(unsigned int i=dofs_per_cell-1; i>=1; --i)
+      {
+         double l = 2*i - 1;
+         DC[i][0] = minmod(l*DC[i][0], db[i-1][0], df[i-1][0])/l;
+         DC[i][1] = minmod(l*DC[i][1], db[i-1][1], df[i-1][1])/l;
+         DC[i][2] = minmod(l*DC[i][2], db[i-1][2], df[i-1][2])/l;
+         if(lim_char) Multi(R, DC[i]);
+         density_n(local_dof_indices[i])  = DC[i][0];
+         momentum_n(local_dof_indices[i]) = DC[i][1];
+         energy_n(local_dof_indices[i])   = DC[i][2];
+      }
+
+   }
+
+   // Now copy to main arrays
+   density = density_n;
+   momentum= momentum_n;
+   energy  = energy_n;
+}
 
 //------------------------------------------------------------------------------
 // Apply positivity limiter
@@ -1203,6 +1316,7 @@ void EulerProblem<dim>::apply_positivity_limiter ()
 {
    if(fe.degree == 0) return;
    
+   // Need 2N - 3 >= degree for the quadrature to be exact.
    unsigned int N = (fe.degree + 3)/2;
    if((fe.degree+3)%2 != 0) N += 1;
    QGaussLobatto<dim>  quadrature_formula(N);
@@ -1217,15 +1331,15 @@ void EulerProblem<dim>::apply_positivity_limiter ()
    double eps = 1.0e-10;
    for (unsigned int c=0; c<n_cells; ++c)
    {
-      double velocity = momentum_average[c](0) / density_average[c](0);
-      double pressure = (gas_gamma-1.0) * ( energy_average[c](0) -
-                                           0.5 * momentum_average[c](0) * velocity );
-      eps = std::min(eps, density_average[c](0));
+      double velocity = momentum_average[c] / density_average[c];
+      double pressure = (gas_gamma-1.0) * ( energy_average[c] -
+                                           0.5 * momentum_average[c] * velocity );
+      eps = std::min(eps, density_average[c]);
       eps = std::min(eps, pressure);
    }
    if(eps < 0.0)
    {
-      std::cout << "Negative states\n";
+      std::cout << "Fatal: Negative states\n";
       exit(0);
    }
 
@@ -1246,8 +1360,9 @@ void EulerProblem<dim>::apply_positivity_limiter ()
       for(unsigned int q=0; q<n_q_points; ++q)
          rho_min = std::min(rho_min, density_values[q]);
       
-      double theta1 =
-         std::min(std::fabs((density_average[c](0) - eps)/(density_average[c](0) - rho_min)), 1.0);
+      double rat = std::fabs(density_average[c] - eps) /
+                   (std::fabs(density_average[c] - rho_min) + 1.0e-13);
+      double theta1 = std::min(rat, 1.0);
       
       for(unsigned int i=1; i<dofs_per_cell; ++i)
          density(local_dof_indices[i]) *= theta1;
@@ -1264,9 +1379,9 @@ void EulerProblem<dim>::apply_positivity_limiter ()
                               0.5*std::pow(momentum_values[q],2)/density_values[q]);
          if(pressure < eps)
          {
-            double drho = density_average[c](0) - density_values[q];
-            double dm = momentum_average[c](0) - momentum_values[q];
-            double dE = energy_average[c](0) - energy_values[q];
+            double drho = density_average[c] - density_values[q];
+            double dm = momentum_average[c] - momentum_values[q];
+            double dE = energy_average[c] - energy_values[q];
             double a1 = 2.0*drho*dE - dm*dm;
             double b1 = 2.0*energy_values[q]*drho + 2.0*density_values[q]*dE
                         - 2.0*momentum_values[q]*dm - 2.0*eps*drho/(gas_gamma-1.0);
@@ -1291,10 +1406,6 @@ void EulerProblem<dim>::apply_positivity_limiter ()
             t = std::min(1.0, t);
             t = std::max(0.0, t);
             theta2 = std::min(theta2, 1.0-t);
-               std::cout << "Problem t1, t2 = " << t1 << " " << t2 << "\n";
-               std::cout << "eps, rho_min = " << eps << " " << rho_min << "\n";
-               std::cout << "theta1,theta2 = " << theta1 << " " << theta2 << "\n";
-               std::cout << "pressure = " << pressure << "\n";
          }
       }
       
@@ -1317,10 +1428,10 @@ void EulerProblem<dim>::compute_dt ()
    dt = 1.0e20;
    for(unsigned int i=0; i<n_cells; ++i)
    {
-      double velocity = momentum_average[i](0) / density_average[i](0);
-      double pressure = (gas_gamma-1.0) * ( energy_average[i](0) -
-                        0.5 * momentum_average[i](0) * velocity );
-      double sonic = std::sqrt ( gas_gamma * pressure / density_average[i](0) );
+      double velocity = momentum_average[i] / density_average[i];
+      double pressure = (gas_gamma-1.0) * ( energy_average[i] -
+                        0.5 * momentum_average[i] * velocity );
+      double sonic = std::sqrt ( gas_gamma * pressure / density_average[i] );
       double speed = std::fabs(velocity) + sonic;
       dt = std::min (dt, dx/speed);
    }
@@ -1353,6 +1464,7 @@ void EulerProblem<dim>::update (const unsigned int rk_stage)
 template <int dim>
 void EulerProblem<dim>::output_results () const
 {
+   // counter to set file name
    static unsigned int c = 0;
    
    Vector<double> velocity(dof_handler.n_dofs());
@@ -1382,7 +1494,6 @@ void EulerProblem<dim>::output_results () const
    std::ofstream output (filename);
    data_out.write_gnuplot (output);
    ++c;
-   
 }
 
 //------------------------------------------------------------------------------
@@ -1459,6 +1570,9 @@ void declare_parameters(ParameterHandler& prm)
    prm.declare_entry("test case","sod", 
                      Patterns::Selection("sod|lowd|blast|blastwc|lax|shuosher"),
                      "Test case");
+   prm.declare_entry("limiter","TVB", 
+                     Patterns::Selection("TVB|BDF"),
+                     "limiter");
    prm.declare_entry("characteristic limiter", "false",
                      Patterns::Bool(), "Characteristic limiter");
    prm.declare_entry("positivity limiter", "false",
