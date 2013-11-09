@@ -172,6 +172,21 @@ void InitialCondition<dim>::vector_value (const Point<dim>   &p,
          values(2) = p_right;
       }
    }
+   else if(test_case == "sedov")
+   {
+      if(p[0] < xmid)
+      {
+         values(0) = d_left;
+         values(1) = u_left;
+         values(2) = p_left;
+      }
+      else
+      {
+         values(0) = d_right;
+         values(1) = u_right;
+         values(2) = p_right;
+      }
+   }
    else if(test_case == "blast")
    {
       if(p[0] < 0.1)
@@ -406,7 +421,6 @@ EulerProblem<dim>::EulerProblem (unsigned int degree,
       xmid    = 0.7;
       final_time = 0.012;
       min_residue= 1.0e20;
-      cfl      = 0.8;
       
       gas_gamma = 1.4;
       gas_const = 1.0;
@@ -419,9 +433,28 @@ EulerProblem<dim>::EulerProblem (unsigned int degree,
       
       p_left  = 1000.0;
       p_right = 0.01;
-      save_freq = 10;
-      M = 500.0;
+   }
+   else if(test_case == "sedov")
+   {
+      xmin    = 0;
+      xmax    = 2.0;
+      xmid    = 4.0e-3;
+      final_time = 1.0;
+      min_residue= 1.0e20;
       
+      gas_gamma = 1.4;
+      gas_const = 1.0;
+      
+      d_left  = 1.0;
+      d_right = 1.0;
+      
+      u_left  = 0.0;
+      u_right = 0.0;
+      
+      p_left  = 1.6e6;
+      p_right = 1.6e-6;
+      lbc_reflect = true;
+      rbc_reflect = false;
    }
    else
    {
@@ -1290,16 +1323,20 @@ void EulerProblem<dim>::apply_limiter_BDF ()
       momentum_n(local_dof_indices[0]) = momentum(local_dof_indices[0]);
       energy_n(local_dof_indices[0])   = energy(local_dof_indices[0]);
 
+      // Legendre in deal.ii is normalized. Moment limiter is BDF paper is
+      // given for non-normalized basis functions. We apply correct
+      // transformation here to account for this difference
       bool to_limit = true;
       for(unsigned int i=dofs_per_cell-1; i>=1; --i)
       {
          if(to_limit)
          {
-            double l = 2*i - 1;
+            double l = (2*i - 1)*std::sqrt(2*i+1);
+            double s = std::sqrt(2*i-1);
             std::vector<double> dcn(n_var);
-            dcn[0] = minmod(l*DC[i][0], db[i-1][0], df[i-1][0])/l;
-            dcn[1] = minmod(l*DC[i][1], db[i-1][1], df[i-1][1])/l;
-            dcn[2] = minmod(l*DC[i][2], db[i-1][2], df[i-1][2])/l;
+            dcn[0] = minmod(l*DC[i][0], s*(db[i-1][0]), s*(df[i-1][0]))/l;
+            dcn[1] = minmod(l*DC[i][1], s*(db[i-1][1]), s*(df[i-1][1]))/l;
+            dcn[2] = minmod(l*DC[i][2], s*(db[i-1][2]), s*(df[i-1][2]))/l;
             double diff = std::fabs(dcn[0]-DC[i][0]) 
                         + std::fabs(dcn[1]-DC[i][1])
                         + std::fabs(dcn[2]-DC[i][2]);
@@ -1611,7 +1648,7 @@ void declare_parameters(ParameterHandler& prm)
    prm.declare_entry("save frequency","100000", Patterns::Integer(0,100000),
                      "How often to save solution");
    prm.declare_entry("test case","sod", 
-                     Patterns::Selection("sod|lowd|blast|blastwc|lax|shuosher"),
+                     Patterns::Selection("sod|lowd|blast|blastwc|lax|shuosher|sedov"),
                      "Test case");
    prm.declare_entry("limiter","TVB", 
                      Patterns::Selection("TVB|BDF"),

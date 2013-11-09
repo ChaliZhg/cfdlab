@@ -1,9 +1,10 @@
 set degree                 = 2
 set ncells                 = 200
 set test case              = sod
+set flux                   = kfvs
 set limiter                = BDF
 set characteristic limiter = true
 set positivity limiter     = false
-set M                      = 500.0
+set M                      = 0.0
 set cfl                    = 0.4
 set save frequency         = 10
