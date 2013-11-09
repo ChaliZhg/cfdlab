@@ -1,6 +1,8 @@
 set degree                 = 1
 set ncells                 = 200
 set test case              = lax
+set flux                   = kfvs
+set limiter                = TVB
 set characteristic limiter = true
 set positivity limiter     = false
 set M                      = 0.0

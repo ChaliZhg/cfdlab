@@ -1,6 +1,7 @@
 set degree                 = 2
 set ncells                 = 200
 set test case              = shuosher
+set flux                   = kfvs
 set limiter                = TVB
 set characteristic limiter = true
 set positivity limiter     = false
