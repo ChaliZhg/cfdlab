@@ -47,6 +47,9 @@ double d_right, u_right, p_right;
 double xmin, xmax, xmid;
 double Mdx2; // for TVB limiter
 
+// used in sedov problem
+double pc, xc_l, xc_r;
+
 // Coefficients for 3-stage SSP RK scheme of Shu-Osher
 const double a_rk[3] = {0.0, 3.0/4.0, 1.0/3.0};
 const double b_rk[3] = {1.0, 1.0/4.0, 2.0/3.0};
@@ -174,18 +177,11 @@ void InitialCondition<dim>::vector_value (const Point<dim>   &p,
    }
    else if(test_case == "sedov")
    {
-      if(p[0] < xmid)
-      {
-         values(0) = d_left;
-         values(1) = u_left;
-         values(2) = p_left;
-      }
-      else
-      {
-         values(0) = d_right;
-         values(1) = u_right;
-         values(2) = p_right;
-      }
+      values(0) = 1.0;
+      values(1) = 0.0;
+      values(2) = 1.0e-12 * (gas_gamma-1.0);
+      if(p[0] < xc_r && p[0] > xc_l)
+         values(2) = pc;
    }
    else if(test_case == "blast")
    {
@@ -436,25 +432,22 @@ EulerProblem<dim>::EulerProblem (unsigned int degree,
    }
    else if(test_case == "sedov")
    {
-      xmin    = 0;
-      xmax    = 2.0;
-      xmid    = 4.0e-3;
-      final_time = 1.0;
+      xmin    = -2.0;
+      xmax    =  2.0;
+      final_time = 0.001;
       min_residue= 1.0e20;
       
       gas_gamma = 1.4;
       gas_const = 1.0;
-      
-      d_left  = 1.0;
-      d_right = 1.0;
-      
-      u_left  = 0.0;
-      u_right = 0.0;
-      
-      p_left  = 1.6e6;
-      p_right = 1.6e-6;
-      lbc_reflect = true;
-      rbc_reflect = false;
+
+      AssertThrow( n_cells%2 == 1, ExcMessage("n_cells must be odd for sedov") );
+      dx   = (xmax - xmin) / n_cells;
+      // Energy in central cell
+      double E0 = 3200000.0/dx;
+      // Put in global variables
+      pc   = E0 * (gas_gamma-1.0);
+      xc_l = -0.5*dx;
+      xc_r = +0.5*dx;
    }
    else
    {
@@ -1382,7 +1375,7 @@ void EulerProblem<dim>::apply_positivity_limiter ()
    const unsigned int   dofs_per_cell = fe.dofs_per_cell;
    std::vector<unsigned int> local_dof_indices (dofs_per_cell);
    
-   double eps = 1.0e-10;
+   double eps = 1.0e-13;
    for (unsigned int c=0; c<n_cells; ++c)
    {
       double velocity = momentum_average[c] / density_average[c];
@@ -1433,13 +1426,16 @@ void EulerProblem<dim>::apply_positivity_limiter ()
                               0.5*std::pow(momentum_values[q],2)/density_values[q]);
          if(pressure < eps)
          {
-            double drho = density_average[c] - density_values[q];
-            double dm = momentum_average[c] - momentum_values[q];
-            double dE = energy_average[c] - energy_values[q];
+            double drho = density_values[q] - density_average[c];
+            double dm = momentum_values[q] - momentum_average[c];
+            double dE = energy_values[q] - energy_average[c];
             double a1 = 2.0*drho*dE - dm*dm;
-            double b1 = 2.0*energy_values[q]*drho + 2.0*density_values[q]*dE
-                        - 2.0*momentum_values[q]*dm - 2.0*eps*drho/(gas_gamma-1.0);
-            double c1 = 2.0*(pressure-eps)*density_values[q]/(gas_gamma-1.0);
+            double b1 = 2.0*drho*(energy_average[c] - eps/(gas_gamma-1.0))
+                        + 2.0*density_average[c]*dE
+                        - 2.0*momentum_average[c]*dm;
+            double c1 = 2.0*density_average[c]*energy_average[c]
+                        - momentum_average[c]*momentum_average[c]
+                        - 2.0*eps*density_average[c]/(gas_gamma-1.0);
             double D = std::sqrt( std::fabs(b1*b1 - 4.0*a1*c1) );
             double t1 = 0.5*(-b1 - D)/a1;
             double t2 = 0.5*(-b1 + D)/a1;
@@ -1459,7 +1455,11 @@ void EulerProblem<dim>::apply_positivity_limiter ()
             // t should strictly lie in [0,1]
             t = std::min(1.0, t);
             t = std::max(0.0, t);
-            theta2 = std::min(theta2, 1.0-t);
+            // Need t < 1.0. If t==1 upto machine precision
+            // then we are suffering from round off error.
+            // In this case we take the cell average value, t=0.
+            if(std::fabs(1.0-t) < 1.0e-14) t = 0.0;
+            theta2 = std::min(theta2, t);
          }
       }
       
@@ -1587,9 +1587,9 @@ void EulerProblem<dim>::run ()
     make_grid_and_dofs();
     assemble_mass_matrix ();
     initialize ();
-    output_results ();
     compute_averages ();
     apply_limiter ();
+    output_results ();
 
     double time = 0.0;
     unsigned int iter = 0;
