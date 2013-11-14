@@ -10,7 +10,7 @@ c-----------------------------------------------------------------------
       include 'TOTAL'
       include 'NEKUSE'
       common /mygeom/ xmin,xmax
-      common /myparam/ r_k,r_T,Uq,Rey_no,Pr_no,Sc_no,visc_rat
+      common /myparam/ smlen,r_k,r_T,Uq,Rey_no,Pr_no,Sc_no,visc_rat
 
 c     Clip concentration to interval [0,1]
       sc    = max(0.0, ps(1))
@@ -116,15 +116,15 @@ c-----------------------------------------------------------------------
       include 'SIZE'
       include 'TOTAL'
       include 'NEKUSE'
-      common /myparam/ r_k,r_T,Uq,Rey_no,Pr_no,Sc_no,visc_rat
+      common /myparam/ smlen,r_k,r_T,Uq,Rey_no,Pr_no,Sc_no,visc_rat
 
       ux    = 4.0*Uq*y*(1.0-y)
       uy    = 0.0
       uz    = 0.0
       temp  = 0.0
 
-      if(ifield.eq.2)then      ! temperature
-         temp  = 0.0
+      if(ifield.eq.2)then      ! temperature: inlet=r_T, sides=0
+         temp  = r_T*(1.0 - erf(smlen*x))
       else if(ifield.eq.3)then ! passive scalar
          temp = 0.0
       endif
@@ -136,17 +136,14 @@ c-----------------------------------------------------------------------
       include 'SIZE'
       include 'TOTAL'
       include 'NEKUSE'
-      common /myparam/ r_k,r_T,Uq,Rey_no,Pr_no,Sc_no,visc_rat
-
-c     Length over which to smooth initial condition at inlet
-      smlen = 5.0
+      common /myparam/ smlen,r_k,r_T,Uq,Rey_no,Pr_no,Sc_no,visc_rat
 
       ux    = 4.0*Uq*y*(1.0-y)*(1.0 - erf(smlen*x))
       uy    = 0.0
       uz    = 0.0
 
-      if(ifield.eq.2)then       ! temperature
-         temp  = r_T
+      if(ifield.eq.2)then       ! temperature: inlet=r_T, sides=0
+         temp  = r_T*(1.0 - erf(smlen*x))
       else if(ifield.eq.3)then  ! passive scalar
          temp = erf(smlen*x)
       endif
@@ -157,10 +154,13 @@ c-----------------------------------------------------------------------
       subroutine usrdat
       include 'SIZE'
       include 'TOTAL'
-      common /myparam/ r_k,r_T,Uq,Rey_no,Pr_no,Sc_no,visc_rat
+      common /myparam/ smlen,r_k,r_T,Uq,Rey_no,Pr_no,Sc_no,visc_rat
 
       param(66) = 4
       param(67) = 4
+
+c     Length over which to smooth initial condition at inlet
+      smlen = 5.0
 
       r_k      = 1.0
       r_T      = 0.0
