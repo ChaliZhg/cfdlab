@@ -1,0 +1,13 @@
+genbox << EOF
+box.box
+EOF
+#
+cp box.rea channel.rea
+cp box.rea post.rea
+#
+genmap << EOF
+channel
+.01
+EOF
+#
+cp channel.map post.map
