@@ -1,0 +1,231 @@
+c Pressure driven miscible channel flow
+c
+c Inlet velocity Uq is chosen so that velocity based on mass flow rate
+c is unity
+c    Um = int_0^1 u(y) dy = 1.0
+c
+c-----------------------------------------------------------------------
+      subroutine uservp (ix,iy,iz,ieg)
+      include 'SIZE'
+      include 'TOTAL'
+      include 'NEKUSE'
+      common /mygeom/ xmin,xmax
+      common /myparam/ smlen,r_k,r_T,Uq,Rey_no,Pr_no,Sc_no,visc_rat
+
+c     Clip concentration to interval [0,1]
+      sc    = max(0.0, ps(1))
+      sc    = min(1.0, sc)
+
+      if(ifield.eq.1)then   ! momentum equation
+         utrans= 1.0
+         udiff = exp(sc*log(visc_rat) - temp)/Rey_no
+      else if(ifield.eq.2)then ! temperature eqn
+         utrans= 1.0
+         udiff = sc*(r_k - 1.0) + 1.0
+         udiff = udiff/(Rey_no*Pr_no)
+      else if(ifield.eq.3)then  ! passive scalar
+         utrans= 1.0
+         udiff = 1.0/(Rey_no*Sc_no)
+      else
+         if(nid.eq.0) write(6,'("Only 3 fields")')
+         call exitt()
+      endif
+
+      return
+      end
+c-----------------------------------------------------------------------
+      subroutine userf  (ix,iy,iz,ieg)
+      include 'SIZE'
+      include 'TOTAL'
+      include 'NEKUSE'
+
+      ffx = 0.0
+      ffy = 0.0
+      ffz = 0.0
+
+      return
+      end
+c-----------------------------------------------------------------------
+      subroutine userq  (ix,iy,iz,ieg)
+      include 'SIZE'
+      include 'TOTAL'
+      include 'NEKUSE'
+C
+      qvol   = 0.0
+      source = 0.0
+      return
+      end
+c-----------------------------------------------------------------------
+      subroutine userchk
+      include 'SIZE'  
+      include 'TOTAL' 
+      include 'RESTART' 
+      common /cwdata/ cwgt(lx1*ly1*lz1*lelt),ctot0
+
+      character*80 filename(9999)
+
+c     read file-list
+      if (nid.eq.0) then
+        call system("ls -1 *.fld* | wc -l > files.list")
+        call system("ls -1 *.fld* | sort -n -t d -k 2 >> files.list")
+        open(unit=199,file='file.list',form='formatted',status='old')
+        read(199,*) nfiles
+        read(199,'(A80)') (filename(i),i=1,nfiles)
+        close(199)
+      endif
+      call bcast(nfiles,isize)
+      call bcast(filename,nfiles*80) 
+
+      do i=1,nfiles
+         if(nid.eq.0) write(6,*) 'File', filename(i), 'loaded.'
+         call load_fld(filename(i))
+      enddo
+
+      call exitt()
+
+c     Calculate min, max values of concentration
+      if(mod(istep,10).eq.0)then
+         n    = nx1*ny1*nz1*nelt
+         cmin = glmin(t(1,1,1,1,2),n)
+         cmax = glmax(t(1,1,1,1,2),n)
+         if(nid.eq.0)then
+         write(6,'(5X,I6,5X,"Scalar min, max = ",2E12.4)') istep, 
+     1             cmin, cmax
+         endif
+      endif
+
+c     Clip the concentration to [0,1]
+      n    = nx1*ny1*nz1*nelt
+      do i=1,n
+         t(i,1,1,1,2) = max(0.0, t(i,1,1,1,2))
+         t(i,1,1,1,2) = min(1.0, t(i,1,1,1,2))
+      enddo
+
+c     Calculate total concentration
+c     Integrate c over regions where c > 0.95
+c     We put a smooth heaviside function
+      if(istep.eq.0.or.mod(istep,500).eq.0)then
+         xtip = 0.0
+         n    = nx1*ny1*nz1*nelt
+         do i=1,n
+            cc      = t(i,1,1,1,2) - 0.95
+            cwgt(i) = 0.5*(1.0 + erf(50.0*cc))
+            if(t(i,1,1,1,2).ge.0.95.and.t(i,1,1,1,2).lt.0.98)then
+               xtip = max(xtip, xm1(i,1,1,1))
+            endif
+         enddo
+         ctot = glsc3(t(1,1,1,1,2),cwgt,bm1,n)
+         if(istep.eq.0) ctot0 = ctot
+         xtip = glmax(xtip,1)
+         if(nid.eq.0)then
+            write(6,'(5X,"Time, ctot, xtip = ",3E14.6)') 
+     1               time, ctot/ctot0, xtip
+         endif
+      endif
+
+      return
+      end
+c-----------------------------------------------------------------------
+      subroutine userbc (ix,iy,iz,iside,ieg)
+      include 'SIZE'
+      include 'TOTAL'
+      include 'NEKUSE'
+      common /myparam/ smlen,r_k,r_T,Uq,Rey_no,Pr_no,Sc_no,visc_rat
+
+      ux    = 4.0*Uq*y*(1.0-y)
+      uy    = 0.0
+      uz    = 0.0
+      temp  = 0.0
+
+      if(ifield.eq.2)then      ! temperature: inlet=r_T, sides=0
+         temp  = r_T*(1.0 - erf(smlen*x))
+      else if(ifield.eq.3)then ! passive scalar
+         temp = 0.0
+      endif
+
+      return
+      end
+c-----------------------------------------------------------------------
+      subroutine useric (ix,iy,iz,ieg)
+      include 'SIZE'
+      include 'TOTAL'
+      include 'NEKUSE'
+      common /myparam/ smlen,r_k,r_T,Uq,Rey_no,Pr_no,Sc_no,visc_rat
+
+      ux    = 4.0*Uq*y*(1.0-y)*(1.0 - erf(smlen*x))
+      uy    = 0.0
+      uz    = 0.0
+
+      if(ifield.eq.2)then       ! temperature: inlet=r_T, sides=0
+         temp  = r_T*(1.0 - erf(smlen*x))
+      else if(ifield.eq.3)then  ! passive scalar
+         temp = erf(smlen*x)
+      endif
+
+      return
+      end
+c-----------------------------------------------------------------------
+      subroutine usrdat
+      include 'SIZE'
+      include 'TOTAL'
+      include 'ZPER'
+      common /myparam/ smlen,r_k,r_T,Uq,Rey_no,Pr_no,Sc_no,visc_rat
+
+      param(66) = 4
+      param(67) = 4
+
+c     Length over which to smooth initial condition at inlet
+      smlen = 5.0
+
+      r_k      = 1.0
+      r_T      = 0.0
+      Uq       = 1.5
+      Rey_no   = 500.0
+      Sc_no    = 100.0
+      Pr_no    = 7.0
+      visc_rat = 10.0
+
+c     Number of elements along x,y,x
+c     This is needed for averaging.
+      nelx = 256
+      nely = 16
+      nelz = 1
+
+c     Check total number of elements
+      if(nelx*nely.ne.nelgt)then
+         write(6,'(5X,"ABORT IN usrdat. Check nelx, nely, nelt.")')
+         write(6,'(5X,"nelx, nely = ",2I8)') nelx, nely
+         write(6,'(5X,"nelx*nely  = ",I8)') nelx*nely
+         write(6,'(5X,"nelgt      = ",I8)') nelgt
+         call exitt()
+      endif
+
+      if(nelx.lt.lelx.or.nely.lt.lely)then
+         write(6,'(5X,"nelx/nely < lelx/lely")')
+         write(6,'(5X,"nelx, nely = ",2I8)') nelx, nely
+         write(6,'(5X,"lelx, lely = ",2I8)') lelx, lely
+         call exitt()
+      endif
+
+      return
+      end
+c-----------------------------------------------------------------------
+      subroutine usrdat2
+      include 'SIZE'
+      include 'TOTAL'
+      common /mygeom/ xmin,xmax
+
+      ifuservp = .true.
+      ifstrs   = .true.
+
+      n    = nx1*ny1*nz1*nelv
+      xmin = glmin(xm1,n)
+      xmax = glmax(xm1,n)
+
+      return
+      end
+c-----------------------------------------------------------------------
+      subroutine usrdat3
+      return
+      end
+c-----------------------------------------------------------------------
