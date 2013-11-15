@@ -1,7 +1,7 @@
 import os
 os.system("grep Scalar channel.log > scalar.dat")
 
-lines = file('scalar.dat').readlines()
+lines = open('scalar.dat').readlines()
 smin     = []
 smax     = []
 for line in lines:
@@ -9,5 +9,5 @@ for line in lines:
    smin.append(float(s[5]))
    smax.append(float(s[6]))
 
-print "Scalar min =", min(smin)
-print "Scalar max =", max(smax)
+print("Scalar min =", min(smin))
+print("Scalar max =", max(smax))

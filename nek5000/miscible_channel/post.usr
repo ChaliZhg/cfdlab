@@ -63,11 +63,14 @@ c-----------------------------------------------------------------------
       common /cwdata/ cwgt(lx1*ly1*lz1*lelt),ctot0
 
       character*80 filename(9999)
+      parameter (lyavg = ly1*lz1*lely*lelz)
+      real ya(lyavg), ua(lyavg), ca(lyavg), w1(lyavg), 
+     1     w2(lyavg), mua(lyavg), Tempa(lyavg)
 
 c     read file-list
       if (nid.eq.0) then
-        call system("ls -1 *.fld* | wc -l > files.list")
-        call system("ls -1 *.fld* | sort -n -t d -k 2 >> files.list")
+        call system("ls -1 channel0.f* | wc -l > file.list")
+        call system("ls -1 channel0.f* >> file.list")
         open(unit=199,file='file.list',form='formatted',status='old')
         read(199,*) nfiles
         read(199,'(A80)') (filename(i),i=1,nfiles)
@@ -76,35 +79,28 @@ c     read file-list
       call bcast(nfiles,isize)
       call bcast(filename,nfiles*80) 
 
-      do i=1,nfiles
-         if(nid.eq.0) write(6,*) 'File', filename(i), 'loaded.'
-         call load_fld(filename(i))
-      enddo
-
-      call exitt()
-
-c     Calculate min, max values of concentration
-      if(mod(istep,10).eq.0)then
-         n    = nx1*ny1*nz1*nelt
-         cmin = glmin(t(1,1,1,1,2),n)
-         cmax = glmax(t(1,1,1,1,2),n)
-         if(nid.eq.0)then
-         write(6,'(5X,I6,5X,"Scalar min, max = ",2E12.4)') istep, 
-     1             cmin, cmax
-         endif
+      if(nid.eq.0)then
+         open(unit=500, file='xavg.dat')
+         open(unit=501, file='global.dat')
       endif
-
-c     Clip the concentration to [0,1]
-      n    = nx1*ny1*nz1*nelt
-      do i=1,n
-         t(i,1,1,1,2) = max(0.0, t(i,1,1,1,2))
-         t(i,1,1,1,2) = min(1.0, t(i,1,1,1,2))
-      enddo
+      do ifil=1,nfiles
+         call load_fld(filename(ifil))
+         if(nid.eq.0)then
+            write(6,*) 'Loaded file ', filename(ifil)
+            write(6,*) 'Time =', time
+         endif
+         call setprop
+         if(ifil.eq.1) call x_average(ya, ym1, w1, w2)
+         call x_average(ua, vx, w1, w2)
+         call x_average(ca, t(1,1,1,1,2), w1, w2)
+         call x_average(mua, vdiff(1,1,1,1,1), w1, w2)
+         call x_average(tempa, t(1,1,1,1,1), w1, w2)
+         if(nid.eq.0) 
+     1      call save_x_average(time, ya, ua, ca, mua, tempa)
 
 c     Calculate total concentration
 c     Integrate c over regions where c > 0.95
 c     We put a smooth heaviside function
-      if(istep.eq.0.or.mod(istep,500).eq.0)then
          xtip = 0.0
          n    = nx1*ny1*nz1*nelt
          do i=1,n
@@ -115,13 +111,14 @@ c     We put a smooth heaviside function
             endif
          enddo
          ctot = glsc3(t(1,1,1,1,2),cwgt,bm1,n)
-         if(istep.eq.0) ctot0 = ctot
+         if(ifil.eq.1) ctot0 = ctot
          xtip = glmax(xtip,1)
          if(nid.eq.0)then
-            write(6,'(5X,"Time, ctot, xtip = ",3E14.6)') 
-     1               time, ctot/ctot0, xtip
+            write(501,'(3E14.6)') time, ctot/ctot0, xtip
          endif
-      endif
+      enddo
+
+      call exitt()
 
       return
       end
@@ -171,8 +168,8 @@ c-----------------------------------------------------------------------
       include 'ZPER'
       common /myparam/ smlen,r_k,r_T,Uq,Rey_no,Pr_no,Sc_no,visc_rat
 
-      param(66) = 4
-      param(67) = 4
+      param(66) = 6
+      param(67) = 6
 
 c     Length over which to smooth initial condition at inlet
       smlen = 5.0
@@ -187,23 +184,18 @@ c     Length over which to smooth initial condition at inlet
 
 c     Number of elements along x,y,x
 c     This is needed for averaging.
-      nelx = 256
-      nely = 16
+      nelx = lelx
+      nely = lely
       nelz = 1
 
 c     Check total number of elements
       if(nelx*nely.ne.nelgt)then
-         write(6,'(5X,"ABORT IN usrdat. Check nelx, nely, nelt.")')
-         write(6,'(5X,"nelx, nely = ",2I8)') nelx, nely
-         write(6,'(5X,"nelx*nely  = ",I8)') nelx*nely
-         write(6,'(5X,"nelgt      = ",I8)') nelgt
-         call exitt()
-      endif
-
-      if(nelx.lt.lelx.or.nely.lt.lely)then
-         write(6,'(5X,"nelx/nely < lelx/lely")')
-         write(6,'(5X,"nelx, nely = ",2I8)') nelx, nely
-         write(6,'(5X,"lelx, lely = ",2I8)') lelx, lely
+         if(nid.eq.0)then
+            write(6,'(5X,"ABORT IN usrdat. Check nelx, nely, nelt.")')
+            write(6,'(5X,"nelx, nely = ",2I8)') nelx, nely
+            write(6,'(5X,"nelx*nely  = ",I8)') nelx*nely
+            write(6,'(5X,"nelgt      = ",I8)') nelgt
+         endif
          call exitt()
       endif
 
@@ -229,3 +221,28 @@ c-----------------------------------------------------------------------
       return
       end
 c-----------------------------------------------------------------------
+      subroutine save_x_average(cur_time, ya, ua, ca, mua, tempa)
+      include 'SIZE'
+      include 'ZPER'
+      real ya(ny1,nz1,nely,nelz)
+      real ua(ny1,nz1,nely,nelz)
+      real ca(ny1,nz1,nely,nelz)
+      real mua(ny1,nz1,nely,nelz)
+      real tempa(ny1,nz1,nely,nelz)
+      character*6  ctime
+      integer e
+
+      ix = 500
+      write(ctime,'(F6.2,5X)') cur_time
+      write(ix,*) '"',trim(ctime),'    ux" ',' "c" '
+      do e=1,nely
+         do j=1,ny1
+            write(ix,*) ya(j,1,e,1), ua(j,1,e,1), ca(j,1,e,1), 
+     1                  mua(j,1,e,1), tempa(j,1,e,1)
+         enddo
+      enddo
+      write(ix,*)
+      write(ix,*)
+
+      return
+      end
