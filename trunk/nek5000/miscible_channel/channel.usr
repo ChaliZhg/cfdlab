@@ -156,8 +156,8 @@ c-----------------------------------------------------------------------
       include 'TOTAL'
       common /myparam/ smlen,r_k,r_T,Uq,Rey_no,Pr_no,Sc_no,visc_rat
 
-      param(66) = 4
-      param(67) = 4
+      param(66) = 6
+      param(67) = 6
 
 c     Length over which to smooth initial condition at inlet
       smlen = 5.0

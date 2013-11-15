@@ -66,9 +66,9 @@
    0.00000     p062 >0 --> force byte_swap for output
    0.00000     p063 =8 --> force 8-byte output
    0.00000     p064 =1 --> perturbation restart
-  -2.00000     p065 #iofiles (eg, 0 or 64); <0 --> sep. dirs
-   4.00000     p066 output : <0=ascii, else binary
-   4.00000     p067 restart: <0=ascii, else binary
+   0.00000     p065 #iofiles (eg, 0 or 64); <0 --> sep. dirs
+   6.00000     p066 output : <0=ascii, else binary
+   6.00000     p067 restart: <0=ascii, else binary
    0.00000     p068 iastep: freq for avg_all (0=iostep)
    0.00000     p069 
    0.00000     p070 
