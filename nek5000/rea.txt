@@ -1,0 +1,169 @@
+The rea file contains the parameters used by nek5000. Some explanations can be found here
+
+http://nek5000.mcs.anl.gov/index.php/Reafile
+http://nek5000.mcs.anl.gov/index.php/Parameters
+
+Below, I have tried to fill in some gaps in the descriptions by looking at different
+examples in nek5000.
+
+0001  DENSITY     density for the case of constant properties (see parameter P030)
+P002  VISCOS      kinematic viscosity (1/Re if the reference values are used to define the Re number) 
+                  if <0, it defines the Reynolds number
+P003  BETAG       if >0, natural convection is turned on (Boussinesq approximation)
+P004  GTHETA      model parameter for Boussinesq approximation  (see parameter P003)
+P005  PGRADX      ?????
+P006              not used
+P007  RHOCP       ?????
+P008  CONDUCT     conductivity for the case of constant properties (see parameter P030) 
+                  if <0, it defines the Prandtl number
+P009              not used (passed to CPFLD(2,3)!)
+P010  FINTIME     if >0, specifies simulation end time. Otherwise, use NSTEP (P011)
+P011  NSTEP       number of time steps
+P012  DT          time step
+P013  IOCOMM      ?????
+P014  IOTIME      if >0, time interval to dump the fld file. Otherwise, use IOSTEP (P015)
+P015  IOSTEP      dump frequency, number of time steps between dumps 
+P016  PSSOLVER    heat/passive scalar solver: 
+                    1:  Helmholz 
+                    2:  CVODE
+                    3:  CVODE with user-supplied Jacobian
+                      NOTE: a negative number will set source terms to ZERO!
+P017              not used
+P018  GRID        < 0 --> # cells on screen
+P019  INTYPE      ?????
+P020  NORDER      not used (maybe used by prex)
+P021  DIVERGENCE  tolerance for the pressure solver
+P022  HELMHOLTZ   tolerance for the velocity solver
+P023  NPSCAL      number of passive scalars 
+P024  TOLREL      relative tolerance for the passive scalar solver (CVODE)
+P025  TOLABS      absolute tolerance for the passive scalar solver (CVODE)
+P026  COURANT     maximum Courant number (number of RK4 substeps if OIFS is used)
+P027  TORDER      temporal discretization order (2 or 3)
+P028  NABMSH      if 1, 2, or 3 use Adams-Bashforth of corresponding order. 
+                  Otherwise, extrapolation of order TORDER (P027)
+P029              if > 0, magnetic viscosity, if < 0 magnetic Reynolds number 
+P030              0: no user-defined properties
+                  1: user-defined properties via USERVP subroutine (each scalar separately)
+                  2: user-defined properties via USERVP subroutine (all scalars at once)
+P031  NPERT       if >0, number of modes of the perturbation of the linearized NS ?????
+P032              if >0, number of field for which BCs are specified in *.re2 file
+                  User's responsibility to provide BC's for all fields!
+P033              not used
+P034              not used
+P035              not used
+P036  XMAGNET     ?????
+P037  NGRIDS      ?????
+P038  NORDER2     ?????
+P039  NORDER3     ?????
+P040              not used
+P041              1-->multiplicative SEMG ?????
+P042              linear solver for the pressure equation 0 -> GMRES, 1 -> PCG
+P043              Pressure preconditioner
+                  0: semg, additive multilevel scheme 
+                  1: schwarz, original 2 level scheme
+P044              0=E-based/1=A-based preconditioner
+P045              Relaxation factor for DTFS
+P046              if >0, don't call subroutine SETICS  ?????
+P047  VNU         parameter for moving mesh (elastic material constant) ????
+P048              not used
+P049              if <0, mixing length factor (is there such a model?????)
+P050              not used
+P051              1: get_local_crs, else get_local_crs_galerkin ?????
+P052  IOHIS       if >1, history point dump frequency (in number of steps)
+P053              not used
+P054              for fixed mass flowrate, flow direction in vol_flow: 
+                  1: X-, 2: Y-, 3: Z-direction. If 0: X-direction
+                  Can be >0 or <0, see P055
+P055              bulk velocity for fixed mass flow rate ?????
+                  vol.flow rate (p54>0) or Ubar (p54<0)
+P056              not used
+P057              not used
+P058              not used
+P059              if !=0, deformed elements (only relevant for FDM)
+                          full Jac. eval. for each el.
+P060              if !=0, initialize velocity to 1e-10 (steady Stokes problem)
+P061              not used ?????
+P062              if>>0, swap bytes for output
+P063              real output wordsize (8: 8-byte reals, else 4-byte)
+P064              if !=1, set perturbations to zero ?????
+                      =1, perturbation restart
+P065              number of I/O nodes (if < 0 write in separate subdirectories)
+P066              Write format: <0: ASCII, >=0 binary
+P067              Restart read format (same as P066)
+P068  IASTEP      averaging frequency in avg_all (0=iostep)
+P069              frequency of srf dump
+P070
+P071
+P072
+P073
+P074              verbose print output of Helmholtz solver
+P075              eps for Laurette Tuckerman
+P076              critical Rayleigh Number
+P077              sqrt Taylor number
+P078              ntaupf ?????
+P079
+P080              1: additive multigrid, ????? 
+P081
+P082  NXC         coarse-grid dimension ?????
+P083              not used
+P084              if <0, force initial time step to this value ????
+                  !=0 --> sets initial timestep if p12>0
+P085              set dt in setdt ?????
+                  dt ratio if p84 !=0, for timesteps>0
+P086              if !=0, use skew-symmetric form, else convective form
+P087              if =1, use old convection operator, else use the new one
+P088              (EPREC2, navier3.f) ?????
+                  1 = no prec for E ?????
+P089              (DD_SOLVER, navier3.f) ????
+P090              not used
+P091              if >0, tolerance for preconditioner (EPREC) ????
+P092              not used
+P093              if >0, number of previous pressure solutions saved to use
+                  for residual projection (adjust MXPREF in SIZE accordingly)
+P094              if >0, start projecting velocity and passive scalars after P094 steps 
+P095              if >0, start projecting pressure after P095 steps
+P096              not used
+P097              not used
+P098              not used
+P099              dealiasing: 
+                    <0:  disable
+                     3:  old dealiasing
+                     4:  new dealiasing  
+P100              pressure preconditioner when using CG solver 
+                  (0: Jacobi, >0: two-level Schwarz)
+                  THIS SEEMS SIMILAR TO P043 ?????
+P101              number of additional modes to filter (0: only last mode)
+P102              If >0, dump out divergence at each time step
+P103              filter weight for last mode (<0: disabled)
+P104              if !=0, turn off Jacobi preconditioner (debugging purposes ????)
+P105              save previous solutions for projection ????
+P106              if !=0, dump difference between filtered and unfiltered variables in *.flt
+P107              if !=0, add it to h2 in sethlm  (WHY ?????)
+P108
+P109
+P110
+P111
+P112
+P113
+P114
+P115
+P116  NELX        number of elements in x for Fast Tensor Product FTP solver (0: do not use FTP)
+                  NOTE: box geometries, constant properties only!
+P117  NELY        number of elements in y for FTP
+P118  NELZ        number of elements in z for FTP
+ .
+ .                not used
+ .
+P125              orthogonalize perturbation norm (perturb.f) ????
+P126              time to start computing exponents 
+P127              not used
+P128              time to rescale (perturb.f) ????
+ .
+ .                not used
+ .
+P181              same as plan1 without nested iterations ?????
+ .
+ .                not used
+ .
+P199              scale out mass matrix (hmholtz.f) ?????
+P200              not used
