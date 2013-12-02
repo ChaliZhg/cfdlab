@@ -1,0 +1,10 @@
+genbox << EOF
+ray.box
+EOF
+#
+mv box.rea ray.rea
+#
+genmap << EOF
+ray
+.01
+EOF
