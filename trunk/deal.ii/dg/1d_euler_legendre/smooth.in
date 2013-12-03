@@ -1,0 +1,11 @@
+set degree                 = 1
+set ncells                 = 100
+set test case              = smooth
+set flux                   = kfvs
+set limiter                = None
+set characteristic limiter = true
+set positivity limiter     = false
+set M                      = 100.0
+set cfl                    = 0.8
+set save frequency         = 50
+set refine                 = 2

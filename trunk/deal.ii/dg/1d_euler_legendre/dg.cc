@@ -1,14 +1,11 @@
 /* 1d DG code for euler equations. This is not particularly efficient code.
    TODO : Use MeshWorker to assemble rhs.
    * Legendre basis functions
-   * TVD/TVB limiter for degree = 1,2
-   * Momentum limiter (BDF) for any degree
+   * TVD/TVB limiter
+   * Momentum limiter (BDF)
    * Characteristic based limiter
    * Positivity preserving limiter
    * Numerical fluxes: Lax-Friedrich, KFVS
-   *
-   * NOTE: Characteristic limiter is applied cell-wise. Standard approach
-   * is to apply it per face.
 */
 #include <grid/tria.h>
 #include <dofs/dof_handler.h>
@@ -56,7 +53,7 @@ const double b_rk[3] = {1.0, 1.0/4.0, 2.0/3.0};
 
 // Numerical flux functions
 enum FluxType {lxf, kfvs};
-enum TestCase {sod, blast, blastwc, lax, shuosher, lowd};
+enum TestCase {sod, blast, blastwc, lax, shuosher, lowd, smooth};
 
 //------------------------------------------------------------------------------
 // minmod of three numbers
@@ -137,7 +134,36 @@ void Multi(double R[][n_var], std::vector<double>& U)
          U[i] += R[i][j] * Ut[j];
    }
 }
+//------------------------------------------------------------------------------
+// Exact solution
+//------------------------------------------------------------------------------
+template <int dim>
+class ExactSolution : public Function<dim>
+{
+public:
+   ExactSolution () : Function<dim>() {}
+   
+   virtual double value (const Point<dim>   &p, const unsigned int component = 0) const;
+   virtual Tensor<1,dim> gradient (const Point<dim>   &p,
+                                   const unsigned int  component = 0) const;
+};
 
+template<int dim>
+double ExactSolution<dim>::value (const Point<dim>   &p, const unsigned int) const
+{
+   double x = p[0] - 2.0;
+   return 1.0 + 0.1*sin(4.0*M_PI*x);
+}
+
+template <int dim>
+Tensor<1,dim> ExactSolution<dim>::gradient (const Point<dim>   &p,
+                                       const unsigned int) const
+{
+   Tensor<1,dim> return_value(0.0);
+   double x = p[0] - 2.0;
+   return_value[0] = 0.1 * (4.0*M_PI) * cos(4.0*M_PI*x);
+   return return_value;
+}
 //------------------------------------------------------------------------------
 // Initial condition
 //------------------------------------------------------------------------------
@@ -219,6 +245,12 @@ void InitialCondition<dim>::vector_value (const Point<dim>   &p,
          values(2) = 1;
       }
    }
+   else if(test_case == "smooth")
+   {
+      values(0) = 1.0 + 0.1*sin(4.0*M_PI*p[0]);
+      values(1) = 1.0;
+      values(2) = 1.0;
+   }
    else
    {
       std::cout << "Unknown test case\n";
@@ -235,7 +267,7 @@ class EulerProblem
 {
 public:
    EulerProblem (unsigned int degree, const ParameterHandler& prm);
-   void run ();
+   void run (double& h, int& ndof, double& L2_error, double& H1_error);
    
 private:
    void make_grid_and_dofs ();
@@ -250,6 +282,7 @@ private:
    void apply_positivity_limiter ();
    void update (const unsigned int rk_stage);
    void output_results () const;
+   void compute_errors (double& L2_error, double& H1_error) const;
    
    unsigned int         n_cells;
    string               test_case;
@@ -262,7 +295,7 @@ private:
    FluxType             flux_type;
    string               limiter;
    bool                 lim_char, lim_pos;
-   bool                 lbc_reflect, rbc_reflect;
+   bool                 lbc_reflect, rbc_reflect, periodic;
    unsigned int         save_freq;
    
    
@@ -327,7 +360,8 @@ EulerProblem<dim>::EulerProblem (unsigned int degree,
    else if(flux == "lxf")
       flux_type = lxf;
    
-   lbc_reflect = rbc_reflect = false;
+   lbc_reflect = rbc_reflect = periodic = false;
+   min_residue= 1.0e20;
    
    if(test_case == "sod")
    {
@@ -335,7 +369,6 @@ EulerProblem<dim>::EulerProblem (unsigned int degree,
       xmax    = 1.0;
       xmid    = 0.5;
       final_time = 0.2;
-      min_residue= 1.0e20;
       
       gas_gamma = 1.4;
       gas_const = 1.0;
@@ -354,7 +387,6 @@ EulerProblem<dim>::EulerProblem (unsigned int degree,
       xmin    = 0.0;
       xmax    = 1.0;
       final_time = 0.038;
-      min_residue= 1.0e20;
       
       gas_gamma = 1.4;
       gas_const = 1.0;
@@ -365,7 +397,6 @@ EulerProblem<dim>::EulerProblem (unsigned int degree,
       xmin    = -5;
       xmax    = 5;
       final_time = 1.8;
-      min_residue= 1.0e20;
       
       gas_gamma = 1.4;
       gas_const = 1.0;
@@ -376,7 +407,6 @@ EulerProblem<dim>::EulerProblem (unsigned int degree,
       xmax    = 5;
       xmid    = 0.0;
       final_time = 1.3;
-      min_residue= 1.0e20;
       
       gas_gamma = 1.4;
       gas_const = 1.0;
@@ -396,7 +426,6 @@ EulerProblem<dim>::EulerProblem (unsigned int degree,
       xmax    = 1;
       xmid    = 0.5;
       final_time = 0.15;
-      min_residue= 1.0e20;
       
       gas_gamma = 1.4;
       gas_const = 1.0;
@@ -416,7 +445,6 @@ EulerProblem<dim>::EulerProblem (unsigned int degree,
       xmax    = 1.4;
       xmid    = 0.7;
       final_time = 0.012;
-      min_residue= 1.0e20;
       
       gas_gamma = 1.4;
       gas_const = 1.0;
@@ -435,7 +463,6 @@ EulerProblem<dim>::EulerProblem (unsigned int degree,
       xmin    = -2.0;
       xmax    =  2.0;
       final_time = 0.001;
-      min_residue= 1.0e20;
       
       gas_gamma = 1.4;
       gas_const = 1.0;
@@ -448,6 +475,17 @@ EulerProblem<dim>::EulerProblem (unsigned int degree,
       pc   = E0 * (gas_gamma-1.0);
       xc_l = -0.5*dx;
       xc_r = +0.5*dx;
+   }
+   else if(test_case == "smooth")
+   {
+      xmin    = 0.0;
+      xmax    = 1.0;
+      final_time = 2.0;
+      
+      gas_gamma = 1.4;
+      gas_const = 1.0;
+      
+      periodic = true;
    }
    else
    {
@@ -636,6 +674,7 @@ void EulerProblem<dim>::initialize ()
 //------------------------------------------------------------------------------
 // Assemble mass matrix for each cell
 // Invert it and store
+// For Legendre basis, mass matrix is diagonal
 //------------------------------------------------------------------------------
 template <int dim>
 void EulerProblem<dim>::assemble_mass_matrix ()
@@ -675,7 +714,7 @@ void EulerProblem<dim>::assemble_mass_matrix ()
 
 
 //------------------------------------------------------------------------------
-// Flux for NS equation
+// Flux for Euler equation
 //------------------------------------------------------------------------------
 void euler_flux (const double& density,
                  const double& momentum,
@@ -758,7 +797,7 @@ void kfvs_split_flux (const std::vector<double>& prim,
 
 }
 //------------------------------------------------------------------------------
-// KFVS flux for navier-stokes
+// KFVS flux
 //------------------------------------------------------------------------------
 void KFVSFlux (const Vector<double>& left_state,
                const Vector<double>& right_state,
@@ -799,11 +838,11 @@ void numerical_flux (const FluxType& flux_type,
 {
    switch (flux_type) 
    {
-      case lxf:
+      case lxf: // Lax-Friedrich flux
          LaxFlux (left_state, right_state, flux);
          break;
          
-      case kfvs:
+      case kfvs: // Kinetic flux of Mandal & Deshpande
          KFVSFlux (left_state, right_state, flux);
          break;
          
@@ -913,7 +952,7 @@ void EulerProblem<dim>::assemble_rhs ()
        lf_right_state(1) = momentum_values[0];
        lf_right_state(2) = energy_values  [0];
        
-       if(c==0)
+       if(c==0 && periodic==false)
        {
           if(lbc_reflect)
           {
@@ -926,15 +965,13 @@ void EulerProblem<dim>::assemble_rhs ()
              lf_left_state(0) = lf_right_state(0);
              lf_left_state(1) = lf_right_state(1);
              lf_left_state(2) = lf_right_state(2);
-//             lf_left_state(0) = d_left;
-//             lf_left_state(1) = d_left * u_left;
-//             lf_left_state(2) = p_left/(gas_gamma-1.0) + 0.5 * d_left * std::pow(u_left,2);
           }
        }
        else
        {
           // get left cell dof indices
-          fe_values_neighbor.reinit (cell->neighbor(0));
+          //fe_values_neighbor.reinit (cell->neighbor(0));
+          fe_values_neighbor.reinit (lcell[c]);
           
           fe_values_neighbor.get_function_values (density,  density_values_n);
           fe_values_neighbor.get_function_values (momentum, momentum_values_n);
@@ -955,7 +992,7 @@ void EulerProblem<dim>::assemble_rhs ()
        rf_left_state(1) = momentum_values[n_q_points-1];
        rf_left_state(2) = energy_values  [n_q_points-1];
        
-       if(c==triangulation.n_cells()-1)
+       if(c==triangulation.n_cells()-1 && periodic==false)
        {
           if(rbc_reflect)
           {
@@ -968,16 +1005,13 @@ void EulerProblem<dim>::assemble_rhs ()
              rf_right_state(0) = rf_left_state(0);
              rf_right_state(1) = rf_left_state(1);
              rf_right_state(2) = rf_left_state(2);
-//             rf_right_state(0) = d_right;
-//             rf_right_state(1) = d_right * u_right;
-//             rf_right_state(2) = p_right/(gas_gamma-1.0) +
-//                                 0.5 * d_right * std::pow(u_right,2);
           }
        }
        else
        {          
           // get right cell to right face
-          fe_values_neighbor.reinit (cell->neighbor(1));
+          //fe_values_neighbor.reinit (cell->neighbor(1));
+          fe_values_neighbor.reinit (rcell[c]);
           
           fe_values_neighbor.get_function_values (density,  density_values_n);
           fe_values_neighbor.get_function_values (momentum, momentum_values_n);
@@ -1066,6 +1100,8 @@ void EulerProblem<dim>::apply_limiter ()
       apply_limiter_TVB ();
    else if(limiter == "BDF")
       apply_limiter_BDF ();
+   else if(limiter == "None")
+      return;
    else
    {
       std::cout << "Unknown limiter\n";
@@ -1075,7 +1111,6 @@ void EulerProblem<dim>::apply_limiter ()
 
 //------------------------------------------------------------------------------
 // Apply TVD limiter
-// currently works only for P1/P2 case
 //------------------------------------------------------------------------------
 template <int dim>
 void EulerProblem<dim>::apply_limiter_TVB ()
@@ -1474,7 +1509,7 @@ void EulerProblem<dim>::apply_positivity_limiter ()
 
 
 //------------------------------------------------------------------------------
-// Update solution by one stage of RK
+// Compute time step from cfl condition
 //------------------------------------------------------------------------------
 template <int dim>
 void EulerProblem<dim>::compute_dt ()
@@ -1521,23 +1556,10 @@ void EulerProblem<dim>::output_results () const
    // counter to set file name
    static unsigned int c = 0;
    
-   Vector<double> velocity(dof_handler.n_dofs());
-   Vector<double> pressure(dof_handler.n_dofs());
-   
-   // Compute velocity and pressure
-   for(unsigned int i=0; i<dof_handler.n_dofs(); ++i)
-   {
-      velocity(i) = momentum(i) / density(i);
-      pressure(i) = (gas_gamma-1.0) * (energy(i) -
-                                       0.5 * momentum(i) * velocity(i));
-   }
-   
    DataOut<dim> data_out;
    
    data_out.attach_dof_handler (dof_handler);
    data_out.add_data_vector (density, "density");
-   data_out.add_data_vector (velocity, "velocity");
-   data_out.add_data_vector (pressure, "pressure");
    
    if(fe.degree <= 1)
       data_out.build_patches (1);
@@ -1575,12 +1597,34 @@ void EulerProblem<dim>::output_results () const
    // increment filename counter
    ++c;
 }
-
+//------------------------------------------------------------------------------
+// Compute error in solution
+//------------------------------------------------------------------------------
+template <int dim>
+void EulerProblem<dim>::compute_errors(double& L2_error, double& H1_error) const
+{
+   Vector<double> difference_per_cell (triangulation.n_active_cells());
+   VectorTools::integrate_difference (dof_handler,
+                                      density,
+                                      ExactSolution<dim>(),
+                                      difference_per_cell,
+                                      QGauss<dim>(fe.degree+2),
+                                      VectorTools::L2_norm);
+   L2_error = difference_per_cell.l2_norm();
+   
+   VectorTools::integrate_difference (dof_handler,
+                                      density,
+                                      ExactSolution<dim>(),
+                                      difference_per_cell,
+                                      QGauss<dim>(fe.degree+2),
+                                      VectorTools::H1_seminorm);
+   H1_error = difference_per_cell.l2_norm();
+}
 //------------------------------------------------------------------------------
 // Start solving the problem
 //------------------------------------------------------------------------------
 template <int dim>
-void EulerProblem<dim>::run ()
+void EulerProblem<dim>::run (double& h, int& ndof, double& L2_error, double& H1_error)
 {
     std::cout << "\n Solving 1-D NS problem ...\n";
 
@@ -1627,13 +1671,17 @@ void EulerProblem<dim>::run ()
        
       time += dt;
       ++iter;
-       if(iter % save_freq == 0) output_results ();
+      if(iter % save_freq == 0) output_results ();
        
       std::cout << "Iter = " << iter << " time = " << time 
                 << " Res =" << residual[0] << " " << residual[1] << " "
                 << residual[2] << endl;
     }
     output_results ();
+   
+   if(test_case == "smooth") compute_errors (L2_error, H1_error);
+   h = dx;
+   ndof = dof_handler.n_dofs();
 }
 
 //------------------------------------------------------------------------------
@@ -1648,10 +1696,10 @@ void declare_parameters(ParameterHandler& prm)
    prm.declare_entry("save frequency","100000", Patterns::Integer(0,100000),
                      "How often to save solution");
    prm.declare_entry("test case","sod", 
-                     Patterns::Selection("sod|lowd|blast|blastwc|lax|shuosher|sedov"),
+                     Patterns::Selection("sod|lowd|blast|blastwc|lax|shuosher|sedov|smooth"),
                      "Test case");
    prm.declare_entry("limiter","TVB", 
-                     Patterns::Selection("TVB|BDF"),
+                     Patterns::Selection("None|TVB|BDF"),
                      "limiter");
    prm.declare_entry("flux","kfvs", 
                      Patterns::Selection("kfvs|lxf"),
@@ -1664,8 +1712,30 @@ void declare_parameters(ParameterHandler& prm)
                      Patterns::Double(0,1.0), "cfl number");
    prm.declare_entry("M", "0.0",
                      Patterns::Double(0,1.0e20), "TVB constant");
+   prm.declare_entry("refine","0", Patterns::Integer(0,10),
+                     "Number of mesh refinements");
 }
+//------------------------------------------------------------------------------
+// Compute convergence rates
+//------------------------------------------------------------------------------
+void compute_rate(std::vector<double>& h, std::vector<int>& ndof,
+                  std::vector<double>& L2_error, std::vector<double>& H1_error)
+{
+   unsigned int nrefine = h.size() - 1;
+   for(unsigned int i=0; i<=nrefine; ++i)
+   {
+      double L2_rate = 0, H1_rate = 0;
+      if(i>0)
+      {
+         L2_rate = L2_error[i-1]/L2_error[i];
+         H1_rate = H1_error[i-1]/H1_error[i];
+      }
+      std::cout << h[i] << "  " << ndof[i] << "  "
+                << L2_error[i] << "  " << L2_rate << "  "
+                << H1_error[i] << "  " << H1_rate << std::endl;
+   }
 
+}
 //------------------------------------------------------------------------------
 // Main function
 //------------------------------------------------------------------------------
@@ -1684,9 +1754,18 @@ int main (int argc, char** argv)
       AssertThrow( status, ExcFileNotOpen(argv[1]) );
       prm.print_parameters(std::cout, ParameterHandler::Text);
       unsigned int degree = prm.get_integer("degree");
-      EulerProblem<1> euler_problem(degree, prm);
-      euler_problem.run ();
+      unsigned int nrefine = prm.get_integer("refine");
+      std::vector<double> h(nrefine+1), L2_error(nrefine+1), H1_error(nrefine+1);
+      std::vector<int> ndof(nrefine+1);
+      for(unsigned int i=0; i<=nrefine; ++i)
+      {
+         EulerProblem<1> euler_problem(degree, prm);
+         euler_problem.run (h[i], ndof[i], L2_error[i], H1_error[i]);
+         const long int ncells = 2 * prm.get_integer("ncells");
+         prm.set("ncells", ncells);
+      }
+      if(nrefine > 0) compute_rate(h, ndof, L2_error, H1_error);
    }
 
-    return 0;
+   return 0;
 }
