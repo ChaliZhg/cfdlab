@@ -25,6 +25,7 @@
 #include <lac/sparse_matrix.h>
 #include <lac/compressed_sparsity_pattern.h>
 #include <base/parameter_handler.h>
+#include <base/convergence_table.h>
 
 #include <numerics/data_out.h>
 #include <numerics/fe_field_function.h>
@@ -1721,19 +1722,34 @@ void declare_parameters(ParameterHandler& prm)
 void compute_rate(std::vector<double>& h, std::vector<int>& ndof,
                   std::vector<double>& L2_error, std::vector<double>& H1_error)
 {
+   ConvergenceTable   convergence_table;
    unsigned int nrefine = h.size() - 1;
    for(unsigned int i=0; i<=nrefine; ++i)
    {
-      double L2_rate = 0, H1_rate = 0;
-      if(i>0)
-      {
-         L2_rate = L2_error[i-1]/L2_error[i];
-         H1_rate = H1_error[i-1]/H1_error[i];
-      }
-      std::cout << h[i] << "  " << ndof[i] << "  "
-                << L2_error[i] << "  " << L2_rate << "  "
-                << H1_error[i] << "  " << H1_rate << std::endl;
+      convergence_table.add_value("cycle", i);
+      convergence_table.add_value("h", h[i]);
+      convergence_table.add_value("dofs", ndof[i]);
+      convergence_table.add_value("L2", L2_error[i]);
+      convergence_table.add_value("H1", H1_error[i]);
    }
+
+   convergence_table.set_precision("L2", 3);
+   convergence_table.set_precision("H1", 3);
+
+   convergence_table.set_scientific("h", true);
+   convergence_table.set_scientific("L2", true);
+   convergence_table.set_scientific("H1", true);
+
+   convergence_table.set_tex_caption("h", "$h$");
+   convergence_table.set_tex_caption("dofs", "\\# dofs");
+   convergence_table.set_tex_caption("L2", "$L^2$-error");
+   convergence_table.set_tex_caption("H1", "$H^1$-error");
+
+   convergence_table.evaluate_convergence_rates("L2", ConvergenceTable::reduction_rate_log2);
+   convergence_table.evaluate_convergence_rates("H1", ConvergenceTable::reduction_rate_log2);
+
+   std::cout << std::endl;
+   convergence_table.write_text (std::cout);
 
 }
 //------------------------------------------------------------------------------
