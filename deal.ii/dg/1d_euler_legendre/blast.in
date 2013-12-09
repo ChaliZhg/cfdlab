@@ -3,6 +3,7 @@ set ncells                 = 400
 set test case              = blast
 set flux                   = kfvs
 set limiter                = TVB
+set indicator              = None
 set characteristic limiter = true
 set positivity limiter     = true
 set M                      = 500.0
