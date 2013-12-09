@@ -3,6 +3,7 @@ set ncells                 = 200
 set test case              = lax
 set flux                   = kfvs
 set limiter                = TVB
+set indicator              = None
 set characteristic limiter = true
 set positivity limiter     = false
 set M                      = 0.0

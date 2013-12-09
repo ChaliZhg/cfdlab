@@ -5,6 +5,7 @@
    * Momentum limiter (BDF)
    * Characteristic based limiter
    * Positivity preserving limiter
+   * KXRCF shock indicator
    * Numerical fluxes: Lax-Friedrich, KFVS
 */
 #include <grid/tria.h>
@@ -55,6 +56,16 @@ const double b_rk[3] = {1.0, 1.0/4.0, 2.0/3.0};
 // Numerical flux functions
 enum FluxType {lxf, kfvs};
 enum TestCase {sod, blast, blastwc, lax, shuosher, lowd, smooth};
+enum ShockIndicator { ind_None, ind_density, ind_entropy };
+
+//------------------------------------------------------------------------------
+// Computes entropy s = p / rho^gamma
+//------------------------------------------------------------------------------
+double entropy(double density, double momentum, double energy)
+{
+   double p = (gas_gamma-1.0) * (energy - 0.5 * momentum * momentum/density);
+   return p / std::pow(density, gas_gamma);
+}
 
 //------------------------------------------------------------------------------
 // minmod of three numbers
@@ -277,6 +288,7 @@ private:
    void assemble_rhs ();
    void compute_averages ();
    void compute_dt ();
+   void identify_troubled_cells ();
    void apply_limiter ();
    void apply_limiter_TVB ();
    void apply_limiter_BDF ();
@@ -296,6 +308,7 @@ private:
    FluxType             flux_type;
    string               limiter;
    bool                 lim_char, lim_pos;
+   ShockIndicator       shock_indicator;
    bool                 lbc_reflect, rbc_reflect, periodic;
    unsigned int         save_freq;
    
@@ -323,6 +336,9 @@ private:
    
    std::vector<double>  residual;
    std::vector<double>  residual0;
+   std::vector<bool>    is_troubled;
+   unsigned int         n_troubled_cells;
+
    
    typename DoFHandler<dim>::active_cell_iterator firstc, lastc;
    std::vector<typename DoFHandler<dim>::active_cell_iterator> lcell, rcell;
@@ -350,6 +366,7 @@ EulerProblem<dim>::EulerProblem (unsigned int degree,
    save_freq= prm.get_integer("save frequency");
    limiter  = prm.get("limiter");
    string flux  = prm.get("flux");
+   string indicator  = prm.get("indicator");
 
    if(limiter == "BDF") M = 0.0;
    
@@ -360,6 +377,13 @@ EulerProblem<dim>::EulerProblem (unsigned int degree,
       flux_type = kfvs;
    else if(flux == "lxf")
       flux_type = lxf;
+
+   if(indicator == "None")
+      shock_indicator = ind_None;
+   else if(indicator == "density")
+      shock_indicator = ind_density;
+   else if(indicator == "entropy")
+      shock_indicator = ind_entropy;
    
    lbc_reflect = rbc_reflect = periodic = false;
    min_residue= 1.0e20;
@@ -548,6 +572,8 @@ void EulerProblem<dim>::make_grid_and_dofs ()
    
     residual.resize(3, 1.0);
     residual0.resize(3);
+   
+   is_troubled.resize(triangulation.n_cells());
    
    // Find first and last cell
    // We need these for periodic bc
@@ -1092,6 +1118,150 @@ void EulerProblem<dim>::compute_averages ()
 }
 
 //------------------------------------------------------------------------------
+// KXRCF shock indicator
+// You can choose density or entropy as the indicator variables
+//------------------------------------------------------------------------------
+template <int dim>
+void EulerProblem<dim>::identify_troubled_cells ()
+{
+   // If no shock indicator, then we apply limiter in every cell
+   if(shock_indicator == ind_None)
+   {
+      for(unsigned int c=0; c<n_cells; ++c)
+         is_troubled[c] = true;
+      return;
+   }
+
+   QTrapez<dim>  quadrature_formula;
+
+   FEValues<dim> fe_values (fe, quadrature_formula, update_values);
+   FEValues<dim> fe_values_nbr (fe, quadrature_formula, update_values);
+   std::vector<double> density_face_values(2), momentum_face_values(2),
+                       energy_face_values(2);
+   std::vector<double> density_face_values_n(2), momentum_face_values_n(2),
+                       energy_face_values_n(2);
+   
+   const double dxfactor = std::pow( dx, 0.5*(fe.degree+1) );
+   double density_nbr_l, momentum_nbr_l, energy_nbr_l;
+   double density_nbr_r, momentum_nbr_r, energy_nbr_r;
+   double ent_l, ent_r, ent_nbr_l, ent_nbr_r;
+   double var_avg;
+
+   n_troubled_cells = 0;
+
+   typename DoFHandler<dim>::active_cell_iterator
+      cell = dof_handler.begin_active(),
+      endc = dof_handler.end();
+   
+   for (unsigned int c=0; c<n_cells; ++c, ++cell)
+   {
+      fe_values.reinit(cell);
+      fe_values.get_function_values(density, density_face_values);
+      fe_values.get_function_values(momentum, momentum_face_values);
+      fe_values.get_function_values(energy, energy_face_values);
+      
+      double u_l = momentum_face_values[0] / density_face_values[0];
+      double u_r = momentum_face_values[1] / density_face_values[1];
+      
+      double ind = 0;
+      
+      if(u_l >= 0) // left face is inflow face
+      {
+         if(c==0 && periodic==false)
+         {
+            if(lbc_reflect)
+            {
+               density_nbr_l = density_face_values[0];
+               momentum_nbr_l = -momentum_face_values[0];
+               energy_nbr_l = energy_face_values[0];
+            }
+            else
+            {
+               density_nbr_l = density_face_values[0];
+               momentum_nbr_l = momentum_face_values[0];
+               energy_nbr_l = energy_face_values[0];
+            }
+         }
+         else
+         {
+            fe_values_nbr.reinit (lcell[c]);
+          
+            fe_values_nbr.get_function_values (density,  density_face_values_n);
+            fe_values_nbr.get_function_values (momentum, momentum_face_values_n);
+            fe_values_nbr.get_function_values (energy,   energy_face_values_n);
+
+            density_nbr_l = density_face_values_n[1];
+            momentum_nbr_l = momentum_face_values_n[1];
+            energy_nbr_l = energy_face_values_n[1];
+         }
+      }
+      
+      if(u_r <= 0) // right face is inflow face
+      {
+         if(c==n_cells-1 && periodic==false)
+         {
+            if(rbc_reflect)
+            {
+               density_nbr_r = density_face_values[1];
+               momentum_nbr_r = -momentum_face_values[1];
+               energy_nbr_r = energy_face_values[1];
+            }
+            else
+            {
+               density_nbr_r = density_face_values[1];
+               momentum_nbr_r = momentum_face_values[1];
+               energy_nbr_r = energy_face_values[1];
+            }
+         }
+         else
+         {
+            fe_values_nbr.reinit (rcell[c]);
+          
+            fe_values_nbr.get_function_values (density,  density_face_values_n);
+            fe_values_nbr.get_function_values (momentum, momentum_face_values_n);
+            fe_values_nbr.get_function_values (energy,   energy_face_values_n);
+
+            density_nbr_r = density_face_values_n[0];
+            momentum_nbr_r = momentum_face_values_n[0];
+            energy_nbr_r = energy_face_values_n[0];
+         }
+
+      }
+
+      switch(shock_indicator)
+      {
+         case ind_density:
+            ind = (u_l >= 0) ? density_face_values[0] - density_nbr_l : 0.0;
+                + (u_r <= 0) ? density_face_values[1] - density_nbr_r : 0.0;
+            var_avg = density_average[c];
+            break;
+         case ind_entropy:
+            ent_l = entropy(density_face_values[0], momentum_face_values[0], energy_face_values[0]);
+            ent_r = entropy(density_face_values[1], momentum_face_values[1], energy_face_values[1]);
+            ent_nbr_l = entropy(density_nbr_l, momentum_nbr_l, energy_nbr_l);
+            ent_nbr_r = entropy(density_nbr_r, momentum_nbr_r, energy_nbr_r);
+            ind = (u_l >= 0) ? ent_l - ent_nbr_l : 0.0;
+                + (u_r <= 0) ? ent_r - ent_nbr_r : 0.0;
+            var_avg = entropy(density_average[c], momentum_average[c], energy_average[c]);
+            break;
+         default:
+            exit(0);
+      }
+
+      ind = std::fabs(ind / (dxfactor * var_avg) );
+      is_troubled[c] = false;
+      if(ind > 1.0)
+      {
+         is_troubled[c] = true;
+         ++n_troubled_cells;
+         //std::cout << c << "  " << ind << std::endl;
+      }
+   }
+
+   std::cout << "Number of troubled cells = " << n_troubled_cells << std::endl;
+}
+
+//------------------------------------------------------------------------------
 // Apply chosen limiter
 //------------------------------------------------------------------------------
 template <int dim>
@@ -1140,6 +1310,7 @@ void EulerProblem<dim>::apply_limiter_TVB ()
    double energy_left, energy_right;
    
    for (unsigned int c=0; c<n_cells; ++c, ++cell)
+   if(is_troubled[c])
    {
       fe_values.reinit(cell);
       cell->get_dof_indices (local_dof_indices);
@@ -1264,15 +1435,16 @@ void EulerProblem<dim>::apply_limiter_BDF ()
    std::vector< std::vector<double> > DC(dofs_per_cell, std::vector<double>(n_var));
 
    // Temporary storage
-   Vector<double> density_n(dof_handler.n_dofs());
-   Vector<double> momentum_n(dof_handler.n_dofs());
-   Vector<double> energy_n(dof_handler.n_dofs());
+   Vector<double> density_n(density);
+   Vector<double> momentum_n(momentum);
+   Vector<double> energy_n(energy);
 
    typename DoFHandler<dim>::active_cell_iterator 
       cell = dof_handler.begin_active(),
       endc = dof_handler.end();
    
    for (unsigned int c=0; c<n_cells; ++c, ++cell)
+   if(is_troubled[c])
    {
       cell->get_dof_indices (local_dof_indices);
       
@@ -1347,14 +1519,10 @@ void EulerProblem<dim>::apply_limiter_BDF ()
          }
       }
 
-      // cell average value is unchanged
-      density_n(local_dof_indices[0])  = density(local_dof_indices[0]); 
-      momentum_n(local_dof_indices[0]) = momentum(local_dof_indices[0]);
-      energy_n(local_dof_indices[0])   = energy(local_dof_indices[0]);
-
       // Legendre in deal.ii is normalized. Moment limiter is BDF paper is
       // given for non-normalized basis functions. We apply correct
       // transformation here to account for this difference
+      // cell average value is unchanged
       bool to_limit = true;
       for(unsigned int i=dofs_per_cell-1; i>=1; --i)
       {
@@ -1627,13 +1795,14 @@ void EulerProblem<dim>::compute_errors(double& L2_error, double& H1_error) const
 template <int dim>
 void EulerProblem<dim>::run (double& h, int& ndof, double& L2_error, double& H1_error)
 {
-    std::cout << "\n Solving 1-D NS problem ...\n";
+    std::cout << "\n Solving 1-D Euler problem ...\n";
 
     make_grid_and_dofs();
     assemble_mass_matrix ();
     initialize ();
     compute_averages ();
     apply_limiter ();
+    if(lim_pos) apply_positivity_limiter ();
     output_results ();
 
     double time = 0.0;
@@ -1646,6 +1815,8 @@ void EulerProblem<dim>::run (double& h, int& ndof, double& L2_error, double& H1_
        momentum_old = momentum;
        energy_old   = energy;
        
+       identify_troubled_cells ();
+
        compute_dt ();
        if(time+dt > final_time) dt = final_time - time;
 
@@ -1702,6 +1873,9 @@ void declare_parameters(ParameterHandler& prm)
    prm.declare_entry("limiter","TVB", 
                      Patterns::Selection("None|TVB|BDF"),
                      "limiter");
+   prm.declare_entry("indicator","None", 
+                     Patterns::Selection("None|density|entropy"),
+                     "Shock indicator");
    prm.declare_entry("flux","kfvs", 
                      Patterns::Selection("kfvs|lxf"),
                      "limiter");

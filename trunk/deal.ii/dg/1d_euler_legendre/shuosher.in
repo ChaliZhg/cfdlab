@@ -1,8 +1,9 @@
 set degree                 = 2
-set ncells                 = 200
+set ncells                 = 400
 set test case              = shuosher
 set flux                   = kfvs
-set limiter                = TVB
+set limiter                = BDF
+set indicator              = density
 set characteristic limiter = true
 set positivity limiter     = false
 set M                      = 100.0
