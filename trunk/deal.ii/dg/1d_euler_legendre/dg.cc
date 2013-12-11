@@ -304,6 +304,7 @@ private:
    double               cfl;
    double               final_time;
    double               min_residue;
+   unsigned int         max_iter;
    unsigned int         n_rk_stages;
    FluxType             flux_type;
    string               limiter;
@@ -367,6 +368,7 @@ EulerProblem<dim>::EulerProblem (unsigned int degree,
    limiter  = prm.get("limiter");
    string flux  = prm.get("flux");
    string indicator  = prm.get("indicator");
+   max_iter = prm.get_integer("max iter");
 
    if(limiter == "BDF") M = 0.0;
    
@@ -1160,12 +1162,10 @@ void EulerProblem<dim>::identify_troubled_cells ()
       fe_values.get_function_values(momentum, momentum_face_values);
       fe_values.get_function_values(energy, energy_face_values);
       
-      double u_l = momentum_face_values[0] / density_face_values[0];
-      double u_r = momentum_face_values[1] / density_face_values[1];
+      // Use cell average velocity to decide inflow/outflow boundary
+      double u = momentum_average[c] / density_average[c];
       
-      double ind = 0;
-      
-      if(u_l >= 0) // left face is inflow face
+      if(u > 0.0) // left face is inflow face
       {
          if(c==0 && periodic==false)
          {
@@ -1196,7 +1196,7 @@ void EulerProblem<dim>::identify_troubled_cells ()
          }
       }
       
-      if(u_r <= 0) // right face is inflow face
+      if(u < 0.0) // right face is inflow face
       {
          if(c==n_cells-1 && periodic==false)
          {
@@ -1228,11 +1228,13 @@ void EulerProblem<dim>::identify_troubled_cells ()
 
       }
 
+      double ind = 0;
+
       switch(shock_indicator)
       {
          case ind_density:
-            ind = (u_l >= 0) ? density_face_values[0] - density_nbr_l : 0.0;
-                + (u_r <= 0) ? density_face_values[1] - density_nbr_r : 0.0;
+            ind = (u > 0.0) ? density_face_values[0] - density_nbr_l : 0.0
+                + (u < 0.0) ? density_face_values[1] - density_nbr_r : 0.0;
             var_avg = density_average[c];
             break;
          case ind_entropy:
@@ -1240,8 +1242,8 @@ void EulerProblem<dim>::identify_troubled_cells ()
             ent_r = entropy(density_face_values[1], momentum_face_values[1], energy_face_values[1]);
             ent_nbr_l = entropy(density_nbr_l, momentum_nbr_l, energy_nbr_l);
             ent_nbr_r = entropy(density_nbr_r, momentum_nbr_r, energy_nbr_r);
-            ind = (u_l >= 0) ? ent_l - ent_nbr_l : 0.0;
-                + (u_r <= 0) ? ent_r - ent_nbr_r : 0.0;
+            ind = (u > 0.0) ? ent_l - ent_nbr_l : 0.0
+                + (u < 0.0) ? ent_r - ent_nbr_r : 0.0;
             var_avg = entropy(density_average[c], momentum_average[c], energy_average[c]);
             break;
          default:
@@ -1254,7 +1256,6 @@ void EulerProblem<dim>::identify_troubled_cells ()
       {
          is_troubled[c] = true;
          ++n_troubled_cells;
-         //std::cout << c << "  " << ind << std::endl;
       }
    }
 
@@ -1754,10 +1755,12 @@ void EulerProblem<dim>::output_results () const
       double velocity = momentum_average[c] / density_average[c];
       double pressure = (gas_gamma-1.0) * ( energy_average[c] -
                         0.5 * momentum_average[c] * velocity );
+      int ind = (is_troubled[c]) ? 1 : 0;
       fo << x(0) << " " 
          << density_average[c] << "  " 
          << velocity << "  " 
          << pressure << "  " 
+         << ind << "  " 
          << endl;
    }
 
@@ -1801,6 +1804,7 @@ void EulerProblem<dim>::run (double& h, int& ndof, double& L2_error, double& H1_
     assemble_mass_matrix ();
     initialize ();
     compute_averages ();
+    identify_troubled_cells ();
     apply_limiter ();
     if(lim_pos) apply_positivity_limiter ();
     output_results ();
@@ -1808,15 +1812,14 @@ void EulerProblem<dim>::run (double& h, int& ndof, double& L2_error, double& H1_
     double time = 0.0;
     unsigned int iter = 0;
 
-    while (time < final_time || ( residual[0] > min_residue &&
-           residual[1] > min_residue && residual[2] > min_residue))
+    std::cout << "Starting the time stepping ... \n";
+
+    while (time < final_time && iter < max_iter)
     {
        density_old  = density;
        momentum_old = momentum;
        energy_old   = energy;
        
-       identify_troubled_cells ();
-
        compute_dt ();
        if(time+dt > final_time) dt = final_time - time;
 
@@ -1825,6 +1828,7 @@ void EulerProblem<dim>::run (double& h, int& ndof, double& L2_error, double& H1_
          assemble_rhs ();
          update (rk);
          compute_averages ();
+         identify_troubled_cells ();
          apply_limiter ();
          if(lim_pos) apply_positivity_limiter ();
        }
@@ -1889,6 +1893,8 @@ void declare_parameters(ParameterHandler& prm)
                      Patterns::Double(0,1.0e20), "TVB constant");
    prm.declare_entry("refine","0", Patterns::Integer(0,10),
                      "Number of mesh refinements");
+   prm.declare_entry("max iter","1000000000", Patterns::Integer(0,1000000000),
+                     "maximum iterations");
 }
 //------------------------------------------------------------------------------
 // Compute convergence rates
