@@ -1939,13 +1939,15 @@ int main (int argc, char** argv)
 {
    deallog.depth_console (0);
    {
+      ParameterHandler prm;
+      declare_parameters (prm);
       if(argc < 2)
       {
          std::cout << "Specify input parameter file\n";
+         std::cout << "It should contain following parameters.\n\n";
+         prm.print_parameters(std::cout, ParameterHandler::Text);
          return 0;
       }
-      ParameterHandler prm;
-      declare_parameters (prm);
       bool status = prm.read_input (argv[1], true);
       AssertThrow( status, ExcFileNotOpen(argv[1]) );
       prm.print_parameters(std::cout, ParameterHandler::Text);
