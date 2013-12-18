@@ -876,7 +876,7 @@ void numerical_flux (const FluxType& flux_type,
          break;
          
       default:
-         cout << "Unknown flux_type !!!\n";
+         std::cout << "Unknown flux_type !!!\n";
          abort ();
    }
 }
