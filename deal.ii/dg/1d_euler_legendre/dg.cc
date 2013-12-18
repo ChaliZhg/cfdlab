@@ -187,7 +187,7 @@ public:
    
    virtual void vector_value (const Point<dim>   &p,
                               Vector<double>& values) const;
-   string test_case;
+   std::string test_case;
 };
 
 // Initial condition for density, velocity, pressure
@@ -298,7 +298,7 @@ private:
    void compute_errors (double& L2_error, double& H1_error) const;
    
    unsigned int         n_cells;
-   string               test_case;
+   std::string          test_case;
    double               dt;
    double               dx;
    double               cfl;
@@ -307,7 +307,7 @@ private:
    unsigned int         max_iter;
    unsigned int         n_rk_stages;
    FluxType             flux_type;
-   string               limiter;
+   std::string          limiter;
    bool                 lim_char, lim_pos;
    ShockIndicator       shock_indicator;
    bool                 lbc_reflect, rbc_reflect, periodic;
@@ -366,8 +366,8 @@ EulerProblem<dim>::EulerProblem (unsigned int degree,
    double M = prm.get_double("M");
    save_freq= prm.get_integer("save frequency");
    limiter  = prm.get("limiter");
-   string flux  = prm.get("flux");
-   string indicator  = prm.get("indicator");
+   std::string flux  = prm.get("flux");
+   std::string indicator  = prm.get("indicator");
    max_iter = prm.get_integer("max iter");
 
    if(limiter == "BDF") M = 0.0;
@@ -1761,7 +1761,7 @@ void EulerProblem<dim>::output_results () const
          << velocity << "  " 
          << pressure << "  " 
          << ind << "  " 
-         << endl;
+         << std::endl;
    }
 
    fo.close ();
@@ -1837,7 +1837,7 @@ void EulerProblem<dim>::run (double& h, int& ndof, double& L2_error, double& H1_
        {
           std::cout << "Initial residual = " << residual[0] << " "
                     << residual[1] << " "
-                    << residual[2] << endl;
+                    << residual[2] << std::endl;
           for(unsigned int i=0; i<3; ++i)
              residual0[i] = residual[i];
        }
@@ -1851,7 +1851,7 @@ void EulerProblem<dim>::run (double& h, int& ndof, double& L2_error, double& H1_
        
       std::cout << "Iter = " << iter << " time = " << time 
                 << " Res =" << residual[0] << " " << residual[1] << " "
-                << residual[2] << endl;
+                << residual[2] << std::endl;
     }
     output_results ();
    
