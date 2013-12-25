@@ -1289,8 +1289,6 @@ void EulerProblem<dim>::apply_limiter_TVB ()
 {
    if(fe.degree == 0) return;
    
-   Assert (fe.degree<3, ExcIndexRange(fe.degree, 1, 3));
-   
    QTrapez<dim>  quadrature_formula;
    
    FEValues<dim> fe_values (fe, quadrature_formula, update_values);
