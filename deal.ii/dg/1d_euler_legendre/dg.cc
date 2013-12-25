@@ -7,6 +7,8 @@
    * Positivity preserving limiter
    * KXRCF shock indicator
    * Numerical fluxes: Lax-Friedrich, KFVS
+   *
+   * Author: Praveen. C, http://praveen.cfdlab.net
 */
 #include <grid/tria.h>
 #include <dofs/dof_handler.h>
