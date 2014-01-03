@@ -58,7 +58,7 @@ double Mlim;
 double dx;
 
 enum LimiterType {none, tvd};
-enum TestCase {expo, circ};
+enum TestCase {expo, square};
 
 //------------------------------------------------------------------------------
 // Minmod function
@@ -121,12 +121,11 @@ void InitialCondition<dim>::value_list(const std::vector<Point<dim> > &points,
          else
             values[i] = 0.0;
       }
-   else if(test_case == circ)
+   else if(test_case == square)
       for (unsigned int i=0; i<values.size(); ++i)
       {
-         double r2 = std::pow(points[i](0)-0.5, 2.0) + std::pow(points[i](1), 2.0);
-         double r = std::sqrt(r2);
-         if(r < 0.25)
+         const Point<dim>& p = points[i];
+         if(std::fabs(p(0)-0.5) < 0.25 && std::fabs(p(1)) < 0.25)
             values[i] = 1.0;
          else
             values[i] = 0.0;
@@ -200,9 +199,12 @@ class Step12
       void assemble_rhs (RHSIntegrator<dim>&);
       void compute_dt ();
       void solve ();
+      void apply_limiter_old ();
       void apply_limiter ();
+      void apply_limiter_TVD ();
       void refine_grid ();
-      void output_results (const unsigned int cycle) const;
+      void compute_min_max ();
+      void output_results (const unsigned int cycle);
       
       Triangulation<dim>   triangulation;
       const MappingQ1<dim> mapping;
@@ -215,11 +217,13 @@ class Step12
       
       Vector<double>       solution;
       Vector<double>       solution_old;
+      Vector<double>       average;
       Vector<double>       right_hand_side;
       double               dt;
       double               cfl;
       LimiterType          limiter_type;
       TestCase             test_case;
+      double               sol_min, sol_max;
    
       std::vector<typename DoFHandler<dim>::active_cell_iterator>
          lcell, rcell, bcell, tcell;
@@ -248,7 +252,7 @@ Step12<dim>::Step12 (unsigned int degree,
       limiter_type (limiter_type),
       test_case (test_case)
 {
-   cfl = 0.8/(2.0*degree + 1.0);
+   cfl = 0.4/(2.0*degree + 1.0);
 }
 
 //------------------------------------------------------------------------------
@@ -267,6 +271,7 @@ void Step12<dim>::setup_system ()
 
    solution.reinit (dof_handler.n_dofs());
    solution_old.reinit (dof_handler.n_dofs());
+   average.reinit (dof_handler.n_dofs());
    right_hand_side.reinit (dof_handler.n_dofs());
    
    // For each cell, find neighbourig cell
@@ -278,8 +283,8 @@ void Step12<dim>::setup_system ()
    
    const double EPS = 1.0e-10;
    typename DoFHandler<dim>::active_cell_iterator
-   cell = dof_handler.begin_active(),
-   endc = dof_handler.end();
+      cell = dof_handler.begin_active(),
+      endc = dof_handler.end();
    for (unsigned int c = 0; cell!=endc; ++cell, ++c)
    {
       lcell[c] = endc;
@@ -367,7 +372,7 @@ void Step12<dim>::set_initial_condition ()
    InitialCondition<dim> initial_condition;
    initial_condition.test_case = test_case;
    VectorTools::create_right_hand_side(dof_handler,
-                                       QGauss<dim>(2),
+                                       QGauss<dim>(fe.degree+1),
                                        initial_condition,
                                        solution);
    
@@ -385,7 +390,7 @@ void Step12<dim>::set_initial_condition ()
          solution(local_dof_indices[i]) *= inv_mass_matrix[c](i);
    }
 
-   if(limiter_type == tvd) apply_limiter ();
+   apply_limiter ();
 }
 //------------------------------------------------------------------------------
 // Create mesh worker for integration
@@ -610,7 +615,7 @@ void Step12<dim>::integrate_face_term (DoFInfo& dinfo1, DoFInfo& dinfo2,
 // Slope limiter based on minmod
 //------------------------------------------------------------------------------
 template <int dim>
-void Step12<dim>::apply_limiter ()
+void Step12<dim>::apply_limiter_old ()
 {
    if(fe.degree == 0) return;
 
@@ -618,7 +623,7 @@ void Step12<dim>::apply_limiter ()
 
    QMidpoint<dim> qrule;
    FEValues<dim> fe_values (fe, qrule, update_gradients);
-
+   
    std::vector<unsigned int> dof_indices     (fe.dofs_per_cell);
    std::vector<unsigned int> dof_indices_nbr (fe.dofs_per_cell);
 
@@ -626,7 +631,7 @@ void Step12<dim>::apply_limiter ()
       cell = dof_handler.begin_active(),
       endc = dof_handler.end();
 
-   // mesh width: we assume uniform mesh
+   // mesh width: we assume uniform cartesian mesh
    dx = cell->diameter() / std::sqrt(2.0);
 
    for(unsigned int c=0; cell != endc; ++c, ++cell)
@@ -671,6 +676,137 @@ void Step12<dim>::apply_limiter ()
       solution(dof_indices[2]) = u_y / grad_phi2[1];
    }
 }
+//------------------------------------------------------------------------------
+// Slope limiter based on minmod
+//------------------------------------------------------------------------------
+template <int dim>
+void Step12<dim>::apply_limiter_TVD ()
+{
+   if(fe.degree == 0) return;
+
+   QTrapez<1> q_trapez;
+   QMidpoint<1> q_midpoint;
+   QAnisotropic<dim> qrule_x (q_trapez, q_midpoint);
+   FEValues<dim> fe_values_x (fe, qrule_x, update_values);
+   QAnisotropic<dim> qrule_y (q_midpoint, q_trapez);
+   FEValues<dim> fe_values_y (fe, qrule_y, update_values);
+
+   std::vector<unsigned int> dof_indices     (fe.dofs_per_cell);
+   std::vector<unsigned int> dof_indices_nbr (fe.dofs_per_cell);
+   std::vector<double> face_values(2);
+
+   typename DoFHandler<dim>::active_cell_iterator
+      cell = dof_handler.begin_active(),
+      endc = dof_handler.end();
+
+   // mesh width: we assume uniform cartesian mesh
+   dx = cell->diameter() / std::sqrt(2.0);
+
+   double change, change_x, change_y;
+   double db, df, DB, DF, DBx_new, DFx_new, DBy_new, DFy_new;
+
+   for(unsigned int c=0; cell != endc; ++c, ++cell)
+   {
+      cell->get_dof_indices (dof_indices);
+
+      // Limit x derivative
+      fe_values_x.reinit(cell);
+      fe_values_x.get_function_values(solution, face_values);
+
+      df = db = 0;
+
+      if(lcell[c] != endc)
+      {
+         lcell[c]->get_dof_indices (dof_indices_nbr);
+         db = solution(dof_indices[0]) - solution(dof_indices_nbr[0]);
+      }
+
+      if(rcell[c] != endc)
+      {
+         rcell[c]->get_dof_indices (dof_indices_nbr);
+         df = solution(dof_indices_nbr[0]) - solution(dof_indices[0]);
+      }
+
+      DB = solution(dof_indices[0]) - face_values[0];
+      DF = face_values[1] - solution(dof_indices[0]);
+
+      DBx_new = minmod(DB, db, df);
+      DFx_new = minmod(DF, db, df);
+      change_x = std::fabs(DBx_new - DB) + std::fabs(DFx_new - DF);
+
+      // Limit y derivative
+      fe_values_y.reinit(cell);
+      fe_values_y.get_function_values(solution, face_values);
+
+      df = db = 0;
+
+      if(bcell[c] != endc)
+      {
+         bcell[c]->get_dof_indices (dof_indices_nbr);
+         db = solution(dof_indices[0]) - solution(dof_indices_nbr[0]);
+      }
+
+      if(tcell[c] != endc)
+      {
+         tcell[c]->get_dof_indices (dof_indices_nbr);
+         df = solution(dof_indices_nbr[0]) - solution(dof_indices[0]);
+      }
+
+      DB = solution(dof_indices[0]) - face_values[0];
+      DF = face_values[1] - solution(dof_indices[0]);
+      DBy_new = minmod(DB, db, df);
+      DFy_new = minmod(DF, db, df);
+      change_y = std::fabs(DBy_new - DB) + std::fabs(DFy_new - DF);
+
+      // If limiter is active, then retain only linear part of solution
+      change = 0.25*(change_x + change_y);
+
+      if(change > 1.0e-10)
+      {
+         // Dont change cell average; zero other dofs
+         for(unsigned int i=1; i<fe.dofs_per_cell; ++i)
+            solution(dof_indices[i]) = 0;
+         // NOTE: This part depends on the ordering of the basis functions.
+         solution(dof_indices[1]) = 0.5*(DBx_new + DFx_new) / fe_values_x.shape_value(1,1);
+         solution(dof_indices[fe.degree+1]) = 0.5*(DBy_new + DFy_new) 
+                                              / fe_values_y.shape_value(fe.degree+1,1);
+      }
+
+   }
+}
+
+//------------------------------------------------------------------------------
+// Limit the solution
+//------------------------------------------------------------------------------
+template <int dim>
+void Step12<dim>::apply_limiter ()
+{
+   if(limiter_type == tvd)
+      apply_limiter_TVD ();
+}
+
+//------------------------------------------------------------------------------
+// Compute min and max of cell average values
+//------------------------------------------------------------------------------
+template <int dim>
+void Step12<dim>::compute_min_max ()
+{
+   std::vector<unsigned int> dof_indices (fe.dofs_per_cell);
+
+   typename DoFHandler<dim>::active_cell_iterator
+      cell = dof_handler.begin_active(),
+      endc = dof_handler.end();
+
+   sol_min =  1.0e20; 
+   sol_max = -1.0e20;
+
+   for(; cell != endc; ++cell)
+   {
+      cell->get_dof_indices (dof_indices);
+      sol_min = std::min( sol_min, solution(dof_indices[0]) );
+      sol_max = std::max( sol_max, solution(dof_indices[0]) );
+   }
+}
 
 //------------------------------------------------------------------------------
 // Solve the problem to convergence by RK time integration
@@ -699,14 +835,15 @@ void Step12<dim>::solve ()
             solution(i) = a_rk[r] * solution_old(i) +
                           b_rk[r] * (solution(i) + dt * right_hand_side(i));
 
-         if(limiter_type == tvd)
-            apply_limiter ();
+         apply_limiter ();
       }
+      compute_min_max();
       
       ++iter; time += dt;
       std::cout << "Iterations=" << iter 
-                << ", t = " << time << endl;
-      if(std::fmod(iter,10)==0) output_results(iter);
+                << ", t = " << time 
+                << ", min,max = " << sol_min << "  " << sol_max << endl;
+      if(std::fmod(iter,50)==0) output_results(iter);
    }
    
 }
@@ -750,8 +887,24 @@ void Step12<dim>::refine_grid ()
 // Save results to file
 //------------------------------------------------------------------------------
 template <int dim>
-void Step12<dim>::output_results (const unsigned int cycle) const
+void Step12<dim>::output_results (const unsigned int cycle)
 {
+   // we copy average solution into "average"
+   // This is inefficient but we dont care now.
+   std::vector<unsigned int> dof_indices (fe.dofs_per_cell);
+   
+   typename DoFHandler<dim>::active_cell_iterator
+      cell = dof_handler.begin_active(),
+      endc = dof_handler.end();
+
+   average = 0;
+   
+   for(; cell != endc; ++cell)
+   {
+      cell->get_dof_indices (dof_indices);
+      average(dof_indices[0]) = solution(dof_indices[0]);
+   }
+   
    // Output of the solution in
    std::string filename = "sol-" + Utilities::int_to_string(cycle,5) + ".vtk";
    std::cout << "Writing solution to <" << filename << ">" << std::endl;
@@ -760,8 +913,9 @@ void Step12<dim>::output_results (const unsigned int cycle) const
    DataOut<dim> data_out;
    data_out.attach_dof_handler (dof_handler);
    data_out.add_data_vector (solution, "u");
+   data_out.add_data_vector (average, "average");
    
-   data_out.build_patches ();
+   data_out.build_patches (fe.degree+1);
    
    data_out.write_vtk (outfile);
 }
@@ -800,8 +954,8 @@ int main ()
    {
       unsigned int degree = 1;
       LimiterType limiter_type = tvd;
-      TestCase test_case = circ;
-      Mlim = 100.0;
+      TestCase test_case = square;
+      Mlim = 0.0;
       Step12<2> dgmethod(degree, limiter_type, test_case);
       dgmethod.run ();
    }
