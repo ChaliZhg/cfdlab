@@ -26,6 +26,7 @@
 #include <grid/grid_refinement.h>
 #include <grid/tria_accessor.h>
 #include <grid/tria_iterator.h>
+#include <grid/grid_tools.h>
 #include <fe/fe_values.h>
 #include <dofs/dof_handler.h>
 #include <dofs/dof_accessor.h>
@@ -127,31 +128,31 @@ void InitialCondition<dim>::value_list(const std::vector<Point<dim> > &points,
          double r2 = std::pow(points[i](0)-0.5, 2.0) + std::pow(points[i](1), 2.0);
          double r = std::sqrt(r2);
          if(r < 0.25)
-            values[i] = std::pow(std::cos(2.0*M_PI*r), 2.0);
+            values[i] = 1.0 + std::pow(std::cos(2.0*M_PI*r), 2.0);
          else
-            values[i] = 0.0;
+            values[i] = 1.0;
       }
    else if(test_case == circ)
       for (unsigned int i=0; i<values.size(); ++i)
       {
          double r2 = std::pow(points[i](0)-0.5, 2.0) + std::pow(points[i](1), 2.0);
          if(r2 < 0.25*0.25)
-            values[i] = 1.0;
+            values[i] = 2.0;
          else
-            values[i] = 0.0;
+            values[i] = 1.0;
       }
    else if(test_case == square)
       for (unsigned int i=0; i<values.size(); ++i)
       {
          const Point<dim>& p = points[i];
          if(std::fabs(p(0)-0.5) < 0.25 && std::fabs(p(1)) < 0.25)
-            values[i] = 1.0;
+            values[i] = 2.0;
          else
-            values[i] = 0.0;
+            values[i] = 1.0;
       }
    else
       for (unsigned int i=0; i<values.size(); ++i)
-         values[i] = 0.0;
+         values[i] = 1.0;
 }
 
 //------------------------------------------------------------------------------
@@ -178,7 +179,7 @@ void BoundaryValues<dim>::value_list(const std::vector<Point<dim> > &points,
    
    for (unsigned int i=0; i<values.size(); ++i)
    {
-      values[i]=0.0;
+      values[i]=1.0;
    }
 }
 
@@ -225,6 +226,7 @@ class Step12
       void refine_grid ();
       void compute_min_max ();
       void output_results (const unsigned int cycle);
+   double compute_cell_average(const typename DoFHandler<dim>::cell_iterator& cell);
       
       Triangulation<dim>   triangulation;
       const MappingQ1<dim> mapping;
@@ -242,13 +244,14 @@ class Step12
       Vector<double>       average;
       Vector<double>       right_hand_side;
       Vector<double>       shock_indicator;
+      Vector<double>       jump_indicator;
       double               dt;
       double               cfl;
       LimiterType          limiter_type;
       TestCase             test_case;
       double               sol_min, sol_max;
    
-      std::vector<typename DoFHandler<dim>::active_cell_iterator>
+      std::vector<typename DoFHandler<dim>::cell_iterator>
          lcell, rcell, bcell, tcell;
    
       typedef MeshWorker::DoFInfo<dim> DoFInfo;
@@ -277,7 +280,7 @@ Step12<dim>::Step12 (unsigned int degree,
       limiter_type (limiter_type),
       test_case (test_case)
 {
-   cfl = 0.4/(2.0*degree + 1.0);
+   cfl = 0.8/(2.0*degree + 1.0);
 }
 
 //------------------------------------------------------------------------------
@@ -301,6 +304,7 @@ void Step12<dim>::setup_system ()
    
    average.reinit (dof_handler_cell.n_dofs());
    shock_indicator.reinit (dof_handler_cell.n_dofs());
+   jump_indicator.reinit (dof_handler_cell.n_dofs());
 
    // For each cell, find neighbourig cell
    // This is needed for limiter
@@ -319,32 +323,28 @@ void Step12<dim>::setup_system ()
       rcell[c] = endc;
       bcell[c] = endc;
       tcell[c] = endc;
-
+      dx = cell->diameter() / std::sqrt(2.0);
+      
       for (unsigned int face_no=0; face_no<GeometryInfo<dim>::faces_per_cell; ++face_no)
          if (! cell->at_boundary(face_no))
          {
             const typename DoFHandler<dim>::cell_iterator
             neighbor = cell->neighbor(face_no);
-            if (neighbor->active())
-            {
-               Point<dim> dr = neighbor->center() - cell->center();
-               if(dr(0) < 0 && std::fabs(dr(1)) < EPS)
-                  lcell[c] = neighbor;
-               else if(dr(0) > 0 && std::fabs(dr(1)) < EPS)
-                  rcell[c] = neighbor;
-               else if(dr(1) < 0 && std::fabs(dr(0)) < EPS)
-                  bcell[c] = neighbor;
-               else if(dr(1) > 0 && std::fabs(dr(0)) < EPS)
-                  tcell[c] = neighbor;
-               else
-               {
-                  std::cout << "Did not find all neighbours\n";
-                  exit(0);
-               }
-            }
+            Assert(neighbor->level() == cell->level() || neighbor->level() == cell->level()-1,
+                   ExcInternalError());
+            Point<dim> dr = neighbor->center() - cell->center();
+            if(dr(0) < -0.5*dx)
+               lcell[c] = neighbor;
+            else if(dr(0) > 0.5*dx)
+               rcell[c] = neighbor;
+            else if(dr(1) < -0.5*dx)
+               bcell[c] = neighbor;
+            else if(dr(1) > 0.5*dx)
+               tcell[c] = neighbor;
             else
             {
-               std::cout << "Not active cell\n";
+               std::cout << "Did not find all neighbours\n";
+               std::cout << "dx, dy = " << dr(0) << "  " << dr(1) << std::endl;
                exit(0);
             }
          }
@@ -360,7 +360,34 @@ void Step12<dim>::setup_system ()
              << dof_handler.n_dofs()
              << std::endl;
 }
-
+//------------------------------------------------------------------------------
+// If cell is active, return cell average.
+// If is not active, return arithmetic average of child cells.
+//------------------------------------------------------------------------------
+template <int dim>
+double Step12<dim>::compute_cell_average(const typename DoFHandler<dim>::cell_iterator& cell)
+{
+   std::vector<unsigned int> dof_indices(fe.dofs_per_cell);
+   
+   if(cell->active())
+   {
+      cell->get_dof_indices(dof_indices);
+      return solution(dof_indices[0]);
+   }
+   else
+   {  // compute average solution on child cells
+      auto child_cells = GridTools::get_active_child_cells< DoFHandler<dim> > (cell);
+      double avg = 0, measure = 0;
+      for(unsigned int i=0; i<child_cells.size(); ++i)
+      {
+         child_cells[i]->get_dof_indices(dof_indices);
+         avg += solution(dof_indices[0]) * child_cells[i]->measure();
+         measure += child_cells[i]->measure();
+      }
+      avg /= measure;
+      return avg;
+   }
+}
 //------------------------------------------------------------------------------
 // Assemble mass matrix for each cell
 // Invert it and store
@@ -484,7 +511,7 @@ void Step12<dim>::compute_dt ()
    typename DoFHandler<dim>::active_cell_iterator 
       cell = dof_handler.begin_active(),
       endc = dof_handler.end();
-   for (unsigned int c = 0; cell!=endc; ++cell, ++c)
+   for (; cell!=endc; ++cell)
    {
       double h = cell->diameter ();
       const Point<dim> cell_center = cell->center();
@@ -656,9 +683,11 @@ void Step12<dim>::compute_shock_indicator ()
    for(; cell != endc; ++cell, ++cell0)
    {
       cell0->get_dof_indices(dof_indices_cell);
-      double& cell_ind = shock_indicator (dof_indices_cell[0]);
+      double& cell_shock_ind = shock_indicator (dof_indices_cell[0]);
+      double& cell_jump_ind = jump_indicator (dof_indices_cell[0]);
       
-      cell_ind = 0;
+      cell_shock_ind = 0;
+      cell_jump_ind = 0;
       double inflow_measure = 0;
       
       // advection speed at cell center
@@ -678,9 +707,11 @@ void Step12<dim>::compute_shock_indicator ()
                for(unsigned int q=0; q<n_q_points; ++q)
                {
                   int inflow_status = (beta * fe_face_values.normal_vector(q) < 0);
-                  cell_ind += inflow_status *
-                              (face_values[q] - face_values_nbr[q]) *
-                              fe_face_values.JxW(q);
+                  cell_shock_ind += inflow_status *
+                                    (face_values[q] - face_values_nbr[q]) *
+                                    fe_face_values.JxW(q);
+                  cell_jump_ind += std::pow(face_values[q] - face_values_nbr[q], 2) *
+                                   fe_face_values.JxW(q);
                   inflow_measure += inflow_status * fe_face_values.JxW(q);
                }
                
@@ -698,9 +729,11 @@ void Step12<dim>::compute_shock_indicator ()
                   for(unsigned int q=0; q<n_q_points; ++q)
                   {
                      int inflow_status = (beta * fe_subface_values.normal_vector(q) < 0);
-                     cell_ind += inflow_status *
-                                 (face_values[q] - face_values_nbr[q]) *
-                                 fe_subface_values.JxW(q);
+                     cell_shock_ind += inflow_status *
+                                       (face_values[q] - face_values_nbr[q]) *
+                                       fe_subface_values.JxW(q);
+                     cell_jump_ind += std::pow(face_values[q] - face_values_nbr[q], 2) *
+                                      fe_face_values.JxW(q);
                      inflow_measure += inflow_status * fe_subface_values.JxW(q);
                   }
                }
@@ -716,9 +749,11 @@ void Step12<dim>::compute_shock_indicator ()
                for(unsigned int q=0; q<n_q_points; ++q)
                {
                   int inflow_status = (beta * fe_face_values.normal_vector(q) < 0);
-                  cell_ind += inflow_status *
-                              (face_values[q] - face_values_nbr[q]) *
-                              fe_face_values.JxW(q);
+                  cell_shock_ind += inflow_status *
+                                    (face_values[q] - face_values_nbr[q]) *
+                                    fe_face_values.JxW(q);
+                  cell_jump_ind += std::pow(face_values[q] - face_values_nbr[q], 2) *
+                                   fe_face_values.JxW(q);
                   inflow_measure += inflow_status * fe_face_values.JxW(q);
                }
             }
@@ -740,78 +775,16 @@ void Step12<dim>::compute_shock_indicator ()
       double denominator = std::pow(cell->diameter(), 0.5*(fe.degree+1)) *
                            inflow_measure *
                            cell_norm;
-      if(denominator > 1.0e-10)
+      if(denominator > 1.0e-12)
       {
-         cell_ind = std::fabs(cell_ind) / denominator;
-         cell_ind = (cell_ind > 1.0) ? 1.0 : 0.0;
+         cell_shock_ind = std::fabs(cell_shock_ind) / denominator;
+         cell_shock_ind = (cell_shock_ind > 1.0) ? 1.0 : 0.0;
       }
       else
-         cell_ind = 0;
-   }
-}
-//------------------------------------------------------------------------------
-// Slope limiter based on minmod
-//------------------------------------------------------------------------------
-template <int dim>
-void Step12<dim>::apply_limiter_old ()
-{
-   if(fe.degree == 0) return;
-
-   Assert (fe.degree == 1, ExcInternalError() );
-
-   QMidpoint<dim> qrule;
-   FEValues<dim> fe_values (fe, qrule, update_gradients);
-   
-   std::vector<unsigned int> dof_indices     (fe.dofs_per_cell);
-   std::vector<unsigned int> dof_indices_nbr (fe.dofs_per_cell);
-
-   typename DoFHandler<dim>::active_cell_iterator
-      cell = dof_handler.begin_active(),
-      endc = dof_handler.end();
-
-   // mesh width: we assume uniform cartesian mesh
-   dx = cell->diameter() / std::sqrt(2.0);
-
-   for(unsigned int c=0; cell != endc; ++c, ++cell)
-   {
-      fe_values.reinit(cell);
-      cell->get_dof_indices (dof_indices);
-      const Tensor<1,dim>& grad_phi1 = fe_values.shape_grad (1,0);
-      const Tensor<1,dim>& grad_phi2 = fe_values.shape_grad (2,0);
-      Tensor<1,dim> grad_u = solution(dof_indices[1]) * grad_phi1
-                           + solution(dof_indices[2]) * grad_phi2;
-
-      double dal = 0, dar = 0;
-      double dab = 0, dat = 0;
-
-      if(lcell[c] != endc)
-      {
-         lcell[c]->get_dof_indices (dof_indices_nbr);
-         dal = (solution(dof_indices[0]) - solution(dof_indices_nbr[0]))/dx;
-      }
-
-      if(rcell[c] != endc)
-      {
-         rcell[c]->get_dof_indices (dof_indices_nbr);
-         dar = (solution(dof_indices_nbr[0]) - solution(dof_indices[0]))/dx;
-      }
-
-      if(bcell[c] != endc)
-      {
-         bcell[c]->get_dof_indices (dof_indices_nbr);
-         dab = (solution(dof_indices[0]) - solution(dof_indices_nbr[0]))/dx;
-      }
-
-      if(tcell[c] != endc)
-      {
-         tcell[c]->get_dof_indices (dof_indices_nbr);
-         dat = (solution(dof_indices_nbr[0]) - solution(dof_indices[0]))/dx;
-      }
-
-      double u_x = minmod(grad_u[0], dal, dar);
-      double u_y = minmod(grad_u[1], dab, dat);
-      solution(dof_indices[1]) = u_x / grad_phi1[0];
-      solution(dof_indices[2]) = u_y / grad_phi2[1];
+         cell_shock_ind = 0;
+      
+      dx = cell->diameter() / std::sqrt(2.0);
+      cell_jump_ind = std::sqrt( cell_jump_ind / (4.0*dx) ) * cell->diameter();
    }
 }
 //------------------------------------------------------------------------------
@@ -837,14 +810,14 @@ void Step12<dim>::apply_limiter_TVD ()
       cell = dof_handler.begin_active(),
       endc = dof_handler.end();
 
-   // mesh width: we assume uniform cartesian mesh
-   dx = cell->diameter() / std::sqrt(2.0);
-
-   double change, change_x, change_y;
+   double average_nbr, change, change_x, change_y;
    double db, df, DB, DF, DBx_new, DFx_new, DBy_new, DFy_new;
 
    for(unsigned int c=0; cell != endc; ++c, ++cell)
    {
+      // mesh width: we assume cartesian mesh
+      dx = cell->diameter() / std::sqrt(2.0);
+      
       cell->get_dof_indices (dof_indices);
 
       // Limit x derivative
@@ -855,14 +828,18 @@ void Step12<dim>::apply_limiter_TVD ()
 
       if(lcell[c] != endc)
       {
-         lcell[c]->get_dof_indices (dof_indices_nbr);
-         db = solution(dof_indices[0]) - solution(dof_indices_nbr[0]);
+         //lcell[c]->get_dof_indices (dof_indices_nbr);
+         //db = solution(dof_indices[0]) - solution(dof_indices_nbr[0]);
+         average_nbr = compute_cell_average(lcell[c]);
+         db = solution(dof_indices[0]) - average_nbr;
       }
 
       if(rcell[c] != endc)
       {
-         rcell[c]->get_dof_indices (dof_indices_nbr);
-         df = solution(dof_indices_nbr[0]) - solution(dof_indices[0]);
+         //rcell[c]->get_dof_indices (dof_indices_nbr);
+         //df = solution(dof_indices_nbr[0]) - solution(dof_indices[0]);
+         average_nbr = compute_cell_average(rcell[c]);
+         df = average_nbr - solution(dof_indices[0]);
       }
 
       DB = solution(dof_indices[0]) - face_values[0];
@@ -880,14 +857,18 @@ void Step12<dim>::apply_limiter_TVD ()
 
       if(bcell[c] != endc)
       {
-         bcell[c]->get_dof_indices (dof_indices_nbr);
-         db = solution(dof_indices[0]) - solution(dof_indices_nbr[0]);
+         //bcell[c]->get_dof_indices (dof_indices_nbr);
+         //db = solution(dof_indices[0]) - solution(dof_indices_nbr[0]);
+         average_nbr = compute_cell_average(bcell[c]);
+         db = solution(dof_indices[0]) - average_nbr;
       }
 
       if(tcell[c] != endc)
       {
-         tcell[c]->get_dof_indices (dof_indices_nbr);
-         df = solution(dof_indices_nbr[0]) - solution(dof_indices[0]);
+         //tcell[c]->get_dof_indices (dof_indices_nbr);
+         //df = solution(dof_indices_nbr[0]) - solution(dof_indices[0]);
+         average_nbr = compute_cell_average(tcell[c]);
+         df = average_nbr - solution(dof_indices[0]);
       }
 
       DB = solution(dof_indices[0]) - face_values[0];
@@ -979,7 +960,7 @@ void Step12<dim>::solve ()
       
       ++iter; time += dt;
 
-//      if(std::fmod(iter,10)==0)
+//      if(iter==1 || std::fmod(iter,10)==0)
 //      {
 //         compute_shock_indicator ();
 //         refine_grid ();
@@ -1012,11 +993,11 @@ void Step12<dim>::refine_grid ()
       cell = dof_handler.begin_active(),
       endc = dof_handler.end();
    for (unsigned int cell_no=0; cell!=endc; ++cell, ++cell_no)
-      gradient_indicator(cell_no)*=std::pow(cell->diameter(), 1+1.0*dim/2);
+      gradient_indicator(cell_no) *= std::pow(cell->diameter(), 1+1.0*dim/2);
    
    SolutionTransfer<dim, Vector<double> > soltrans(dof_handler);
    GridRefinement::refine_and_coarsen_fixed_fraction (triangulation,
-                                                      gradient_indicator,
+                                                      jump_indicator,
                                                       0.1, 0.5);
    
    unsigned int min_grid_level = 0;
@@ -1095,10 +1076,11 @@ void Step12<dim>::output_results (const unsigned int cycle)
       data_out.attach_dof_handler (dof_handler_cell);
       data_out.add_data_vector (average, "average");
       
-      //compute_shock_indicator ();
-      //data_out.add_data_vector (shock_indicator, "shock_indicator");
+      compute_shock_indicator ();
+      data_out.add_data_vector (shock_indicator, "shock_indicator");
+      data_out.add_data_vector (jump_indicator, "jump_indicator");
       
-      data_out.build_patches ();
+      data_out.build_patches (1);
       data_out.write_vtk (outfile);
    }
 }
@@ -1109,10 +1091,20 @@ void Step12<dim>::output_results (const unsigned int cycle)
 template <int dim>
 void Step12<dim>::run ()
 {
-   GridGenerator::subdivided_hyper_cube (triangulation,50,-1.0,+1.0);
+   GridGenerator::subdivided_hyper_cube (triangulation,40,-1.0,+1.0);
    setup_system ();
    set_initial_condition ();
+   
+   // Initial refinements
+//   unsigned int n_refine_init = 1;
+//   for(unsigned int i=0; i<n_refine_init; ++i)
+//   {
+//      compute_shock_indicator ();
+//      refine_grid ();
+//      set_initial_condition();
+//   }
    output_results(0);
+   
    solve ();
 }
 
@@ -1126,7 +1118,7 @@ int main ()
       unsigned int degree = 1;
       LimiterType limiter_type = tvd;
       TestCase test_case = square;
-      Mlim = 0.0;
+      Mlim = 100.0;
       Step12<2> dgmethod(degree, limiter_type, test_case);
       dgmethod.run ();
    }
