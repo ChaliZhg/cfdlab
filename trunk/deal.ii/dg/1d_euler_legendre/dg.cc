@@ -52,8 +52,7 @@ double Mdx2; // for TVB limiter
 double pc, xc_l, xc_r;
 
 // Coefficients for 3-stage SSP RK scheme of Shu-Osher
-const double a_rk[3] = {0.0, 3.0/4.0, 1.0/3.0};
-const double b_rk[3] = {1.0, 1.0/4.0, 2.0/3.0};
+std::vector<double> a_rk, b_rk;
 
 // Numerical flux functions
 enum FluxType {lxf, kfvs};
@@ -320,7 +319,6 @@ private:
    FE_DGP<dim>          fe;
    DoFHandler<dim>      dof_handler;
    
-   SparsityPattern      sparsity_pattern;
    std::vector< Vector<double> > inv_mass_matrix;
    
    Vector<double>       density;
@@ -374,7 +372,29 @@ EulerProblem<dim>::EulerProblem (unsigned int degree,
 
    if(limiter == "BDF") M = 0.0;
    
-   n_rk_stages = 3;
+   n_rk_stages = std::min(degree,2u) + 1;
+   a_rk.resize(n_rk_stages);
+   b_rk.resize(n_rk_stages);
+   if(n_rk_stages==1)
+   {
+      a_rk[0] = 0.0;
+      b_rk[0] = 1.0;
+   }
+   else if(n_rk_stages==2)
+   {
+      a_rk = {0.0, 0.5};
+      b_rk = {1.0, 0.5};
+   }
+   else if(n_rk_stages==3)
+   {
+      a_rk = {0.0, 3.0/4.0, 1.0/3.0};
+      b_rk = {1.0, 1.0/4.0, 2.0/3.0};
+   }
+   else
+   {
+      std::cout << "This should not happen.\n";
+      exit(0);
+   }
 
    // Set flux enum type
    if(flux == "kfvs")
@@ -548,10 +568,6 @@ void EulerProblem<dim>::make_grid_and_dofs ()
               << dof_handler.n_dofs()
               << std::endl;
 
-    CompressedSparsityPattern c_sparsity(dof_handler.n_dofs());
-    DoFTools::make_sparsity_pattern (dof_handler, c_sparsity);
-    sparsity_pattern.copy_from(c_sparsity);
-   
    // allocate memory for inverse mass matrix. We store only diagonals.
    inv_mass_matrix.resize(n_cells);
    for (unsigned int c=0; c<n_cells; ++c)
@@ -1532,9 +1548,9 @@ void EulerProblem<dim>::apply_limiter_BDF ()
             double l = (2*i - 1)*std::sqrt(2*i+1);
             double s = std::sqrt(2*i-1);
             std::vector<double> dcn(n_var);
-            dcn[0] = minmod(l*DC[i][0], s*(db[i-1][0]), s*(df[i-1][0]))/l;
-            dcn[1] = minmod(l*DC[i][1], s*(db[i-1][1]), s*(df[i-1][1]))/l;
-            dcn[2] = minmod(l*DC[i][2], s*(db[i-1][2]), s*(df[i-1][2]))/l;
+            dcn[0] = minmod(l*DC[i][0], s*db[i-1][0], s*df[i-1][0])/l;
+            dcn[1] = minmod(l*DC[i][1], s*db[i-1][1], s*df[i-1][1])/l;
+            dcn[2] = minmod(l*DC[i][2], s*db[i-1][2], s*df[i-1][2])/l;
             double diff = std::fabs(dcn[0]-DC[i][0]) 
                         + std::fabs(dcn[1]-DC[i][1])
                         + std::fabs(dcn[2]-DC[i][2]);
@@ -1865,7 +1881,7 @@ void EulerProblem<dim>::run (double& h, int& ndof, double& L2_error, double& H1_
 //------------------------------------------------------------------------------
 void declare_parameters(ParameterHandler& prm)
 {
-   prm.declare_entry("degree","0", Patterns::Integer(0,2),
+   prm.declare_entry("degree","0", Patterns::Integer(0,6),
                      "Polynomial degree");
    prm.declare_entry("ncells","100", Patterns::Integer(10,100000),
                      "Number of elements");
@@ -1930,6 +1946,9 @@ void compute_rate(std::vector<double>& h, std::vector<int>& ndof,
 
    std::cout << std::endl;
    convergence_table.write_text (std::cout);
+
+   std::ofstream error_table_file("error.tex");
+   convergence_table.write_tex (error_table_file);
 
 }
 //------------------------------------------------------------------------------
