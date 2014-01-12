@@ -55,9 +55,10 @@ double pc, xc_l, xc_r;
 std::vector<double> a_rk, b_rk;
 
 // Numerical flux functions
-enum FluxType {lxf, kfvs};
+enum FluxType {lxf, kfvs, roe};
 enum TestCase {sod, blast, blastwc, lax, shuosher, lowd, smooth};
 enum ShockIndicator { ind_None, ind_density, ind_entropy };
+enum ViscModel {constant, persson};
 
 //------------------------------------------------------------------------------
 // Computes entropy s = p / rho^gamma
@@ -286,6 +287,9 @@ private:
    void make_grid_and_dofs ();
    void initialize ();
    void assemble_mass_matrix ();
+   void compute_viscosity_constant ();
+   void compute_viscosity_persson ();
+   void compute_viscosity ();
    void assemble_rhs ();
    void compute_averages ();
    void compute_dt ();
@@ -303,6 +307,7 @@ private:
    double               dt;
    double               dx;
    double               cfl;
+   double               cip;
    double               final_time;
    double               min_residue;
    unsigned int         max_iter;
@@ -313,6 +318,7 @@ private:
    ShockIndicator       shock_indicator;
    bool                 lbc_reflect, rbc_reflect, periodic;
    unsigned int         save_freq;
+   ViscModel            visc_model;
    
    
    Triangulation<dim>   triangulation;
@@ -330,6 +336,7 @@ private:
    Vector<double>       rhs_density;
    Vector<double>       rhs_momentum;
    Vector<double>       rhs_energy;
+   Vector<double>       viscosity;
    
    std::vector<double>  density_average;
    std::vector<double>  momentum_average;
@@ -363,13 +370,18 @@ EulerProblem<dim>::EulerProblem (unsigned int degree,
    lim_char = prm.get_bool("characteristic limiter");
    lim_pos  = prm.get_bool("positivity limiter");
    cfl      = prm.get_double("cfl");
+   cip      = prm.get_double("cip");
    double M = prm.get_double("M");
    save_freq= prm.get_integer("save frequency");
    limiter  = prm.get("limiter");
    std::string flux  = prm.get("flux");
    std::string indicator  = prm.get("indicator");
    max_iter = prm.get_integer("max iter");
-
+   
+   std::string vm  = prm.get("viscosity");
+   if(vm == "constant") visc_model = constant;
+   if(vm == "persson") visc_model = persson;
+   
    if(limiter == "BDF") M = 0.0;
    
    n_rk_stages = std::min(degree,2u) + 1;
@@ -401,6 +413,8 @@ EulerProblem<dim>::EulerProblem (unsigned int degree,
       flux_type = kfvs;
    else if(flux == "lxf")
       flux_type = lxf;
+   else if(flux == "roe")
+      flux_type = roe;
 
    if(indicator == "None")
       shock_indicator = ind_None;
@@ -589,6 +603,7 @@ void EulerProblem<dim>::make_grid_and_dofs ()
     density_average.resize (triangulation.n_cells());
     momentum_average.resize (triangulation.n_cells());
     energy_average.resize (triangulation.n_cells());
+    viscosity.reinit (triangulation.n_cells());
    
     residual.resize(3, 1.0);
     residual0.resize(3);
@@ -874,7 +889,62 @@ void KFVSFlux (const Vector<double>& left_state,
    for(unsigned int i=0; i<n_var; ++i)
       flux(i) = flux_pos[i] + flux_neg[i];
 }
+//------------------------------------------------------------------------------
+// Roe flux
+//------------------------------------------------------------------------------
+void ROEFlux (const Vector<double>& left_state,
+              const Vector<double>& right_state,
+              Vector<double>& flux)
+{
+   double left[n_var], right[n_var];
+   
+   left[0] = left_state[0];
+   left[1] = left_state[1] / left_state[0];
+   left[2] = (gas_gamma-1) * ( left_state[2] - 0.5 * left[0] * left[1] * left[1]);
 
+   right[0] = right_state[0];
+   right[1] = right_state[1] / right_state[0];
+   right[2] = (gas_gamma-1) * ( right_state[2] - 0.5 * right[0] * right[1] * right[1]);
+   
+   double fl  = std::sqrt(left[0]);
+   double fr  = std::sqrt(right[0]);
+   double u   = (fl*left[1] + fr*right[1])/(fl + fr);
+   
+   double Hl  = gas_gamma*left[2]/left[0]/(gas_gamma-1.0) + 0.5*std::pow(left[1],2);
+   double Hr  = gas_gamma*right[2]/right[0]/(gas_gamma-1.0) + 0.5*std::pow(right[1],2);
+   
+   // average of fluxes
+   flux[0] = 0.5*(left[0]*left[1] + right[0]*right[1]);
+   flux[1] = 0.5*(left[2] + left[0] * std::pow(left[1],2) +
+                  right[2] + right[0] * std::pow(right[1],2));
+   flux[2] = 0.5*(Hl*left[0]*left[1] + Hr*right[0]*right[1]);
+   
+   
+   // Add conservative dissipation
+   double H = (fl*Hl + fr*Hr)/(fl + fr);
+   double a = std::sqrt((gas_gamma-1.0)*(H - 0.5*u*u));
+   double R[3][3];
+   R[0][0] = R[0][1] = R[0][2] = 1.0;
+   R[1][0] = u-a; R[1][1] = u; R[1][2] = u + a;
+   R[2][0] = H - u * a; R[2][1] = 0.5*u*u; R[2][2] = H + u * a;
+   
+   double Lambda[] = { fabs(u-a), fabs(u), fabs(u+a)};
+   
+   double dU[] = {
+      right_state[0] - left_state[0],
+      right_state[1] - left_state[1],
+      right_state[2] - left_state[2]
+   };
+   
+   double aa[3];
+   aa[1] = (gas_gamma-1.0)/(a*a) * (dU[0]*(H-u*u) + u*dU[1] - dU[2]);
+   aa[0] = 0.5/a * (dU[0]*(u+a) - dU[1] - a * aa[1]);
+   aa[2] = dU[0] - aa[0] - aa[1];
+   
+   for(unsigned int i=0; i<3; ++i)
+      for(unsigned int j=0; j<3; ++j)
+         flux[i] -= 0.5 * aa[j] * Lambda[j] * R[i][j];
+}
 //------------------------------------------------------------------------------
 // Compute flux across cell faces
 //------------------------------------------------------------------------------
@@ -891,6 +961,10 @@ void numerical_flux (const FluxType& flux_type,
          
       case kfvs: // Kinetic flux of Mandal & Deshpande
          KFVSFlux (left_state, right_state, flux);
+         break;
+         
+      case roe: // Roe flux
+         ROEFlux (left_state, right_state, flux);
          break;
          
       default:
@@ -913,7 +987,100 @@ std::vector<double> con2prim (const Vector<double>& state)
                                 0.5 * state(1) * prim[1] );
    return prim;
 }
+//------------------------------------------------------------------------------
+// constant artificial viscosity
+//------------------------------------------------------------------------------
+template <int dim>
+void EulerProblem<dim>::compute_viscosity_constant ()
+{
+   // constant viscosity per cell
+   for(unsigned int i=0; i<n_cells; ++i)
+   {
+      double velocity = momentum_average[i] / density_average[i];
+      double pressure = (gas_gamma-1.0) * ( energy_average[i] -
+                                           0.5 * momentum_average[i] * velocity );
+      double sonic = std::sqrt ( gas_gamma * pressure / density_average[i] );
+      double speed = std::fabs(velocity) + sonic;
+      viscosity(i) = dx * speed / fe.degree;
+   }
+}
+//------------------------------------------------------------------------------
+// Based on Persson and Peraire
+//------------------------------------------------------------------------------
+template <int dim>
+void EulerProblem<dim>::compute_viscosity_persson ()
+{
+   static const double s0 =  std::log10( 1.0/std::pow(fe.degree, 4) );
+   static const double kappa = 4.0;
+   
+   std::vector<unsigned int> dof_indices(fe.dofs_per_cell);
+   typename DoFHandler<dim>::active_cell_iterator
+      cell = dof_handler.begin_active(),
+      endc = dof_handler.end();
+   
+   // constant viscosity per cell
+   for(unsigned int c=0; cell!=endc; ++cell, ++c)
+   {
+      double velocity = momentum_average[c] / density_average[c];
+      double pressure = (gas_gamma-1.0) * ( energy_average[c] -
+                                           0.5 * momentum_average[c] * velocity );
+      double sonic = std::sqrt ( gas_gamma * pressure / density_average[c] );
+      double speed = std::fabs(velocity) + sonic;
+      double mu0 = dx * speed / fe.degree;
+      
+      cell->get_dof_indices(dof_indices);
+      double num = std::pow(density(dof_indices[fe.degree]),2);
+      double den = 0;
+      for(unsigned int i=0; i<fe.dofs_per_cell; ++i)
+         den += std::pow(density(dof_indices[i]),2);
+      
+      double Se = num/den;
+      double se = std::log10(Se);
+      if(se < s0-kappa)
+         viscosity(c) = 0;
+      else if(se > s0+kappa)
+         viscosity(c) = mu0;
+      else
+      {
+         double arg = 0.5 * M_PI * (se - s0) / kappa;
+         viscosity(c) = 0.5 * mu0 * (1.0 + std::sin(arg));
+      }
+   }
+}
+//------------------------------------------------------------------------------
+// Assemble system rhs
+//------------------------------------------------------------------------------
+template <int dim>
+void EulerProblem<dim>::compute_viscosity ()
+{
+   if(limiter != "visc" || fe.degree == 0)
+   {
+      viscosity = 0;
+      return;
+   }
+   
+   switch(visc_model)
+   {
+      case constant:
+         compute_viscosity_constant();
+         break;
+         
+      case persson:
+         compute_viscosity_persson();
+         break;
+   }
+   
+   /*
+   Vector<double> tmp(n_cells);
+   tmp = viscosity;
+   for(unsigned int i=0; i<1; ++i)
+   {
+      for(unsigned int c=1; c<n_cells-1; ++c)
+         viscosity(c) = 0.25*(tmp(c-1) + 2.0*tmp(c) + tmp(c+1));
+   }
+   */
 
+}
 //------------------------------------------------------------------------------
 // Assemble system rhs
 //------------------------------------------------------------------------------
@@ -938,11 +1105,18 @@ void EulerProblem<dim>::assemble_rhs ()
     std::vector<double>  density_values  (n_q_points);
     std::vector<double>  momentum_values (n_q_points);
     std::vector<double>  energy_values   (n_q_points);
+   std::vector<Tensor<1,dim> >  density_grad  (n_q_points);
+   std::vector<Tensor<1,dim> >  momentum_grad (n_q_points);
+   std::vector<Tensor<1,dim> >  energy_grad   (n_q_points);
    
    // for getting neighbor cell solution using trapezoidal rule
    std::vector<double>  density_values_n  (2);
    std::vector<double>  momentum_values_n (2);
    std::vector<double>  energy_values_n   (2);
+   
+   std::vector<Tensor<1,dim> >  density_grad_n  (2);
+   std::vector<Tensor<1,dim> >  momentum_grad_n (2);
+   std::vector<Tensor<1,dim> >  energy_grad_n   (2);
 
     Vector<double>       cell_rhs_density  (dofs_per_cell);
     Vector<double>       cell_rhs_momentum (dofs_per_cell);
@@ -970,12 +1144,23 @@ void EulerProblem<dim>::assemble_rhs ()
         fe_values.get_function_values (density,  density_values);
         fe_values.get_function_values (momentum, momentum_values);
         fe_values.get_function_values (energy,   energy_values);
+       
+       fe_values.get_function_gradients (density,  density_grad);
+       fe_values.get_function_gradients (momentum, momentum_grad);
+       fe_values.get_function_gradients (energy,   energy_grad);
+
+       
+       // viscosity in this cell
+       double mu = viscosity(c);
 
         // Flux integral over cell
         for (unsigned int q_point=0; q_point<n_q_points; ++q_point)
         {
             euler_flux(density_values[q_point], momentum_values[q_point],
                        energy_values[q_point], flux);
+           flux(0) -= mu * density_grad[q_point][0];
+           flux(1) -= mu * momentum_grad[q_point][0];
+           flux(2) -= mu * energy_grad[q_point][0];
             for (unsigned int i=0; i<dofs_per_cell; ++i)
             {
                 cell_rhs_density(i) += (fe_values.shape_grad (i, q_point)[0] *
@@ -992,12 +1177,18 @@ void EulerProblem<dim>::assemble_rhs ()
        
        // Computation of flux at cell boundaries
        Vector<double> lf_left_state(3), lf_right_state(3);
-
+       Vector<double> lf_left_grad(3), lf_right_grad(3);
+       double lf_mu_n;
+       
         // left face flux
         // right state is from current cell
        lf_right_state(0) = density_values [0];
        lf_right_state(1) = momentum_values[0];
        lf_right_state(2) = energy_values  [0];
+       
+       lf_right_grad(0) = density_grad [0][0];
+       lf_right_grad(1) = momentum_grad[0][0];
+       lf_right_grad(2) = energy_grad  [0][0];
        
        if(c==0 && periodic==false)
        {
@@ -1013,6 +1204,8 @@ void EulerProblem<dim>::assemble_rhs ()
              lf_left_state(1) = lf_right_state(1);
              lf_left_state(2) = lf_right_state(2);
           }
+          lf_left_grad = lf_right_grad;
+          lf_mu_n = mu;
        }
        else
        {
@@ -1024,20 +1217,45 @@ void EulerProblem<dim>::assemble_rhs ()
           fe_values_neighbor.get_function_values (momentum, momentum_values_n);
           fe_values_neighbor.get_function_values (energy,   energy_values_n);
           
+          fe_values_neighbor.get_function_gradients (density,  density_grad_n);
+          fe_values_neighbor.get_function_gradients (momentum, momentum_grad_n);
+          fe_values_neighbor.get_function_gradients (energy,   energy_grad_n);
+          
           lf_left_state(0) = density_values_n [1];
           lf_left_state(1) = momentum_values_n[1];
           lf_left_state(2) = energy_values_n  [1];
+          
+          lf_left_grad(0) = density_grad_n[1][0];
+          lf_left_grad(1) = momentum_grad_n[1][0];
+          lf_left_grad(2) = energy_grad_n[1][0];
+          
+          if(periodic)
+             lf_mu_n = viscosity(n_cells-1);
+          else
+             lf_mu_n = viscosity(c-1);
        }
        
        Vector<double> left_flux(n_var);
        numerical_flux (flux_type, lf_left_state, lf_right_state, left_flux);
+       double mu_l = 0.5*(mu + lf_mu_n);
+       double cpen_l = cip * mu_l / dx;
+       for(unsigned int i=0; i<n_var; ++i)
+          left_flux(i) -= 0.5 * (lf_mu_n * lf_left_grad(i) + mu * lf_right_grad(i))
+                          - cpen_l * (lf_right_state(i) - lf_left_state(i));
        
        // right face flux
        Vector<double> rf_left_state(n_var), rf_right_state(n_var);
+       Vector<double> rf_left_grad(3), rf_right_grad(3);
+       double rf_mu_n;
+
        // left state is from current cell
        rf_left_state(0) = density_values [n_q_points-1];
        rf_left_state(1) = momentum_values[n_q_points-1];
        rf_left_state(2) = energy_values  [n_q_points-1];
+       
+       rf_left_grad(0) = density_grad [n_q_points-1][0];
+       rf_left_grad(1) = momentum_grad[n_q_points-1][0];
+       rf_left_grad(2) = energy_grad  [n_q_points-1][0];
        
        if(c==triangulation.n_cells()-1 && periodic==false)
        {
@@ -1053,6 +1271,8 @@ void EulerProblem<dim>::assemble_rhs ()
              rf_right_state(1) = rf_left_state(1);
              rf_right_state(2) = rf_left_state(2);
           }
+          rf_right_grad = rf_left_grad;
+          rf_mu_n = mu;
        }
        else
        {          
@@ -1064,13 +1284,31 @@ void EulerProblem<dim>::assemble_rhs ()
           fe_values_neighbor.get_function_values (momentum, momentum_values_n);
           fe_values_neighbor.get_function_values (energy,   energy_values_n);
           
+          fe_values_neighbor.get_function_gradients (density,  density_grad_n);
+          fe_values_neighbor.get_function_gradients (momentum, momentum_grad_n);
+          fe_values_neighbor.get_function_gradients (energy,   energy_grad_n);
+          
           rf_right_state(0) = density_values_n [0];
           rf_right_state(1) = momentum_values_n[0];
           rf_right_state(2) = energy_values_n  [0];
+          
+          rf_right_grad(0) = density_grad_n [0][0];
+          rf_right_grad(1) = momentum_grad_n[0][0];
+          rf_right_grad(2) = energy_grad_n  [0][0];
+          
+          if(periodic)
+             rf_mu_n = viscosity(0);
+          else
+             rf_mu_n = viscosity(c+1);
        }
        
        Vector<double> right_flux(3);
        numerical_flux (flux_type, rf_left_state, rf_right_state, right_flux);
+       double mu_r = 0.5*(mu + rf_mu_n);
+       double cpen_r = cip * mu_r / dx;
+       for(unsigned int i=0; i<n_var; ++i)
+          right_flux(i) -= 0.5 * (mu * rf_left_grad(i) + rf_mu_n * rf_right_grad(i))
+                           - cpen_r * (rf_right_state(i) - rf_left_state(i));
        
         // Add flux at cell boundaries
         for (unsigned int i=0; i<dofs_per_cell; ++i)
@@ -1290,7 +1528,7 @@ void EulerProblem<dim>::apply_limiter ()
       apply_limiter_TVB ();
    else if(limiter == "BDF")
       apply_limiter_BDF ();
-   else if(limiter == "None")
+   else if(limiter == "None" || limiter == "visc")
       return;
    else
    {
@@ -1776,7 +2014,8 @@ void EulerProblem<dim>::output_results () const
          << density_average[c] << "  " 
          << velocity << "  " 
          << pressure << "  " 
-         << ind << "  " 
+         << ind << "  "
+         << viscosity(c)
          << std::endl;
    }
 
@@ -1841,12 +2080,13 @@ void EulerProblem<dim>::run (double& h, int& ndof, double& L2_error, double& H1_
 
        for(unsigned int rk=0; rk<n_rk_stages; ++rk)
        {
-         assemble_rhs ();
-         update (rk);
-         compute_averages ();
-         identify_troubled_cells ();
-         apply_limiter ();
-         if(lim_pos) apply_positivity_limiter ();
+          compute_viscosity ();
+          assemble_rhs ();
+          update (rk);
+          compute_averages ();
+          identify_troubled_cells ();
+          apply_limiter ();
+          if(lim_pos) apply_positivity_limiter ();
        }
        
        if(iter==0)
@@ -1891,13 +2131,16 @@ void declare_parameters(ParameterHandler& prm)
                      Patterns::Selection("sod|lowd|blast|blastwc|lax|shuosher|sedov|smooth"),
                      "Test case");
    prm.declare_entry("limiter","TVB", 
-                     Patterns::Selection("None|TVB|BDF"),
+                     Patterns::Selection("None|TVB|BDF|visc"),
                      "limiter");
-   prm.declare_entry("indicator","None", 
+   prm.declare_entry("viscosity","constant",
+                     Patterns::Selection("constant|persson"),
+                     "artificial viscosity");
+   prm.declare_entry("indicator","None",
                      Patterns::Selection("None|density|entropy"),
                      "Shock indicator");
    prm.declare_entry("flux","kfvs", 
-                     Patterns::Selection("kfvs|lxf"),
+                     Patterns::Selection("kfvs|lxf|roe"),
                      "limiter");
    prm.declare_entry("characteristic limiter", "false",
                      Patterns::Bool(), "Characteristic limiter");
@@ -1905,6 +2148,8 @@ void declare_parameters(ParameterHandler& prm)
                      Patterns::Bool(), "positivity limiter");
    prm.declare_entry("cfl", "1.0",
                      Patterns::Double(0,1.0), "cfl number");
+   prm.declare_entry("cip", "0.0",
+                     Patterns::Double(0,100.0), "IP constant");
    prm.declare_entry("M", "0.0",
                      Patterns::Double(0,1.0e20), "TVB constant");
    prm.declare_entry("refine","0", Patterns::Integer(0,10),
