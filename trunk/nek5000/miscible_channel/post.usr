@@ -66,6 +66,12 @@ c-----------------------------------------------------------------------
       parameter (lyavg = ly1*lz1*lely*lelz)
       real ya(lyavg), ua(lyavg), ca(lyavg), w1(lyavg), 
      1     w2(lyavg), mua(lyavg), Tempa(lyavg)
+      parameter(lt=lx1*ly1*lz1*lelv)
+      real vort(lt,3), ww1(lt), ww2(lt)
+
+c     Save solution on uniform mesh
+      ifreguo = .true.
+      nxo     = lx1
 
 c     read file-list
       if (nid.eq.0) then
@@ -116,6 +122,11 @@ c     We put a smooth heaviside function
          if(nid.eq.0)then
             write(501,'(3E14.6)') time, ctot/ctot0, xtip
          endif
+c        Compute vorticity, store it as third passive scalar
+         call comp_vort3(vort,ww1,ww2,vx,vy,vz)
+         call copy(t(1,1,1,1,3),vort,n)
+c        Save solution on uniform mesh
+         call prepost(.true., '   ')
       enddo
 
       call exitt()
