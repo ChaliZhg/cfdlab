@@ -13,3 +13,8 @@ genmap
 makenek channel
 
 nek channel
+
+NOTE
+
+* If you are calling hpts(), make sure to delete the old hpts.out file
+  otherwise code will stop mysteriously.
