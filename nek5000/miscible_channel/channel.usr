@@ -101,6 +101,15 @@ c     We put a smooth heaviside function
          endif
       endif
 
+      if(mod(istep,10).eq.0) call hpts()
+
+      if(istep.eq.param(68))then
+         ifxyo = .true.
+      else
+         ifxyo = .false.
+      endif
+      call avg_all()
+
       ! Save initial condition
       if(istep.eq.0)then
          ifxyo = .true.
@@ -108,6 +117,7 @@ c     We put a smooth heaviside function
       else
          ifxyo = .false.
       endif
+
 
       return
       end
@@ -156,15 +166,18 @@ c-----------------------------------------------------------------------
       include 'TOTAL'
       common /myparam/ smlen,r_k,r_T,Uq,Rey_no,Pr_no,Sc_no,visc_rat
 
+      ifpsco(1) = .true.   ! concentration
+      ifpsco(2) = .false.  ! used in post.usr to store vorticity
+
       param(66) = 6
       param(67) = 6
 
 c     Length over which to smooth initial condition at inlet
       smlen = 5.0
 
-      r_k      = 1.0
-      r_T      = 0.0
-      Uq       = 1.5
+      r_k      = 1.0     ! ratio of thermal conducitivies
+      r_T      = 3.0     ! Temperature at inlet, walls = 0
+      Uq       = 1.5     ! avg velocity based on flow rate
       Rey_no   = 500.0
       Sc_no    = 100.0
       Pr_no    = 7.0

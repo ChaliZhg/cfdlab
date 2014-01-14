@@ -188,8 +188,9 @@ C
  F       PRESSURE
  T       TEMPERATURE
  F       TEMPERATURE GRADIENT
- 1       PASSIVE SCALARS
+ 2       PASSIVE SCALARS
  T       PS   1
+ T       PS   2
   ***** OBJECT SPECIFICATION *****
        0 Surface Objects 
        0 Volume  Objects 
