@@ -445,6 +445,9 @@ EulerProblem<dim>::EulerProblem (unsigned int degree,
       shock_indicator = ind_energy;
    else if(indicator == "entropy")
       shock_indicator = ind_entropy;
+
+   // If we are using shock indicator, then we should used TVD limiter
+   if(shock_indicator != ind_None) M = 0.0;
    
    lbc_reflect = rbc_reflect = periodic = false;
    min_residue= 1.0e20;
