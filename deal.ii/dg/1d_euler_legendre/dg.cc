@@ -3,6 +3,7 @@
    * Legendre basis functions
    * TVD/TVB limiter
    * Momentum limiter (BDF)
+   * Modified Moment limiter (BSB)
    * Characteristic based limiter
    * Positivity preserving limiter
    * KXRCF shock indicator
@@ -57,7 +58,7 @@ std::vector<double> a_rk, b_rk;
 // Numerical flux functions
 enum FluxType {lxf, kfvs, roe};
 enum TestCase {sod, blast, blastwc, lax, shuosher, lowd, smooth};
-enum ShockIndicator { ind_None, ind_density, ind_entropy };
+enum ShockIndicator { ind_None, ind_density, ind_energy, ind_entropy };
 enum ViscModel {constant, persson};
 
 //------------------------------------------------------------------------------
@@ -80,6 +81,25 @@ double minmod (const double& a, const double& b, const double& c)
    if( a*b > 0.0 && b*c > 0.0)
    {
       result  = std::min( std::fabs(a), std::min(std::fabs(b), std::fabs(c)));
+      result *= ((a>0.0) ? 1.0 : -1.0);
+   }
+   else 
+   {
+      result = 0.0;
+   }
+   
+   return result;
+}
+//------------------------------------------------------------------------------
+// maxmod of two numbers
+// Author: Sudarshan Kumar K
+//------------------------------------------------------------------------------
+double maxmod (const double& a, const double& b)
+{   
+   double result;
+   if( a*b >= 0.0)
+   {
+      result  = std::max( std::fabs(a), std::fabs(b) );
       result *= ((a>0.0) ? 1.0 : -1.0);
    }
    else 
@@ -297,6 +317,7 @@ private:
    void apply_limiter ();
    void apply_limiter_TVB ();
    void apply_limiter_BDF ();
+   void apply_limiter_BSB ();
    void apply_positivity_limiter ();
    void update (const unsigned int rk_stage);
    void output_results () const;
@@ -382,7 +403,7 @@ EulerProblem<dim>::EulerProblem (unsigned int degree,
    if(vm == "constant") visc_model = constant;
    if(vm == "persson") visc_model = persson;
    
-   if(limiter == "BDF") M = 0.0;
+   if(limiter == "BDF" || limiter == "BSB") M = 0.0;
    
    n_rk_stages = std::min(degree,2u) + 1;
    a_rk.resize(n_rk_stages);
@@ -420,6 +441,8 @@ EulerProblem<dim>::EulerProblem (unsigned int degree,
       shock_indicator = ind_None;
    else if(indicator == "density")
       shock_indicator = ind_density;
+   else if(indicator == "energy")
+      shock_indicator = ind_energy;
    else if(indicator == "entropy")
       shock_indicator = ind_entropy;
    
@@ -1493,6 +1516,11 @@ void EulerProblem<dim>::identify_troubled_cells ()
                 + (u < 0.0) ? density_face_values[1] - density_nbr_r : 0.0;
             var_avg = density_average[c];
             break;
+         case ind_energy:
+            ind = (u > 0.0) ? energy_face_values[0] - energy_nbr_l : 0.0
+                + (u < 0.0) ? energy_face_values[1] - energy_nbr_r : 0.0;
+            var_avg = energy_average[c];
+            break;
          case ind_entropy:
             ent_l = entropy(density_face_values[0], momentum_face_values[0], energy_face_values[0]);
             ent_r = entropy(density_face_values[1], momentum_face_values[1], energy_face_values[1]);
@@ -1528,6 +1556,8 @@ void EulerProblem<dim>::apply_limiter ()
       apply_limiter_TVB ();
    else if(limiter == "BDF")
       apply_limiter_BDF ();
+   else if(limiter == "BSB")
+      apply_limiter_BSB ();
    else if(limiter == "None" || limiter == "visc")
       return;
    else
@@ -1573,7 +1603,10 @@ void EulerProblem<dim>::apply_limiter_TVB ()
       fe_values.get_function_values(momentum, momentum_face_values);
       fe_values.get_function_values(energy, energy_face_values);
       
-      if(c==0)
+      unsigned int lc = (c==0) ? n_cells-1 : c-1;
+      unsigned int rc = (c==n_cells-1) ? 0 : c+1;
+      
+      if(c==0 && !periodic)
       {
          density_left = density_average[c];
          if(lbc_reflect)
@@ -1586,7 +1619,7 @@ void EulerProblem<dim>::apply_limiter_TVB ()
          momentum_right = momentum_average[c+1];
          energy_right = energy_average[c+1];
       }
-      else if(c == n_cells-1)
+      else if(c == n_cells-1 && !periodic)
       {
          density_left = density_average[c-1];
          momentum_left = momentum_average[c-1];
@@ -1601,13 +1634,13 @@ void EulerProblem<dim>::apply_limiter_TVB ()
       }
       else
       {
-         density_left = density_average[c-1];
-         momentum_left = momentum_average[c-1];
-         energy_left = energy_average[c-1];
+         density_left = density_average[lc];
+         momentum_left = momentum_average[lc];
+         energy_left = energy_average[lc];
          
-         density_right = density_average[c+1];
-         momentum_right = momentum_average[c+1];
-         energy_right = energy_average[c+1];
+         density_right = density_average[rc];
+         momentum_right = momentum_average[rc];
+         energy_right = energy_average[rc];
       }
       
       // density
@@ -1703,7 +1736,7 @@ void EulerProblem<dim>::apply_limiter_BDF ()
    {
       cell->get_dof_indices (local_dof_indices);
       
-      if(c==0)
+      if(c==0 && !periodic)
       {
          rcell[c]->get_dof_indices (right_dof_indices);
          for(unsigned int i=0; i<dofs_per_cell; ++i)
@@ -1720,7 +1753,7 @@ void EulerProblem<dim>::apply_limiter_BDF ()
             df[i][2] = energy(right_dof_indices[i]) - energy(local_dof_indices[i]);
          }
       }
-      else if(c == n_cells-1)
+      else if(c == n_cells-1 && !periodic)
       {
          lcell[c]->get_dof_indices (left_dof_indices);
          for(unsigned int i=0; i<dofs_per_cell; ++i)
@@ -1797,6 +1830,212 @@ void EulerProblem<dim>::apply_limiter_BDF ()
             momentum_n(local_dof_indices[i]) = dcn[1];
             energy_n(local_dof_indices[i])   = dcn[2];
             if(diff < 1.0e-10) to_limit = false; // Remaining dofs will not be limited
+         }
+         else
+         {
+            density_n(local_dof_indices[i])  = density(local_dof_indices[i]); 
+            momentum_n(local_dof_indices[i]) = momentum(local_dof_indices[i]);
+            energy_n(local_dof_indices[i])   = energy(local_dof_indices[i]);
+         }
+      }
+
+   }
+
+   // Now copy to main arrays
+   density = density_n;
+   momentum= momentum_n;
+   energy  = energy_n;
+}
+
+//------------------------------------------------------------------------------
+// Moment limiter of Burbeau, Sagaut, Bruneau
+// Author: Sudarshan Kumar K
+//------------------------------------------------------------------------------
+template <int dim>
+void EulerProblem<dim>::apply_limiter_BSB ()
+{
+   if(fe.degree == 0) return;
+   
+   const unsigned int   dofs_per_cell = fe.dofs_per_cell;   
+   std::vector<unsigned int> local_dof_indices (dofs_per_cell);
+   std::vector<unsigned int> left_dof_indices (dofs_per_cell);
+   std::vector<unsigned int> right_dof_indices (dofs_per_cell);
+   
+   std::vector< std::vector<double> > db(dofs_per_cell, std::vector<double>(n_var));
+   std::vector< std::vector<double> > df(dofs_per_cell, std::vector<double>(n_var));
+   std::vector< std::vector<double> > DC(dofs_per_cell, std::vector<double>(n_var));
+   std::vector< std::vector<double> > DC_l(dofs_per_cell, std::vector<double>(n_var));
+   std::vector< std::vector<double> > DC_r(dofs_per_cell, std::vector<double>(n_var));
+
+   // Temporary storage
+   Vector<double> density_n(density);
+   Vector<double> momentum_n(momentum);
+   Vector<double> energy_n(energy);
+
+   typename DoFHandler<dim>::active_cell_iterator 
+      cell = dof_handler.begin_active(),
+      endc = dof_handler.end();
+   
+   for (unsigned int c=0; c<n_cells; ++c, ++cell)
+   if(is_troubled[c])
+   {
+      cell->get_dof_indices (local_dof_indices);
+      
+      if(c==0 && !periodic)
+      {
+         rcell[c]->get_dof_indices (right_dof_indices);
+         for(unsigned int i=0; i<dofs_per_cell; ++i)
+         {
+            db[i][0] = 0.0;
+            DC_l[i][0]=density(local_dof_indices[i]);
+            if(lbc_reflect)
+            {
+               db[i][1] = 2.0*momentum(local_dof_indices[i]);
+               DC_l[i][1]=-momentum(local_dof_indices[i]);
+            }
+            else
+            {
+               db[i][1] = 0.0;
+               DC_l[i][1]=momentum(local_dof_indices[i]);
+            }
+            db[i][2] = 0.0;
+            DC_l[i][2]=energy(local_dof_indices[i]);
+            
+            df[i][0] = density(right_dof_indices[i]) - density(local_dof_indices[i]);
+            df[i][1] = momentum(right_dof_indices[i]) - momentum(local_dof_indices[i]);
+            df[i][2] = energy(right_dof_indices[i]) - energy(local_dof_indices[i]);
+            
+            DC_r[i][0] = density(right_dof_indices[i]);
+            DC_r[i][1] = momentum(right_dof_indices[i]);
+            DC_r[i][2] = energy(right_dof_indices[i]);
+         }
+      }
+      else if(c == n_cells-1 && !periodic)
+      {
+         lcell[c]->get_dof_indices (left_dof_indices);
+         for(unsigned int i=0; i<dofs_per_cell; ++i)
+         {
+            db[i][0] = density(local_dof_indices[i]) - density(left_dof_indices[i]);
+            db[i][1] = momentum(local_dof_indices[i]) - momentum(left_dof_indices[i]);
+            db[i][2] = energy(local_dof_indices[i]) - energy(left_dof_indices[i]);
+            
+            DC_l[i][0] = density(left_dof_indices[i]);
+            DC_l[i][1] = momentum(left_dof_indices[i]);
+            DC_l[i][2] = energy(left_dof_indices[i]);
+
+            df[i][0] = 0.0;
+            DC_r[i][0]=density(local_dof_indices[i]);
+            if(rbc_reflect)
+            {
+               df[i][1] = 2.0*momentum(local_dof_indices[i]);
+               DC_r[i][1]=-momentum(local_dof_indices[i]);
+            }
+            else
+            {
+               df[i][1] = 0.0;
+               DC_r[i][1]=momentum(local_dof_indices[i]);
+            }
+            df[i][2] = 0.0;
+            DC_r[i][2]=energy(local_dof_indices[i]);
+         }
+      }
+      else
+      {
+         lcell[c]->get_dof_indices (left_dof_indices);
+         rcell[c]->get_dof_indices (right_dof_indices);
+         for(unsigned int i=0; i<dofs_per_cell; ++i)
+         {
+            db[i][0] = density(local_dof_indices[i]) - density(left_dof_indices[i]);
+            db[i][1] = momentum(local_dof_indices[i]) - momentum(left_dof_indices[i]);
+            db[i][2] = energy(local_dof_indices[i]) - energy(left_dof_indices[i]);
+            
+            df[i][0] = density(right_dof_indices[i]) - density(local_dof_indices[i]);
+            df[i][1] = momentum(right_dof_indices[i]) - momentum(local_dof_indices[i]);
+            df[i][2] = energy(right_dof_indices[i]) - energy(local_dof_indices[i]);
+            
+            DC_l[i][0] = density(left_dof_indices[i]);
+            DC_l[i][1] = momentum(left_dof_indices[i]);
+            DC_l[i][2] = energy(left_dof_indices[i]);
+            
+            DC_r[i][0] = density(right_dof_indices[i]);
+            DC_r[i][1] = momentum(right_dof_indices[i]);
+            DC_r[i][2] = energy(right_dof_indices[i]);
+         }
+      }
+      
+      for(unsigned int i=0; i<dofs_per_cell; ++i)
+      {
+         DC[i][0] = density(local_dof_indices[i]);
+         DC[i][1] = momentum(local_dof_indices[i]);
+         DC[i][2] = energy(local_dof_indices[i]);
+      }
+
+      double R[n_var][n_var], Ri[n_var][n_var];
+      if(lim_char)
+      {
+         EigMat(density_average[c], 
+                momentum_average[c], 
+                energy_average[c], R, Ri);
+         for(unsigned int i=0; i<dofs_per_cell; ++i)
+         {
+            Multi(Ri, db[i]);
+            Multi(Ri, df[i]);
+            Multi(Ri, DC[i]);
+            Multi(Ri, DC_l[i]);
+            Multi(Ri, DC_r[i]);
+         }
+      }
+
+      // Legendre in deal.ii is normalized. Moment limiter is BDF & BSB paper is
+      // given for non-normalized basis functions. We apply correct
+      // transformation here to account for this difference
+      // cell average value is unchanged
+      bool to_limit = true;
+      for(unsigned int i=dofs_per_cell-1; i>=1; --i)
+      {
+         if(to_limit)
+         {
+            double l = (2*i - 1)*std::sqrt(2*i+1);
+            double s = std::sqrt(2*i-1);
+            double t = std::sqrt(2*i+1);
+            std::vector<double> dcn(n_var),dcn_m(n_var);
+            std::vector<double> ur(n_var),ul(n_var),u_max(n_var);
+            dcn[0] = minmod(l*DC[i][0], s*db[i-1][0], s*df[i-1][0])/l;
+            dcn[1] = minmod(l*DC[i][1], s*db[i-1][1], s*df[i-1][1])/l;
+            dcn[2] = minmod(l*DC[i][2], s*db[i-1][2], s*df[i-1][2])/l;
+
+           double diff = std::fabs(dcn[0]-DC[i][0]) 
+                       + std::fabs(dcn[1]-DC[i][1])
+                       + std::fabs(dcn[2]-DC[i][2]);
+            if(diff>1.0e-10)
+            {
+               ur[0] = s*DC_r[i-1][0] - (2*i-1)*t*DC_r[i][0];
+               ur[1] = s*DC_r[i-1][1] - (2*i-1)*t*DC_r[i][1];
+               ur[2] = s*DC_r[i-1][2] - (2*i-1)*t*DC_r[i][2];
+               
+               ul[0] = s*DC_l[i-1][0] + (2*i-1)*t*DC_l[i][0];
+               ul[1] = s*DC_l[i-1][1] + (2*i-1)*t*DC_l[i][1];
+               ul[2] = s*DC_l[i-1][2] + (2*i-1)*t*DC_l[i][2];
+               
+               u_max[0] = minmod(l*DC[i][0], (ur[0]-s*DC[i-1][0]), (s*DC[i-1][0]-ul[0]) ) /l;
+               u_max[1] = minmod(l*DC[i][1], (ur[1]-s*DC[i-1][1]), (s*DC[i-1][1]-ul[1]) ) /l;
+               u_max[2] = minmod(l*DC[i][2], (ur[2]-s*DC[i-1][2]), (s*DC[i-1][2]-ul[2]) ) /l;
+               
+               dcn_m[0] = maxmod(dcn[0],u_max[0]);
+               dcn_m[1] = maxmod(dcn[1],u_max[1]);
+               dcn_m[2] = maxmod(dcn[2],u_max[2]);
+               if(lim_char) Multi(R, dcn_m);
+               density_n(local_dof_indices[i])  = dcn_m[0];
+               momentum_n(local_dof_indices[i]) = dcn_m[1];
+               energy_n(local_dof_indices[i])   = dcn_m[2];
+            }
+            else
+            {
+               density_n(local_dof_indices[i])  = density(local_dof_indices[i]); 
+               momentum_n(local_dof_indices[i]) = momentum(local_dof_indices[i]);
+               energy_n(local_dof_indices[i])   = energy(local_dof_indices[i]);
+               to_limit = false; // Remaining dofs will not be limited
+            }
          }
          else
          {
@@ -2131,13 +2370,13 @@ void declare_parameters(ParameterHandler& prm)
                      Patterns::Selection("sod|lowd|blast|blastwc|lax|shuosher|sedov|smooth"),
                      "Test case");
    prm.declare_entry("limiter","TVB", 
-                     Patterns::Selection("None|TVB|BDF|visc"),
+                     Patterns::Selection("None|TVB|BDF|BSB|visc"),
                      "limiter");
    prm.declare_entry("viscosity","constant",
                      Patterns::Selection("constant|persson"),
                      "artificial viscosity");
    prm.declare_entry("indicator","None",
-                     Patterns::Selection("None|density|entropy"),
+                     Patterns::Selection("None|density|energy|entropy"),
                      "Shock indicator");
    prm.declare_entry("flux","kfvs", 
                      Patterns::Selection("kfvs|lxf|roe"),
