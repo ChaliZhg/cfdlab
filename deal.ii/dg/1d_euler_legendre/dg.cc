@@ -98,14 +98,9 @@ double maxmod (const double& a, const double& b)
 {   
    double result;
    if( a*b >= 0.0)
-   {
-      result  = std::max( std::fabs(a), std::fabs(b) );
-      result *= ((a>0.0) ? 1.0 : -1.0);
-   }
+      result  = (std::fabs(a) > std::fabs(b)) ? a : b;
    else 
-   {
       result = 0.0;
-   }
    
    return result;
 }
