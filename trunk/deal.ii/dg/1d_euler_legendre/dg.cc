@@ -296,7 +296,7 @@ class EulerProblem
 {
 public:
    EulerProblem (unsigned int degree, const ParameterHandler& prm);
-   void run (double& h, int& ndof, double& L2_error, double& H1_error);
+   void run (double& h, int& ndof, double& L2_error, double& H1_error, double& Linf_error);
    
 private:
    void make_grid_and_dofs ();
@@ -316,7 +316,7 @@ private:
    void apply_positivity_limiter ();
    void update (const unsigned int rk_stage);
    void output_results () const;
-   void compute_errors (double& L2_error, double& H1_error) const;
+   void compute_errors (double& L2_error, double& H1_error, double& Linf_error) const;
    
    unsigned int         n_cells;
    std::string          test_case;
@@ -2265,7 +2265,9 @@ void EulerProblem<dim>::output_results () const
 // Compute error in solution
 //------------------------------------------------------------------------------
 template <int dim>
-void EulerProblem<dim>::compute_errors(double& L2_error, double& H1_error) const
+void EulerProblem<dim>::compute_errors(double& L2_error,
+                                       double& H1_error,
+                                       double& Linf_error) const
 {
    Vector<double> difference_per_cell (triangulation.n_active_cells());
    VectorTools::integrate_difference (dof_handler,
@@ -2283,12 +2285,24 @@ void EulerProblem<dim>::compute_errors(double& L2_error, double& H1_error) const
                                       QGauss<dim>(fe.degree+2),
                                       VectorTools::H1_seminorm);
    H1_error = difference_per_cell.l2_norm();
+   
+   VectorTools::integrate_difference (dof_handler,
+                                      density,
+                                      ExactSolution<dim>(),
+                                      difference_per_cell,
+                                      QGaussLobatto<dim>(fe.degree+2),
+                                      VectorTools::Linfty_norm);
+   Linf_error = difference_per_cell.l2_norm();
 }
 //------------------------------------------------------------------------------
 // Start solving the problem
 //------------------------------------------------------------------------------
 template <int dim>
-void EulerProblem<dim>::run (double& h, int& ndof, double& L2_error, double& H1_error)
+void EulerProblem<dim>::run (double& h,
+                             int& ndof,
+                             double& L2_error,
+                             double& H1_error,
+                             double& Linf_error)
 {
     std::cout << "\n Solving 1-D Euler problem ...\n";
 
@@ -2348,7 +2362,7 @@ void EulerProblem<dim>::run (double& h, int& ndof, double& L2_error, double& H1_
     }
     output_results ();
    
-   if(test_case == "smooth") compute_errors (L2_error, H1_error);
+   if(test_case == "smooth") compute_errors (L2_error, H1_error, Linf_error);
    h = dx;
    ndof = dof_handler.n_dofs();
 }
@@ -2398,7 +2412,8 @@ void declare_parameters(ParameterHandler& prm)
 // Compute convergence rates
 //------------------------------------------------------------------------------
 void compute_rate(std::vector<double>& h, std::vector<int>& ndof,
-                  std::vector<double>& L2_error, std::vector<double>& H1_error)
+                  std::vector<double>& L2_error, std::vector<double>& H1_error,
+                  std::vector<double>& Linf_error)
 {
    ConvergenceTable   convergence_table;
    unsigned int nrefine = h.size() - 1;
@@ -2409,22 +2424,27 @@ void compute_rate(std::vector<double>& h, std::vector<int>& ndof,
       convergence_table.add_value("dofs", ndof[i]);
       convergence_table.add_value("L2", L2_error[i]);
       convergence_table.add_value("H1", H1_error[i]);
+      convergence_table.add_value("Linf", Linf_error[i]);
    }
 
    convergence_table.set_precision("L2", 3);
    convergence_table.set_precision("H1", 3);
+   convergence_table.set_precision("Linf", 3);
 
    convergence_table.set_scientific("h", true);
    convergence_table.set_scientific("L2", true);
    convergence_table.set_scientific("H1", true);
+   convergence_table.set_scientific("Linf", true);
 
    convergence_table.set_tex_caption("h", "$h$");
    convergence_table.set_tex_caption("dofs", "\\# dofs");
    convergence_table.set_tex_caption("L2", "$L^2$-error");
    convergence_table.set_tex_caption("H1", "$H^1$-error");
+   convergence_table.set_tex_caption("Linf", "$L_\\infty$-error");
 
    convergence_table.evaluate_convergence_rates("L2", ConvergenceTable::reduction_rate_log2);
    convergence_table.evaluate_convergence_rates("H1", ConvergenceTable::reduction_rate_log2);
+   convergence_table.evaluate_convergence_rates("Linf", ConvergenceTable::reduction_rate_log2);
 
    std::cout << std::endl;
    convergence_table.write_text (std::cout);
@@ -2454,16 +2474,17 @@ int main (int argc, char** argv)
       prm.print_parameters(std::cout, ParameterHandler::Text);
       unsigned int degree = prm.get_integer("degree");
       unsigned int nrefine = prm.get_integer("refine");
-      std::vector<double> h(nrefine+1), L2_error(nrefine+1), H1_error(nrefine+1);
+      std::vector<double> h(nrefine+1), L2_error(nrefine+1), H1_error(nrefine+1),
+                          Linf_error(nrefine+1);
       std::vector<int> ndof(nrefine+1);
       for(unsigned int i=0; i<=nrefine; ++i)
       {
          EulerProblem<1> euler_problem(degree, prm);
-         euler_problem.run (h[i], ndof[i], L2_error[i], H1_error[i]);
+         euler_problem.run (h[i], ndof[i], L2_error[i], H1_error[i], Linf_error[i]);
          const long int ncells = 2 * prm.get_integer("ncells");
          prm.set("ncells", ncells);
       }
-      if(nrefine > 0) compute_rate(h, ndof, L2_error, H1_error);
+      if(nrefine > 0) compute_rate(h, ndof, L2_error, H1_error, Linf_error);
    }
 
    return 0;
