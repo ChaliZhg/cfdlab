@@ -181,7 +181,7 @@ template<int dim>
 double ExactSolution<dim>::value (const Point<dim>   &p, const unsigned int) const
 {
    double x = p[0] - 2.0;
-   return 1.0 + 0.1*sin(4.0*M_PI*x);
+   return 1.0 + 0.2*sin(M_PI*x);
 }
 
 template <int dim>
@@ -190,7 +190,7 @@ Tensor<1,dim> ExactSolution<dim>::gradient (const Point<dim>   &p,
 {
    Tensor<1,dim> return_value(0.0);
    double x = p[0] - 2.0;
-   return_value[0] = 0.1 * (4.0*M_PI) * cos(4.0*M_PI*x);
+   return_value[0] = 0.2 * (M_PI) * cos(M_PI*x);
    return return_value;
 }
 //------------------------------------------------------------------------------
@@ -276,7 +276,7 @@ void InitialCondition<dim>::vector_value (const Point<dim>   &p,
    }
    else if(test_case == "smooth")
    {
-      values(0) = 1.0 + 0.1*sin(4.0*M_PI*p[0]);
+      values(0) = 1.0 + 0.2*sin(M_PI*p[0]);
       values(1) = 1.0;
       values(2) = 1.0;
    }
@@ -563,7 +563,7 @@ EulerProblem<dim>::EulerProblem (unsigned int degree,
    else if(test_case == "smooth")
    {
       xmin    = 0.0;
-      xmax    = 1.0;
+      xmax    = 2.0;
       final_time = 2.0;
       
       gas_gamma = 1.4;
@@ -2290,9 +2290,9 @@ void EulerProblem<dim>::compute_errors(double& L2_error,
                                       density,
                                       ExactSolution<dim>(),
                                       difference_per_cell,
-                                      QGaussLobatto<dim>(fe.degree+2),
+                                      QIterated<dim>(QTrapez<dim>(),5),
                                       VectorTools::Linfty_norm);
-   Linf_error = difference_per_cell.l2_norm();
+   Linf_error = difference_per_cell.linfty_norm();
 }
 //------------------------------------------------------------------------------
 // Start solving the problem
