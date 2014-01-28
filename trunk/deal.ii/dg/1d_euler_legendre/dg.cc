@@ -58,7 +58,7 @@ std::vector<double> a_rk, b_rk;
 // Numerical flux functions
 enum FluxType {lxf, kfvs, roe};
 enum TestCase {sod, blast, blastwc, lax, shuosher, lowd, smooth};
-enum ShockIndicator { ind_None, ind_density, ind_energy, ind_entropy };
+enum ShockIndicator { ind_None, ind_density, ind_energy, ind_entropy, ind_entropy_residual };
 enum ViscModel {constant, persson};
 
 //------------------------------------------------------------------------------
@@ -309,6 +309,8 @@ private:
    void compute_averages ();
    void compute_dt ();
    void identify_troubled_cells ();
+   void compute_entropy_residual_1();
+   void compute_entropy_residual_2();
    void apply_limiter ();
    void apply_limiter_TVB ();
    void apply_limiter_BDF ();
@@ -362,6 +364,9 @@ private:
    std::vector<double>  residual0;
    std::vector<bool>    is_troubled;
    unsigned int         n_troubled_cells;
+   
+   unsigned int         n_entropy_residual;
+   Vector<double>       entropy_residual;
 
    
    typename DoFHandler<dim>::active_cell_iterator firstc, lastc;
@@ -440,6 +445,8 @@ EulerProblem<dim>::EulerProblem (unsigned int degree,
       shock_indicator = ind_energy;
    else if(indicator == "entropy")
       shock_indicator = ind_entropy;
+   else if(indicator == "eresidual")
+      shock_indicator = ind_entropy_residual;
 
    // If we are using shock indicator, then we should used TVD limiter
    if(shock_indicator != ind_None) M = 0.0;
@@ -630,6 +637,11 @@ void EulerProblem<dim>::make_grid_and_dofs ()
     residual0.resize(3);
    
    is_troubled.resize(triangulation.n_cells());
+   
+   // number of points at which entropy residual computed in each cell
+   // These are uniformly distributed points in each cell.
+   n_entropy_residual = fe.degree + 1;
+   entropy_residual.reinit(triangulation.n_cells() * n_entropy_residual);
    
    // Find first and last cell
    // We need these for periodic bc
@@ -1410,6 +1422,9 @@ void EulerProblem<dim>::identify_troubled_cells ()
          is_troubled[c] = true;
       return;
    }
+   
+   if(shock_indicator == ind_entropy_residual) return;
+
 
    QTrapez<dim>  quadrature_formula;
 
@@ -1544,6 +1559,112 @@ void EulerProblem<dim>::identify_troubled_cells ()
    std::cout << "Number of troubled cells = " << n_troubled_cells << std::endl;
 }
 
+//------------------------------------------------------------------------------
+// Assemble system rhs
+//------------------------------------------------------------------------------
+template <int dim>
+void EulerProblem<dim>::compute_entropy_residual_1 ()
+{
+   if(shock_indicator != ind_entropy_residual) return;
+   if(fe.degree == 0) return;
+
+   QIterated<dim> quadrature_formula (QTrapez<dim>(), n_entropy_residual-1);
+   
+   FEValues<dim> fe_values (fe, quadrature_formula,
+                            update_values   | update_gradients);
+   
+   const unsigned int   n_q_points    = quadrature_formula.size();
+   
+   std::vector<double>  density_values  (n_q_points);
+   std::vector<double>  momentum_values (n_q_points);
+   std::vector<double>  energy_values   (n_q_points);
+   std::vector<Tensor<1,dim> >  density_grad  (n_q_points);
+   std::vector<Tensor<1,dim> >  momentum_grad (n_q_points);
+   std::vector<Tensor<1,dim> >  energy_grad   (n_q_points);
+   
+   typename DoFHandler<dim>::active_cell_iterator
+      cell = dof_handler.begin_active(),
+      endc = dof_handler.end();
+   
+   for (unsigned int c=0; c<n_cells; ++c, ++cell)
+   {
+      fe_values.reinit(cell);
+      
+      fe_values.get_function_values (density,  density_values);
+      fe_values.get_function_values (momentum, momentum_values);
+      fe_values.get_function_values (energy,   energy_values);
+      
+      fe_values.get_function_gradients (density,  density_grad);
+      fe_values.get_function_gradients (momentum, momentum_grad);
+      fe_values.get_function_gradients (energy,   energy_grad);
+      
+      for(unsigned int i=0; i<n_q_points; ++i)
+      {
+         double velocity = momentum_values[i] / density_values[i];
+         double pressure = (gas_gamma-1.0)*(energy_values[i]
+                                            - 0.5*density_values[i]*std::pow(velocity,2));
+         double entropy = std::log(pressure) - gas_gamma * std::log(density_values[i]);
+         double entropy_fun = - density_values[i] * entropy;
+         double F1 = -momentum_values[i]*( 0.5*(gas_gamma-1.0)*std::pow(velocity,2)/pressure
+                                           - gas_gamma/density_values[i]);
+         double F2 = -entropy - (gas_gamma-1.0)*momentum_values[i]*velocity/pressure;
+         double F3 = -(gas_gamma-1.0)*momentum_values[i]/pressure;
+         entropy_residual(c*n_q_points + i) = -entropy_fun + dt*(F1*density_grad[i][0]
+                                                                 + F2*momentum_grad[i][0]
+                                                                 + F3*energy_grad[i][0]);
+      }
+      
+   }
+}
+//------------------------------------------------------------------------------
+//------------------------------------------------------------------------------
+template <int dim>
+void EulerProblem<dim>::compute_entropy_residual_2 ()
+{
+   if(shock_indicator != ind_entropy_residual) return;
+   if(fe.degree == 0) return;
+
+   QIterated<dim> quadrature_formula (QTrapez<dim>(), n_entropy_residual-1);
+   
+   FEValues<dim> fe_values (fe, quadrature_formula,
+                            update_values);
+   
+   const unsigned int   n_q_points    = quadrature_formula.size();
+   
+   std::vector<double>  density_values  (n_q_points);
+   std::vector<double>  momentum_values (n_q_points);
+   std::vector<double>  energy_values   (n_q_points);
+   
+   n_troubled_cells = 0;
+
+   typename DoFHandler<dim>::active_cell_iterator
+      cell = dof_handler.begin_active(),
+      endc = dof_handler.end();
+   
+   for (unsigned int c=0; c<n_cells; ++c, ++cell)
+   {
+      fe_values.reinit(cell);
+      
+      fe_values.get_function_values (density,  density_values);
+      fe_values.get_function_values (momentum, momentum_values);
+      fe_values.get_function_values (energy,   energy_values);
+      
+      is_troubled[c] = false;
+      for(unsigned int i=0; i<n_q_points; ++i)
+      {
+         double velocity = momentum_values[i] / density_values[i];
+         double pressure = (gas_gamma-1.0)*(energy_values[i]
+                                            - 0.5*density_values[i]*std::pow(velocity,2));
+         double entropy = std::log(pressure) - gas_gamma * std::log(density_values[i]);
+         double entropy_fun = - density_values[i] * entropy;
+         entropy_residual(c*n_q_points + i) += entropy_fun;
+         if(entropy_residual(c*n_q_points + i) > 1.0e-3*dt) is_troubled[c] = true;
+      }
+      if(is_troubled[c]) ++n_troubled_cells;
+   }
+   
+   std::cout << "Number of troubled cells = " << n_troubled_cells << std::endl;
+}
 //------------------------------------------------------------------------------
 // Apply chosen limiter
 //------------------------------------------------------------------------------
@@ -2333,7 +2454,9 @@ void EulerProblem<dim>::run (double& h,
        {
           compute_viscosity ();
           assemble_rhs ();
+          compute_entropy_residual_1 ();
           update (rk);
+          compute_entropy_residual_2 ();
           compute_averages ();
           identify_troubled_cells ();
           apply_limiter ();
@@ -2388,7 +2511,7 @@ void declare_parameters(ParameterHandler& prm)
                      Patterns::Selection("constant|persson"),
                      "artificial viscosity");
    prm.declare_entry("indicator","None",
-                     Patterns::Selection("None|density|energy|entropy"),
+                     Patterns::Selection("None|density|energy|entropy|eresidual"),
                      "Shock indicator");
    prm.declare_entry("flux","kfvs", 
                      Patterns::Selection("kfvs|lxf|roe"),
