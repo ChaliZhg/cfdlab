@@ -56,7 +56,7 @@ double pc, xc_l, xc_r;
 std::vector<double> a_rk, b_rk;
 
 // Numerical flux functions
-enum FluxType {lxf, kfvs, roe};
+enum FluxType {lxf, kfvs, roe, hllc};
 enum TestCase {sod, blast, blastwc, lax, shuosher, lowd, smooth};
 enum ShockIndicator { ind_None, ind_density, ind_energy, ind_entropy, ind_entropy_residual };
 enum ViscModel {constant, persson};
@@ -436,6 +436,8 @@ EulerProblem<dim>::EulerProblem (unsigned int degree,
       flux_type = lxf;
    else if(flux == "roe")
       flux_type = roe;
+   else if(flux == "hllc")
+      flux_type = hllc;
 
    if(indicator == "None")
       shock_indicator = ind_None;
@@ -979,6 +981,101 @@ void ROEFlux (const Vector<double>& left_state,
          flux[i] -= 0.5 * aa[j] * Lambda[j] * R[i][j];
 }
 //------------------------------------------------------------------------------
+// HLLC flux
+// Author: Sudarshan Kumar K
+//------------------------------------------------------------------------------
+void HLLCFlux (const Vector<double>& left_state,
+               const Vector<double>& right_state,
+               Vector<double>&       flux)
+{
+   
+   // Left state
+   double left_velocity = left_state(1) / left_state(0);
+   double left_pressure = (gas_gamma-1.0) * (left_state(2) -
+                                             0.5 * left_state(1) * left_velocity );
+   double left_sonic    = sqrt( gas_gamma * left_pressure / left_state(0) );
+   
+   // Left flux
+   Vector<double> left_flux(n_var);
+   left_flux(0) = left_state(1);
+   left_flux(1) = left_pressure + left_state(1) * left_velocity;
+   left_flux(2) = (left_state(2) + left_pressure) * left_velocity;
+   
+   // Right state
+   double right_velocity = right_state(1) / right_state(0);
+   double right_pressure = (gas_gamma-1.0) * (right_state(2) -
+                                              0.5 * right_state(1) * right_velocity );
+   double right_sonic    = std::sqrt( gas_gamma * right_pressure / right_state(0) );
+   
+   // Right flux
+   Vector<double> right_flux(n_var);
+   right_flux(0) = right_state(1);
+   right_flux(1) = right_pressure + right_state(1) * right_velocity;
+   right_flux(2) = (right_state(2) + right_pressure) * right_velocity;
+   
+   double avg_sound_speed = 0.5*(left_sonic + right_sonic);
+   double avg_density = 0.5*(left_state(0) + right_state(0));
+   double pressure_star = 0.5*(right_pressure + left_pressure)
+                         - 0.5*( right_velocity - left_velocity )*avg_density*avg_sound_speed;
+   
+   double v_star = 0.5*(left_velocity + right_velocity)
+                   - (right_pressure - left_pressure)/(2.0*avg_density*avg_sound_speed);
+   
+   double q_right, q_left;
+   if(pressure_star <= right_pressure)
+      q_right = 1.0;
+   else
+      q_right = std::sqrt(1.0 + ((gas_gamma+1)/(2*gas_gamma))*(pressure_star/right_pressure - 1.0));
+   
+   if(pressure_star <= left_pressure)
+      q_left = 1.0;
+   else
+      q_left = std::sqrt(1.0 + ((gas_gamma+1)/(2*gas_gamma))*(pressure_star/left_pressure - 1.0));
+   
+   double s_left = left_velocity - left_sonic*q_left;
+   double s_star = v_star;
+   double s_right = right_velocity + right_sonic*q_right;
+   
+   if (s_left >= 0.0)
+      flux = left_flux;
+   else if (s_left <= 0.0 && s_star >= 0.0)
+   {
+      double tmp_left = left_state(0) * (s_left - left_velocity)/(s_left - s_star);
+      Vector<double> left_state_star(n_var);
+      left_state_star(0) = 1.0;
+      left_state_star(1) = s_star;
+      left_state_star(2) = left_state(2)/left_state(0)
+                             + ( s_star - left_velocity) * ( s_star +
+                                  left_pressure/( left_state(0)*(s_left - left_velocity) )  );
+      left_state_star *= tmp_left;
+      
+      for(unsigned int i=0; i<n_var; ++i)
+         flux(i) = left_flux(i) + s_left*(left_state_star(i) - left_state(i));
+   }
+   else if (s_star <= 0.0 && s_right >= 0.0)
+   {
+      double tmp_right = right_state(0) * (s_right - right_velocity)/(s_right - s_star);
+      Vector<double> right_state_star(n_var);
+      right_state_star(0) = 1.0;
+      right_state_star(1) = s_star;
+      right_state_star(2) = right_state(2)/right_state(0)
+                              + ( s_star - right_velocity) * ( s_star +
+                                   right_pressure/( right_state(0)*(s_right - right_velocity) )  );
+      right_state_star *= tmp_right;
+
+      for(unsigned int i=0; i<n_var; ++i)
+         flux(i) = right_flux(i) + s_right*(right_state_star(i) - right_state(i));
+   }
+   else if (s_right >= 0.0)
+      flux = right_flux;
+   else
+   {
+      std::cout << "Error in computing HLLC flux !!!\n";
+      abort ();
+   }
+}
+
+//------------------------------------------------------------------------------
 // Compute flux across cell faces
 //------------------------------------------------------------------------------
 void numerical_flux (const FluxType& flux_type,
@@ -998,6 +1095,10 @@ void numerical_flux (const FluxType& flux_type,
          
       case roe: // Roe flux
          ROEFlux (left_state, right_state, flux);
+         break;
+         
+      case hllc: // HLLC flux
+         HLLCFlux (left_state, right_state, flux);
          break;
          
       default:
@@ -2514,7 +2615,7 @@ void declare_parameters(ParameterHandler& prm)
                      Patterns::Selection("None|density|energy|entropy|eresidual"),
                      "Shock indicator");
    prm.declare_entry("flux","kfvs", 
-                     Patterns::Selection("kfvs|lxf|roe"),
+                     Patterns::Selection("kfvs|lxf|roe|hllc"),
                      "limiter");
    prm.declare_entry("characteristic limiter", "false",
                      Patterns::Bool(), "Characteristic limiter");
