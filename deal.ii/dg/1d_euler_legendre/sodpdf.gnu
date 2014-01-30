@@ -20,3 +20,10 @@ set yran[-0.0:1.1]
 set key right top
 p 'avg.gpl' u 1:4 t 'DG' w p pt 6 lw 3, \
   'sod.dat' u 1:4 t 'Exact' w l lw 4 lc 3
+
+set out 'sod_ind.pdf'
+set ylabel 'Indicator'
+set yran[-0.0:1.1]
+unset key
+p 'avg.gpl' u 1:5 t 'DG' w p pt 6 lw 3, \
+  'sod.dat' u 1:2 t 'Exact' w l lw 4 lc 3
