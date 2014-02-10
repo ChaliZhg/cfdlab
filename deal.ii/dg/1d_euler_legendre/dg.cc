@@ -58,7 +58,8 @@ std::vector<double> a_rk, b_rk;
 // Numerical flux functions
 enum FluxType {lxf, kfvs, roe, hllc};
 enum TestCase {sod, blast, blastwc, lax, shuosher, lowd, smooth};
-enum ShockIndicator { ind_None, ind_density, ind_energy, ind_entropy, ind_entropy_residual };
+enum ShockIndicator { ind_None, ind_density, ind_energy, ind_entropy, ind_entfun,
+                      ind_entropy_residual };
 enum ViscModel {constant, persson};
 
 //------------------------------------------------------------------------------
@@ -1644,6 +1645,16 @@ void EulerProblem<dim>::identify_troubled_cells ()
                 + (u < 0.0) ? ent_r - ent_nbr_r : 0.0;
             var_avg = entropy(density_average[c], momentum_average[c], energy_average[c]);
             break;
+         case ind_entfun:
+            ent_l = entropy(density_face_values[0], momentum_face_values[0], energy_face_values[0]);
+            ent_r = entropy(density_face_values[1], momentum_face_values[1], energy_face_values[1]);
+            ent_nbr_l = entropy(density_nbr_l, momentum_nbr_l, energy_nbr_l);
+            ent_nbr_r = entropy(density_nbr_r, momentum_nbr_r, energy_nbr_r);
+            ind = (u > 0.0) ? (density_face_values[0] * ent_l - density_nbr_l * ent_nbr_l) : 0.0
+                + (u < 0.0) ? (density_face_values[1] * ent_r - density_nbr_r * ent_nbr_r) : 0.0;
+            var_avg = entropy(density_average[c], momentum_average[c], energy_average[c]);
+            var_avg *= density_average[c];
+            break;
          default:
             exit(0);
       }
@@ -1759,7 +1770,8 @@ void EulerProblem<dim>::compute_entropy_residual_2 ()
          double entropy = std::log(pressure) - gas_gamma * std::log(density_values[i]);
          double entropy_fun = - density_values[i] * entropy;
          entropy_residual(c*n_q_points + i) += entropy_fun;
-         if(entropy_residual(c*n_q_points + i) > 1.0e-3*dt) is_troubled[c] = true;
+         entropy_residual(c*n_q_points + i) /= dt;
+         if(entropy_residual(c*n_q_points + i) > 1.0e-3) is_troubled[c] = true;
       }
       if(is_troubled[c]) ++n_troubled_cells;
    }
@@ -2573,7 +2585,7 @@ void EulerProblem<dim>::run (double& h,
              residual0[i] = residual[i];
        }
        
-       for(unsigned int i=0; i<3; ++i)
+       for(unsigned int i=0; i<n_var; ++i)
           residual[i] /= residual0[i];
        
       time += dt;
@@ -2612,7 +2624,7 @@ void declare_parameters(ParameterHandler& prm)
                      Patterns::Selection("constant|persson"),
                      "artificial viscosity");
    prm.declare_entry("indicator","None",
-                     Patterns::Selection("None|density|energy|entropy|eresidual"),
+                     Patterns::Selection("None|density|energy|entropy|entfun|eresidual"),
                      "Shock indicator");
    prm.declare_entry("flux","kfvs", 
                      Patterns::Selection("kfvs|lxf|roe|hllc"),
