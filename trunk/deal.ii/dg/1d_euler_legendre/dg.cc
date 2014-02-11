@@ -426,7 +426,7 @@ EulerProblem<dim>::EulerProblem (unsigned int degree,
    }
    else
    {
-      std::cout << "This should not happen.\n";
+      std::cout << "Number of RK stages not set correctly.\n";
       exit(0);
    }
 
@@ -439,6 +439,11 @@ EulerProblem<dim>::EulerProblem (unsigned int degree,
       flux_type = roe;
    else if(flux == "hllc")
       flux_type = hllc;
+   else
+   {
+      std::cout << "Numerical flux type is not set\n";
+      exit(0);
+   }
 
    if(indicator == "None")
       shock_indicator = ind_None;
@@ -448,8 +453,15 @@ EulerProblem<dim>::EulerProblem (unsigned int degree,
       shock_indicator = ind_energy;
    else if(indicator == "entropy")
       shock_indicator = ind_entropy;
+   else if(indicator == "entfun")
+      shock_indicator = ind_entfun;
    else if(indicator == "eresidual")
       shock_indicator = ind_entropy_residual;
+   else
+   {
+      std::cout << "Shock indicator type is not set\n";
+      exit(0);
+   }
 
    // If we are using shock indicator, then we should used TVD limiter
    if(shock_indicator != ind_None) M = 0.0;
@@ -583,10 +595,10 @@ EulerProblem<dim>::EulerProblem (unsigned int degree,
    }
    else
    {
-      std::cout << "Unknown test case\n";
+      std::cout << "Unknown test case " << test_case << "\n";
    }
    
-   cfl *= 1.0/(2.0*fe.degree+1.0);
+   cfl *= 1.0/(2.0*fe.degree + 1.0);
    dx   = (xmax - xmin) / n_cells;
    Mdx2 = M * dx * dx;
 
