@@ -38,7 +38,7 @@ class InitialCondition(Expression):
 #------------------------------------------------------------------------------
 # VFRoe flux
 #------------------------------------------------------------------------------
-def Finv(Ul, Ur):
+def VFRoe(Ul, Ur):
    Ua  = 0.5*(Ul + Ur)
    rho = Ua[0]
    u   = Ua[1]/rho
@@ -58,6 +58,18 @@ def Finv(Ul, Ur):
    fp  = as_vector([fp1, fp2])
    return conditional( ge(u,0.0), fm, fp )
 
+#------------------------------------------------------------------------------
+# Lax-Friedrich flux
+def LxF(Ul, Ur):
+   Ua  = 0.5*(Ul + Ur)
+   rho = Ua[0]
+   u   = Ua[1]/rho
+   c   = sqrt(gamma*rho**(gamma-1.0))
+   lam = abs(u) + c
+   f1  = 0.5*(Ul[1] + Ur[1])
+   f2  = 0.5*(Ul[0]**gamma + Ul[1]**2/Ul[0] + Ur[0]**gamma + Ur[1]**2/Ur[0])
+   res = as_vector([f1, f2]) - 0.5*lam*(Ur - Ul)
+   return res
 #------------------------------------------------------------------------------
 mesh = IntervalMesh(nc, xmin, xmax)
 h = (xmax-xmin)/nc
@@ -103,14 +115,14 @@ Dr = mu *                  \
 
 # Shear stress
 tau = mu*Dx(u,0)
+Ux  = Dx(U,0)
+Wx  = Dx(W,0)
 
 # Total flux vector
-F = as_vector([       \
-      m,              \
-      p + m*u - tau   \
-      ])
+Finv = as_vector([m, p + m*u])
+Fvis = as_vector([0, tau])
 
-Fi = Finv(U('+'), U('-'))
+Fi = VFRoe(U('+'), U('-'))
 Fl = as_vector([rho*ul, p + rho*ul**2])
 Fr = as_vector([rho*ur, p + rho*ur**2])
 delta = Cip * avg(D) * jump(U) / h
@@ -122,18 +134,24 @@ deltar = Cip * Dr * (U - Ur) / h
 
 # Weak formulation
 # Volume terms
-B2 = - inner(F, Dx(W,0))*dx                \
-     + inner(Fi, jump(W))*dS               \
-     - inner(avg(D*Dx(U,0)), jump(W))*dS   \
-     - inner(avg(D.T*Dx(W,0)), jump(U))*dS \
-     + inner(delta, jump(W))*dS            \
-     - omega*inner(U-U_stat,W)*dx
+B_int_inv = - inner(Finv, Wx)*dx            \
+            + inner(Fi, jump(W))*dS
+
+B_int_vis =   inner(Fvis, Wx)*dx            \
+            - inner(avg(D*Ux), jump(W))*dS   \
+            - inner(avg(D.T*Wx), jump(U))*dS \
+            + inner(delta, jump(W))*dS
+
 # Boundary terms
-B3 = - inner(Fl, W)*ds(0)                 \
-     + inner(Fr, W)*ds(1)                 \
-     + inner(deltal, W)*ds(0)             \
-     + inner(deltar, W)*ds(1)             \
-     + inner(Dl*Dx(U,0), W)*ds(0)         \
-     - inner(Dr*Dx(U,0), W)*ds(1)         \
-     + inner(Dl.T*Dx(W,0), U-Ul)*ds(0)    \
-     - inner(Dr.T*Dx(W,0), U-Ur)*ds(1)
+B_bdy_inv = - inner(Fl, W)*ds(0)            \
+            + inner(Fr, W)*ds(1)
+
+B_bdy_vis =   inner(deltal, W)*ds(0)        \
+            + inner(deltar, W)*ds(1)        \
+            + inner(Dl*Ux, W)*ds(0)         \
+            - inner(Dr*Ux, W)*ds(1)         \
+            + inner(Dl.T*Wx, U-Ul)*ds(0)    \
+            - inner(Dr.T*Wx, U-Ur)*ds(1)
+
+B2 = B_int_inv + B_int_vis
+B3 = B_bdy_inv + B_bdy_vis

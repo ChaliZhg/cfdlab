@@ -6,7 +6,6 @@ Uo = project(StationarySolution(), Qh)
 U.assign(Uo)
 
 B = - B2 - B3
-#bb=assemble(B)
 
 dU = TrialFunction(Qh)
 dB = derivative(B, U, dU)
