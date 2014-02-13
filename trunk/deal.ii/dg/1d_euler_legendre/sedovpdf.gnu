@@ -43,3 +43,10 @@ set title 'Cell average'
 plot 'sedov.dat' u 2:5 t 'Exact' w l lw 4 lt 2 lc 3, \
      'sedov.dat' u (-$2):5 t '' w l lw 4 lt 2 lc 3, \
      'avg.gpl' u 1:4 t 'DG' w p pt 6 lc 1
+
+set out 'sed_ind.pdf'
+set ylabel 'Indicator'
+set yran[-0.0:6]
+p 'avg.gpl' u 1:5 t 'Indicator' w p pt 6 lw 3, \
+  'sedov.dat' u 2:3 t 'Density' w l lw 4 lt 2 lc 3, \
+  'sedov.dat' u (-$2):3 t '' w l lw 4 lt 2 lc 3
