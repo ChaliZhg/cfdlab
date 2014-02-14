@@ -120,6 +120,8 @@ c        To prevent division by zero
          a  =  (dx*f)/dr2
          vy(i,1,1,1) = glsc3(a, bm1, t, n)
       enddo
+      call dsavg(vx)
+      call dsavg(vy)
 
 c     save velocity to file
       ifxyo = .true.
