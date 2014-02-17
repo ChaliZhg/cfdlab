@@ -2378,9 +2378,11 @@ void EulerProblem<dim>::apply_positivity_limiter ()
             double c1 = 2.0*density_average[c]*energy_average[c]
                         - momentum_average[c]*momentum_average[c]
                         - 2.0*eps*density_average[c]/(gas_gamma-1.0);
-            double D = std::sqrt( std::fabs(b1*b1 - 4.0*a1*c1) );
-            double t1 = 0.5*(-b1 - D)/a1;
-            double t2 = 0.5*(-b1 + D)/a1;
+            // Divide by a1 to avoid round-off error
+            b1 /= a1; c1 /= a1;
+            double D = std::sqrt( std::fabs(b1*b1 - 4.0*c1) );
+            double t1 = 0.5*(-b1 - D);
+            double t2 = 0.5*(-b1 + D);
             double t;
             if(t1 > -1.0e-12 && t1 < 1.0 + 1.0e-12)
                t = t1;
@@ -2388,10 +2390,12 @@ void EulerProblem<dim>::apply_positivity_limiter ()
                   t = t2;
             else
             {
-               std::cout << "Problem t1, t2 = " << t1 << " " << t2 << "\n";
-               std::cout << "eps, rho_min = " << eps << " " << rho_min << "\n";
-               std::cout << "theta1 = " << theta1 << "\n";
-               std::cout << "pressure = " << pressure << "\n";
+               std::cout << "Problem in positivity limiter\n";
+               std::cout << "\t a1, b1, c1 = " << a1 << " " << b1 << " " << c1 << "\n";
+               std::cout << "\t t1, t2 = " << t1 << " " << t2 << "\n";
+               std::cout << "\t eps, rho_min = " << eps << " " << rho_min << "\n";
+               std::cout << "\t theta1 = " << theta1 << "\n";
+               std::cout << "\t pressure = " << pressure << "\n";
                exit(0);
             }
             // t should strictly lie in [0,1]
