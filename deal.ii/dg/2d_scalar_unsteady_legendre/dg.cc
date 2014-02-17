@@ -223,10 +223,11 @@ class Step12
       void apply_limiter_old ();
       void apply_limiter ();
       void apply_limiter_TVD ();
+      void refine_grid_initial ();
       void refine_grid ();
       void compute_min_max ();
       void output_results (const unsigned int cycle);
-   double compute_cell_average(const typename DoFHandler<dim>::cell_iterator& cell);
+      double compute_cell_average(const typename DoFHandler<dim>::cell_iterator& cell);
       
       Triangulation<dim>   triangulation;
       const MappingQ1<dim> mapping;
@@ -245,6 +246,7 @@ class Step12
       Vector<double>       right_hand_side;
       Vector<double>       shock_indicator;
       Vector<double>       jump_indicator;
+      double               jump_ind_min, jump_ind_max, jump_ind_avg;
       double               dt;
       double               cfl;
       LimiterType          limiter_type;
@@ -362,7 +364,7 @@ void Step12<dim>::setup_system ()
 }
 //------------------------------------------------------------------------------
 // If cell is active, return cell average.
-// If is not active, return arithmetic average of child cells.
+// If is not active, return area average of child cells.
 //------------------------------------------------------------------------------
 template <int dim>
 double Step12<dim>::compute_cell_average(const typename DoFHandler<dim>::cell_iterator& cell)
@@ -680,6 +682,10 @@ void Step12<dim>::compute_shock_indicator ()
       endc = dof_handler.end(),
       cell0 = dof_handler_cell.begin_active();
    
+   jump_ind_min = 1.0e20;
+   jump_ind_max = 0.0;
+   jump_ind_avg = 0.0;
+   
    for(; cell != endc; ++cell, ++cell0)
    {
       cell0->get_dof_indices(dof_indices_cell);
@@ -785,7 +791,12 @@ void Step12<dim>::compute_shock_indicator ()
       
       dx = cell->diameter() / std::sqrt(2.0);
       cell_jump_ind = std::sqrt( cell_jump_ind / (4.0*dx) ) * cell->diameter();
+      jump_ind_min = std::min(jump_ind_min, cell_jump_ind);
+      jump_ind_max = std::max(jump_ind_max, cell_jump_ind);
+      jump_ind_avg += cell_jump_ind;
    }
+   
+   jump_ind_avg /= triangulation.n_active_cells();
 }
 //------------------------------------------------------------------------------
 // Slope limiter based on minmod
@@ -969,10 +980,51 @@ void Step12<dim>::solve ()
       
       std::cout << "Iterations=" << iter
                 << ", t = " << time 
-                << ", min,max = " << sol_min << "  " << sol_max << endl;
-      if(std::fmod(iter,50)==0) output_results(iter);
+                << ", min,max = " << sol_min << "  " << sol_max << std::endl;
+      if(std::fmod(iter,100)==0) output_results(iter);
    }
    
+}
+
+//------------------------------------------------------------------------------
+// Refine grid
+//------------------------------------------------------------------------------
+template <int dim>
+void Step12<dim>::refine_grid_initial ()
+{
+   std::cout << "Refining grid ...\n";
+   
+   SolutionTransfer<dim, Vector<double> > soltrans(dof_handler);
+   
+   //double threshold = 0.5*(jump_ind_min + jump_ind_max);
+   double threshold = jump_ind_avg;
+
+   GridRefinement::refine (triangulation, jump_indicator, threshold);
+   
+   unsigned int min_grid_level = 0;
+   unsigned int max_grid_level = 5;
+   if (triangulation.n_levels() > max_grid_level)
+      for (typename Triangulation<dim>::active_cell_iterator
+           cell = triangulation.begin_active(max_grid_level);
+           cell != triangulation.end(); ++cell)
+         cell->clear_refine_flag ();
+   
+   for (typename Triangulation<dim>::active_cell_iterator
+        cell = triangulation.begin_active(min_grid_level);
+        cell != triangulation.end_active(min_grid_level); ++cell)
+      cell->clear_coarsen_flag ();
+   
+   // store solution on current mesh
+   Vector<double> previous_solution;
+   previous_solution = solution;
+   
+   triangulation.prepare_coarsening_and_refinement();
+   soltrans.prepare_for_coarsening_and_refinement(previous_solution);
+   triangulation.execute_coarsening_and_refinement ();
+   
+   setup_system ();
+   
+   // We dont interpolate solution since we set initial condition on new mesh
 }
 
 //------------------------------------------------------------------------------
@@ -997,8 +1049,8 @@ void Step12<dim>::refine_grid ()
    
    SolutionTransfer<dim, Vector<double> > soltrans(dof_handler);
    GridRefinement::refine_and_coarsen_fixed_fraction (triangulation,
-                                                      jump_indicator,
-                                                      0.1, 0.5);
+                                                      gradient_indicator,
+                                                      0.5, 0.1, 5000);
    
    unsigned int min_grid_level = 0;
    unsigned int max_grid_level = 5;
@@ -1054,7 +1106,7 @@ void Step12<dim>::output_results (const unsigned int cycle)
    
    
    {
-      // Output of the solution in
+      // Output of the polynomial solution
       std::string filename = "sol-" + Utilities::int_to_string(cycle,5) + ".vtk";
       std::cout << "Writing solution to <" << filename << ">" << std::endl;
       std::ofstream outfile (filename.c_str());
@@ -1067,7 +1119,7 @@ void Step12<dim>::output_results (const unsigned int cycle)
    }
    
    {
-      // Output of the solution in
+      // Output of the cell average
       std::string filename = "cell-" + Utilities::int_to_string(cycle,5) + ".vtk";
       std::cout << "Writing solution to <" << filename << ">" << std::endl;
       std::ofstream outfile (filename.c_str());
@@ -1096,11 +1148,11 @@ void Step12<dim>::run ()
    set_initial_condition ();
    
    // Initial refinements
-//   unsigned int n_refine_init = 1;
+//   unsigned int n_refine_init = 3;
 //   for(unsigned int i=0; i<n_refine_init; ++i)
 //   {
 //      compute_shock_indicator ();
-//      refine_grid ();
+//      refine_grid_initial ();
 //      set_initial_condition();
 //   }
    output_results(0);
