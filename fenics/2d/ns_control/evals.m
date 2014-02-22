@@ -1,7 +1,6 @@
-load Mc.mat;
-load Ac.mat;
+load linear.mat;
 
-[V,D] = eigs(Ac,Mc,50,'SM');
+[V,D] = eigs(A,M,50,'SM');
 D = diag(D);
 plot(real(D),imag(D),'o','LineWidth',1.5)
 grid on

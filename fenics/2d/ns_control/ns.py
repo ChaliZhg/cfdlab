@@ -13,7 +13,14 @@ class HeatFlux(Expression):
    def __init__(self, amp):
       self.amp = amp
    def eval(self, value, x):
-      value[0] = self.amp
+      ff = ((x[0]-0.4)*(x[0]-0.6))**2
+      if ff < DOLFIN_EPS:
+         value[0] = 0.0
+      elif x[0]>0.4 and x[0]<0.6:
+         value[0] = exp(-0.00001/ff)
+      else:
+         value[0] = 0.0
+      value[0] *= self.amp
       return value
 #-----------------------------------------------------------------------------
 # Velocity at inflow boundary
@@ -25,13 +32,52 @@ class velocity(Expression):
       if ff < DOLFIN_EPS:
          value[0] = 0.0
       elif x[1]>0.7 and x[1]<0.9:
-         value[0] = -exp(-0.0001/ff)
+         value[0] = exp(-0.0001/ff)
       else:
          value[0] = 0.0
-      value[0] = self.amp * value[0]/exp(-0.0001/0.01**2)
-      value[1] = 0.0
+      value[0] *= self.amp
+      return value
+#-----------------------------------------------------------------------------
+# temperature at inflow boundary
+class temperature(Expression):
+   def __init__(self, amp):
+      self.amp = amp
+   def eval(self, value, x):
+      ff = ((x[1]-0.7)*(x[1]-0.9))**2
+      if ff < DOLFIN_EPS:
+         value[0] = 0.0
+      elif x[1]>0.7 and x[1]<0.9:
+         value[0] = 0.2 * exp(-0.00001/ff)
+      else:
+         value[0] = 0.0
+      value[0] *= self.amp
+      return value
+#-----------------------------------------------------------------------------
+# all variables at inflow boundary
+# we only need x velocity and temperature at inflow boundary
+# which is the control boundary
+class allvar(Expression):
+   def __init__(self, vamp, tamp):
+      self.vamp = vamp
+      self.tamp = tamp
+   def eval(self, value, x):
+      ff = ((x[1]-0.7)*(x[1]-0.9))**2
+      if ff < DOLFIN_EPS:
+         value[0] = 0.0
+         value[2] = 0.0
+      elif x[1]>0.7 and x[1]<0.9:
+         value[0] = exp(-0.0001/ff)
+         value[2] = 0.2 * exp(-0.00001/ff)
+      else:
+         value[0] = 0.0
+         value[2] = 0.0
+      value[0] *= self.vamp  # x velocity
+      value[1] = 0.0         # y velocity
+      value[2] *= self.tamp  # temperature
+      value[3] = 0.0         # pressure
+      return value
    def value_shape(self):
-      return (2,)
+      return (4,)
 #-----------------------------------------------------------------------------
 def nonlinear_form(Re,Gr,Pr,hfamp,ds,u,T,p,v,S,q):
    nu    = 1/Re
@@ -80,6 +126,8 @@ class NSProblem():
 
       # velocity control amplitude
       self.vamp  = Constant(0)
+      # temperature control amplitude
+      self.tamp  = Constant(0)
       # heat flux control amplitude
       self.hfamp = Constant(0)
 
@@ -93,15 +141,19 @@ class NSProblem():
       noslipbc2 = DirichletBC(self.X.sub(0), (0,0), sub_domains, 3)
       # velocity control boundary
       gs        = velocity(self.vamp)
-      conbc     = DirichletBC(self.X.sub(0), gs,    sub_domains, 2)
+      vconbc    = DirichletBC(self.X.sub(0).sub(0), gs, sub_domains, 2)
+      yvbc      = DirichletBC(self.X.sub(0).sub(1), 0,  sub_domains, 2)
 
       # Temperature bc
       tbc1    = DirichletBC(self.X.sub(1), 0.0, sub_domains, 0)
-      tbc2    = DirichletBC(self.X.sub(1), 0.0, sub_domains, 2)
+      ts      = temperature(self.tamp)
+      tbc2    = DirichletBC(self.X.sub(1), ts, sub_domains, 2)
 
-      self.bc = [noslipbc1, noslipbc2, conbc, tbc1, tbc2]
-      self.vbc= conbc
+      self.bc = [noslipbc1, noslipbc2, vconbc, yvbc, tbc1, tbc2]
+      self.vbc= vconbc
+      self.tbc= tbc2
 
+   # solves steady state equations
    def steady_state(self, Relist):
       up = Function(self.X)
       u  = as_vector((up[0],up[1]))   # velocity
@@ -134,6 +186,7 @@ class NSProblem():
       File("steady_p.pvd") << p
       File("steady_T.pvd") << T
 
+   # Generate linear state representation
    def linear_system(self):
       parameters.linear_algebra_backend = "uBLAS"
        
@@ -182,13 +235,32 @@ class NSProblem():
       bcdict = self.vbc.get_boundary_values()
       vinds.extend(bcdict.keys())
 
-      Mc = Ma[innerinds,:][:,innerinds]
-      Ac = Aa[innerinds,:][:,innerinds]
-      print "Size of Mc =",Mc.shape[0],Mc.shape[1]
-      print "Size of Ac =",Ac.shape[0],Ac.shape[1]
+      # indices of temperature control
+      tinds = []
+      bcdict = self.tbc.get_boundary_values()
+      tinds.extend(bcdict.keys())
 
-      Bc = Aa[innerinds,:][:,vinds]
+      # mass matrix
+      M = Ma[innerinds,:][:,innerinds]
+      print "Size of M =",M.shape[0],M.shape[1]
+
+      # stiffness matrix
+      A = Aa[innerinds,:][:,innerinds]
+      print "Size of A =",A.shape[0],A.shape[1]
+
+      # velocity control operator
+      ua = interpolate(allvar(1,1), self.X)
+      ua = ua.vector().array()
+      Bv = Aa[innerinds,:][:,vinds].dot(ua[vinds])
+      print "Size of Bv =",Bv.shape[0]
+      Bt = Aa[innerinds,:][:,tinds].dot(ua[tinds])
+      print "Size of Bt =",Bt.shape[0]
+
+      # heat flux control operator
+      Bh = assemble(HeatFlux(1)*S*self.ds(3))
+      Bh = Bh.array()
+      Bh = Bh[innerinds]
+      print "Size of Bh =",Bh.shape[0]
 
       # Save matrices in matlab format
-      sio.savemat('Mc.mat', mdict={'Mc': Mc})
-      sio.savemat('Ac.mat', mdict={'Ac': Ac})
+      sio.savemat('linear.mat', mdict={'M':M, 'A':A, 'Bv':Bv, 'Bt':Bt, 'Bh':Bh})
