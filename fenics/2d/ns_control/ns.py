@@ -2,6 +2,7 @@ from dolfin import *
 import numpy as np
 import scipy.sparse as sps
 import scipy.io as sio
+import scipy.sparse.linalg as la
 
 #-----------------------------------------------------------------------------
 class HeatSource(Expression):
@@ -264,3 +265,24 @@ class NSProblem():
 
       # Save matrices in matlab format
       sio.savemat('linear.mat', mdict={'M':M, 'A':A, 'Bv':Bv, 'Bt':Bt, 'Bh':Bh})
+
+      '''
+      # Compute eigenvalues/vectors
+      vals, vecs = la.eigs(A, k=2, M=M, sigma=0, which='LR')
+      for val in vals:
+         print np.real(val), np.imag(val)
+      
+      ua = Function(self.X)
+
+      ua.vector()[innerinds] = vecs[:,0]
+      File("evec1.xml") << ua
+      u,T,p = ua.split()
+      File("evec1_u.pvd") << u
+      File("evec1_T.pvd") << T
+
+      ua.vector()[innerinds] = vecs[:,1]
+      File("evec2.xml") << ua
+      u,T,p = ua.split()
+      File("evec2_u.pvd") << u
+      File("evec2_T.pvd") << T
+      ''' 
