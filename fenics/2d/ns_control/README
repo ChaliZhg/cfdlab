@@ -1,4 +1,4 @@
-myparam.py : contains parameters
+param.py   : contains parameters
 ns.py      : main class implementing all the methods
 steady.py  : computes stationary solution
 linear.py  : constructs linear system representation

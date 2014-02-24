@@ -80,12 +80,20 @@ class allvar(Expression):
    def value_shape(self):
       return (4,)
 #-----------------------------------------------------------------------------
-def nonlinear_form(Re,Gr,Pr,hfamp,ds,u,T,p,v,S,q):
+def nonlinear_form(Re,Gr,Pr,hfamp,ds,up,vp):
    nu    = 1/Re
    k     = 1/(Re*Pr)
    G     = Gr/Re**2
    hs    = HeatSource()
    hf    = HeatFlux(hfamp)
+   # Trial function
+   u  = as_vector((up[0],up[1]))   # velocity
+   T  = up[2]                      # temperature
+   p  = up[3]                      # pressure
+   # Test function
+   v  = as_vector((vp[0],vp[1]))   # velocity
+   S  = vp[2]                      # temperature
+   q  = vp[3]                      # pressure
    Fns   =   inner(grad(u)*u, v)*dx      \
           + nu*inner(grad(u),grad(v))*dx \
           - div(v)*p*dx                  \
@@ -157,15 +165,11 @@ class NSProblem():
    # solves steady state equations
    def steady_state(self, Relist):
       up = Function(self.X)
-      u  = as_vector((up[0],up[1]))   # velocity
-      T  = up[2]                      # temperature
-      p  = up[3]                      # pressure
-      # Define test functions
-      (v,S,q) = TestFunctions(self.X)
+      vp = TestFunction(self.X)
       Re = Constant(self.Re)
       Gr = Constant(self.Gr)
       Pr = Constant(self.Pr)
-      F = nonlinear_form(Re,Gr,Pr,self.hfamp,self.ds,u,T,p,v,S,q)
+      F = nonlinear_form(Re,Gr,Pr,self.hfamp,self.ds,up,vp)
 
       dup = TrialFunction(self.X)
       dF  = derivative(F, up, dup)
@@ -266,7 +270,6 @@ class NSProblem():
       # Save matrices in matlab format
       sio.savemat('linear.mat', mdict={'M':M, 'A':A, 'Bv':Bv, 'Bt':Bt, 'Bh':Bh})
 
-      '''
       # Compute eigenvalues/vectors
       vals, vecs = la.eigs(A, k=2, M=M, sigma=0, which='LR')
       for val in vals:
@@ -275,14 +278,69 @@ class NSProblem():
       ua = Function(self.X)
 
       ua.vector()[innerinds] = vecs[:,0]
-      File("evec1.xml") << ua
+      File("evec1.xml") << ua.vector()
       u,T,p = ua.split()
       File("evec1_u.pvd") << u
       File("evec1_T.pvd") << T
 
       ua.vector()[innerinds] = vecs[:,1]
-      File("evec2.xml") << ua
+      File("evec2.xml") << ua.vector()
       u,T,p = ua.split()
       File("evec2_u.pvd") << u
       File("evec2_T.pvd") << T
-      ''' 
+
+   # Runs nonlinear model
+   def run(self):
+      up = Function(self.X)
+      vp = TestFunction(self.X)
+
+      Re = Constant(self.Re)
+      Gr = Constant(self.Gr)
+      Pr = Constant(self.Pr)
+      F = nonlinear_form(Re,Gr,Pr,self.hfamp,self.ds,up,vp)
+
+      # Set initial condition
+      upold = Function(self.X)
+      File("steady.xml") >> upold.vector()
+      uppert = Function(self.X)
+      File("evec1.xml") >> uppert.vector()
+      upold.vector()[:] += 0.01 * uppert.vector().array()
+
+      fu = File("u.pvd")
+      ft = File("T.pvd")
+
+      u,T,p = upold.split()
+      fu << u
+      ft << T
+
+      dt = 0.01
+      final_time = dt*100
+
+      # First time step, we do backward euler
+      B1 = (1/dt)*inner(up[0] - upold[0], vp[0])*dx     \
+         + (1/dt)*inner(up[1] - upold[1], vp[1])*dx     \
+         + (1/dt)*inner(up[2] - upold[2], vp[2])*dx + F
+
+      dup = TrialFunction(self.X)
+      dB1 = derivative(B1, up, dup)
+      problem1 = NonlinearVariationalProblem(B1, up, self.bc, dB1)
+      solver1  = NonlinearVariationalSolver(problem1)
+
+      time, iter = 0, 0
+      up.assign(upold)
+      solver1.solve()
+      iter += 1
+      time += dt
+
+      u,T,p = up.split()
+      fu << u
+      ft << T
+
+      while time < final_time:
+         up.assign(upold)
+         solver1.solve()
+         iter += 1
+         time += dt
+         u,T,p = up.split()
+         fu << u
+         ft << T
