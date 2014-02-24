@@ -1,6 +1,30 @@
 param.py   : contains parameters
+grid.py    : Generate grid and boundary markers
 ns.py      : main class implementing all the methods
 steady.py  : computes stationary solution
 linear.py  : constructs linear system representation
 evals.m    : computes eigenvalues
 gain.m     : computes feedback gain matrix
+run.py     : run nonlinear model
+
+Typical steps to run the code:
+
+Generate grid
+
+$ python grid.py
+
+Compute stationary solution
+
+$ python steady.py
+
+Compute linear state matrices
+
+$ python linear.py
+
+Look at eigenvalues in matlab by running evals.m
+
+Compute feedback gain from gain.m (not completed)
+
+Run nonlinear model (not completed)
+
+$ python run.py
