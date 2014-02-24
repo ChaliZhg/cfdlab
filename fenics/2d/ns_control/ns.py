@@ -127,6 +127,7 @@ class NSProblem():
       sub_domains = MeshFunction("size_t", mesh, "subdomains.xml")
 
       self.udeg = udeg
+      self.tdeg = udeg - 1
       self.pdeg = udeg - 1
       self.Re = Re
       self.Gr = Gr
@@ -141,7 +142,7 @@ class NSProblem():
       self.hfamp = Constant(0)
 
       self.V = VectorFunctionSpace(mesh, "CG", self.udeg)
-      self.W = FunctionSpace(mesh, "CG", self.udeg)
+      self.W = FunctionSpace(mesh, "CG", self.tdeg)
       self.Q = FunctionSpace(mesh, "CG", self.pdeg)
       self.X = MixedFunctionSpace([self.V, self.W, self.Q])
 
@@ -184,9 +185,11 @@ class NSProblem():
          solver.solve()
 
       # Save FE solution
+      print "Saving FE solution into steady.xml"
       File("steady.xml") << up.vector()
       # Save vtk format
       u,T,p = up.split()
+      print "Saving vtk files steady_u.pvd, steady_p.pvd, steady_T.pvd"
       File("steady_u.pvd") << u
       File("steady_p.pvd") << p
       File("steady_T.pvd") << T
@@ -206,24 +209,20 @@ class NSProblem():
 
       # Mass matrix
       Ma = assemble(inner(u,v)*dx + T*S*dx)
-      print Ma
 
       rows, cols, values = Ma.data()
       Ma = sps.csc_matrix((values, cols, rows))
-      N = Ma.shape[0]
-      print Ma.shape[0], Ma.shape[1]
+      print "Size of Ma =",Ma.shape[0], Ma.shape[1]
 
       Re = Constant(self.Re)
       Gr = Constant(self.Gr)
       Pr = Constant(self.Pr)
       Aform = linear_form(Re,Gr,Pr,us,Ts,u,T,p,v,S,q)
       Aa = assemble(Aform)
-      print Aa
 
       # Convert to sparse format
       rows, cols, values = Aa.data()
       Aa = sps.csc_matrix((values, cols, rows))
-      N = Aa.shape[0]
       print "Size of Aa =",Aa.shape[0],Aa.shape[1]
 
       # Collect all dirichlet boundary dof indices
@@ -233,6 +232,7 @@ class NSProblem():
          bcinds.extend(bcdict.keys())
 
       # indices of free nodes
+      N = Aa.shape[0]
       innerinds = np.setdiff1d(range(N),bcinds).astype(np.int32)
 
       # indices of velocity control
@@ -268,6 +268,7 @@ class NSProblem():
       print "Size of Bh =",Bh.shape[0]
 
       # Save matrices in matlab format
+      print "Saving linear system into linear.mat"
       sio.savemat('linear.mat', mdict={'M':M, 'A':A, 'Bv':Bv, 'Bt':Bt, 'Bh':Bh})
 
       # Compute eigenvalues/vectors
@@ -275,6 +276,7 @@ class NSProblem():
       for val in vals:
          print np.real(val), np.imag(val)
       
+      # TODO: eigenvectors are complex
       ua = Function(self.X)
 
       ua.vector()[innerinds] = vecs[:,0]
