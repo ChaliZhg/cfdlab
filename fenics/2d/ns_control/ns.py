@@ -302,47 +302,61 @@ class NSProblem():
       F = nonlinear_form(Re,Gr,Pr,self.hfamp,self.ds,up,vp)
 
       # Set initial condition
-      upold = Function(self.X)
-      File("steady.xml") >> upold.vector()
+      up1 = Function(self.X)
+      File("steady.xml") >> up1.vector()
       uppert = Function(self.X)
       File("evec1.xml") >> uppert.vector()
-      upold.vector()[:] += 0.01 * uppert.vector().array()
+      up1.vector()[:] += 0.01 * uppert.vector().array()
 
       fu = File("u.pvd")
       ft = File("T.pvd")
 
-      u,T,p = upold.split()
+      u,T,p = up1.split()
       fu << u
       ft << T
 
       dt = 0.01
       final_time = dt*100
+      time, iter = 0, 0
 
       # First time step, we do backward euler
-      B1 = (1/dt)*inner(up[0] - upold[0], vp[0])*dx     \
-         + (1/dt)*inner(up[1] - upold[1], vp[1])*dx     \
-         + (1/dt)*inner(up[2] - upold[2], vp[2])*dx + F
+      B1 = (1/dt)*inner(up[0] - up1[0], vp[0])*dx     \
+         + (1/dt)*inner(up[1] - up1[1], vp[1])*dx     \
+         + (1/dt)*inner(up[2] - up1[2], vp[2])*dx + F
 
       dup = TrialFunction(self.X)
       dB1 = derivative(B1, up, dup)
       problem1 = NonlinearVariationalProblem(B1, up, self.bc, dB1)
       solver1  = NonlinearVariationalSolver(problem1)
 
-      time, iter = 0, 0
-      up.assign(upold)
+      up.assign(up1)
       solver1.solve()
       iter += 1
       time += dt
+      print 'Iter = {:5d}, t = {:f}'.format(iter, time)
+      print '--------------------------------------------------------------'
 
       u,T,p = up.split()
       fu << u
       ft << T
 
+      # From now on use BDF2
+      up2 = Function(self.X)
+      B2 = (1/dt)*inner(1.5*up[0] - 2.0*up1[0] + 0.5*up2[0], vp[0])*dx     \
+         + (1/dt)*inner(1.5*up[1] - 2.0*up1[1] + 0.5*up2[1], vp[1])*dx     \
+         + (1/dt)*inner(1.5*up[2] - 2.0*up1[2] + 0.5*up2[2], vp[2])*dx + F
+      dB2 = derivative(B2, up, dup)
+      problem2 = NonlinearVariationalProblem(B2, up, self.bc, dB2)
+      solver2  = NonlinearVariationalSolver(problem2)
+
       while time < final_time:
-         up.assign(upold)
-         solver1.solve()
+         up2.assign(up1)
+         up1.assign(up)
+         solver2.solve()
          iter += 1
          time += dt
+         print 'Iter = {:5d}, t = {:f}'.format(iter, time)
+         print '--------------------------------------------------------------'
          u,T,p = up.split()
          fu << u
          ft << T
