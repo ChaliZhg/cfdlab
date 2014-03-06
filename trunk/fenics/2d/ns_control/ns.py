@@ -127,7 +127,7 @@ class NSProblem():
       sub_domains = MeshFunction("size_t", mesh, "subdomains.xml")
 
       self.udeg = udeg
-      self.tdeg = udeg - 1
+      self.tdeg = udeg
       self.pdeg = udeg - 1
       self.Re = Re
       self.Gr = Gr
@@ -176,6 +176,10 @@ class NSProblem():
       dF  = derivative(F, up, dup)
       problem = NonlinearVariationalProblem(F, up, self.bc, dF)
       solver  = NonlinearVariationalSolver(problem)
+      #solver.parameters['newton_solver']['linear_solver'] = 'gmres'
+      #solver.parameters['newton_solver']['absolute_tolerance'] = 1.0e-2
+      #solver.parameters['newton_solver']['relative_tolerance'] = 1.0e-1
+      #info(solver.parameters, True)
 
       for R in Relist:
          print "-----------------------------------------------------"
