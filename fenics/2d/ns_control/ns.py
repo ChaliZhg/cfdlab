@@ -216,7 +216,7 @@ class NSProblem():
 
       rows, cols, values = Ma.data()
       Ma = sps.csc_matrix((values, cols, rows))
-      print "Size of Ma =",Ma.shape[0], Ma.shape[1]
+      print "Size of Ma =",Ma.shape
 
       Re = Constant(self.Re)
       Gr = Constant(self.Gr)
@@ -227,7 +227,7 @@ class NSProblem():
       # Convert to sparse format
       rows, cols, values = Aa.data()
       Aa = sps.csc_matrix((values, cols, rows))
-      print "Size of Aa =",Aa.shape[0],Aa.shape[1]
+      print "Size of Aa =",Aa.shape
 
       # Collect all dirichlet boundary dof indices
       bcinds = []
@@ -251,11 +251,11 @@ class NSProblem():
 
       # mass matrix
       M = Ma[innerinds,:][:,innerinds]
-      print "Size of M =",M.shape[0],M.shape[1]
+      print "Size of M =",M.shape
 
       # stiffness matrix
       A = Aa[innerinds,:][:,innerinds]
-      print "Size of A =",A.shape[0],A.shape[1]
+      print "Size of A =",A.shape
 
       # velocity control operator
       ua = interpolate(allvar(1,1), self.X)
@@ -271,10 +271,14 @@ class NSProblem():
       Bh = Bh[innerinds]
       print "Size of Bh =",Bh.shape[0]
 
+      B = np.column_stack((Bv,Bt,Bh))
+      print "Size of B = ",B.shape
+
       # Save matrices in matlab format
       print "Saving linear system into linear.mat"
-      sio.savemat('linear.mat', mdict={'M':M, 'A':A, 'Bv':Bv, 'Bt':Bt, 'Bh':Bh})
+      sio.savemat('linear.mat', mdict={'M':M, 'A':A, 'B':B}, oned_as='column')
 
+      '''
       # Compute eigenvalues/vectors
       vals, vecs = la.eigs(A, k=2, M=M, sigma=0, which='LR')
       for val in vals:
@@ -294,6 +298,7 @@ class NSProblem():
       u,T,p = ua.split()
       File("evec2_u.pvd") << u
       File("evec2_T.pvd") << T
+      '''
 
    # Runs nonlinear model
    def run(self):
