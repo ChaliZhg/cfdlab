@@ -1,5 +1,6 @@
 clear all
 load linear.mat
+who
 
 nu = 2;
 shift = 0;
@@ -30,8 +31,6 @@ end
 % check orthonormality
 disp('Is this identity matrix ?')
 p = conj(V2')*M*V1
-
-B = [Bv, Bt, Bh];
 
 % check controllability by hautus
 for j=1:nu
