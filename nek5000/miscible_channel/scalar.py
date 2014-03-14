@@ -1,3 +1,6 @@
+'''
+Finds min and max of concentration by grepping channel.log file
+'''
 import os
 os.system("grep Scalar channel.log > scalar.dat")
 
