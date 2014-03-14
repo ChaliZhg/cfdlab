@@ -129,6 +129,9 @@ c        Save solution on uniform mesh
          call prepost(.true., '   ')
       enddo
 
+c     Save solution along x=const lines
+      call save_x_constant()
+
       call exitt()
 
       return
@@ -254,6 +257,104 @@ c-----------------------------------------------------------------------
       enddo
       write(ix,*)
       write(ix,*)
+
+      return
+      end
+c-----------------------------------------------------------------------
+c Save solution along i=nx1 lines of each element into "output"
+c directory as p0.dat, p1.dat, etc. Number is based on processor id.
+c The files are later processed by xconst.m matlab script.
+c-----------------------------------------------------------------------
+      subroutine save_x_constant()
+      include 'SIZE'
+      include 'TOTAL' 
+      character*80 filename(9999)
+      character*80 ii, fname
+      integer      e
+      real         wrk1(lx1,ly1,lz1,lelt)
+      real         wrk2(lx1,ly1,lz1,lelt)
+      real         vx_y(lx1,ly1,lz1,lelt)
+      real         vx_yy(lx1,ly1,lz1,lelt)
+      real         vx_yyy(lx1,ly1,lz1,lelt)
+      real         T_y(lx1,ly1,lz1,lelt)
+      real         T_yy(lx1,ly1,lz1,lelt)
+      real         c_y(lx1,ly1,lz1,lelt)
+      real         c_yy(lx1,ly1,lz1,lelt)
+
+      if(nid.eq.0)then
+         call system("ls -1 avgchannel* | wc -l > file.list")
+         call system("ls -1 avgchannel* >> file.list")
+         open(unit=199,file='file.list',form='formatted',status='old')
+         read(199,*) nfiles
+         read(199,'(A80)') (filename(i),i=1,nfiles)
+         close(199)
+
+         call system("mkdir -f output")
+         call system("rm -f output/p*.dat")
+      endif
+      call bcast(nfiles,isize)
+      call bcast(filename,nfiles*80) 
+
+      call load_fld(filename(nfiles))
+      if(nid.eq.0)then
+         write(6,*) 'Loaded file ', filename(nfiles)
+         write(6,*) 'Time =', time
+      endif
+
+      n = nx1*ny1*nz1*nelv
+
+c     1/2/3 y derivative of x velocity
+      call gradm1(wrk1, vx_y, wrk2, vx)
+      call col2(vx_y, bm1, n)
+      call dssum(vx_y, nx1, ny1, nz1)
+      call col2(vx_y, binvm1, n)
+
+      call gradm1(wrk1, vx_yy, wrk2, vx_y)
+      call col2(vx_yy, bm1, n)
+      call dssum(vx_yy, nx1, ny1, nz1)
+      call col2(vx_yy, binvm1, n)
+
+      call gradm1(wrk1, vx_yyy, wrk2, vx_yy)
+      call col2(vx_yyy, bm1, n)
+      call dssum(vx_yyy, nx1, ny1, nz1)
+      call col2(vx_yyy, binvm1, n)
+
+c     1/2 y derivative of Temperature
+      call gradm1(wrk1, T_y, wrk2, t(1,1,1,1,1))
+      call col2(T_y, bm1, n)
+      call dssum(T_y, nx1, ny1, nz1)
+      call col2(T_y, binvm1, n)
+
+      call gradm1(wrk1, T_yy, wrk2, T_y)
+      call col2(T_yy, bm1, n)
+      call dssum(T_yy, nx1, ny1, nz1)
+      call col2(T_yy, binvm1, n)
+
+c     1/2 y derivative of concentration
+      call gradm1(wrk1, c_y, wrk2, t(1,1,1,1,2))
+      call col2(c_y, bm1, n)
+      call dssum(c_y, nx1, ny1, nz1)
+      call col2(c_y, binvm1, n)
+
+      call gradm1(wrk1, c_yy, wrk2, c_y)
+      call col2(c_yy, bm1, n)
+      call dssum(c_yy, nx1, ny1, nz1)
+      call col2(c_yy, binvm1, n)
+
+      write(ii,'(i5.5)') nid
+      fname = 'output/p'//trim(ii)//'.dat'
+
+      open(unit=502, file=trim(fname))
+      do e=1,nelt
+         i = nx1
+         do j=1,ny1
+            write(502,*) xm1(i,j,1,e), ym1(i,j,1,e), vx(i,j,1,e), 
+     1                   vx_y(i,j,1,e), vx_yy(i,j,1,e), 
+     2                   vx_yyy(i,j,1,e), t(i,j,1,e,1), T_y(i,j,1,e),
+     3                   T_yy(i,j,1,e), t(i,j,1,e,2), c_y(i,j,1,e),
+     4                   c_yy(i,j,1,e)
+         enddo
+      enddo
 
       return
       end
