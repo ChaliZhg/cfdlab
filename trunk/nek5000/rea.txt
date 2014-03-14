@@ -3,8 +3,7 @@ The rea file contains the parameters used by nek5000. Some explanations can be f
 http://nek5000.mcs.anl.gov/index.php/Reafile
 http://nek5000.mcs.anl.gov/index.php/Parameters
 
-Below, I have tried to fill in some gaps in the descriptions by looking at different
-examples in nek5000.
+Below, I have tried to fill in some gaps in the descriptions by looking at different examples in nek5000.
 
 0001  DENSITY     density for the case of constant properties (see parameter P030)
 P002  VISCOS      kinematic viscosity (1/Re if the reference values are used to define the Re number) 
@@ -21,7 +20,8 @@ P010  FINTIME     if >0, specifies simulation end time. Otherwise, use NSTEP (P0
 P011  NSTEP       number of time steps
 P012  DT          time step
 P013  IOCOMM      ?????
-P014  IOTIME      if >0, time interval to dump the fld file. Otherwise, use IOSTEP (P015)
+P014  IOTIME      if >0, time interval to dump the fld file. Otherwise, use 
+                  IOSTEP (P015)
 P015  IOSTEP      dump frequency, number of time steps between dumps 
 P016  PSSOLVER    heat/passive scalar solver: 
                     1:  Helmholz 
@@ -37,15 +37,19 @@ P022  HELMHOLTZ   tolerance for the velocity solver
 P023  NPSCAL      number of passive scalars 
 P024  TOLREL      relative tolerance for the passive scalar solver (CVODE)
 P025  TOLABS      absolute tolerance for the passive scalar solver (CVODE)
-P026  COURANT     maximum Courant number (number of RK4 substeps if OIFS is used)
+P026  COURANT     maximum Courant number (number of RK4 substeps if OIFS is 
+                  used, i.e., when IFCHAR=T)
 P027  TORDER      temporal discretization order (2 or 3)
 P028  NABMSH      if 1, 2, or 3 use Adams-Bashforth of corresponding order. 
                   Otherwise, extrapolation of order TORDER (P027)
 P029              if > 0, magnetic viscosity, if < 0 magnetic Reynolds number 
 P030              0: no user-defined properties
-                  1: user-defined properties via USERVP subroutine (each scalar separately)
-                  2: user-defined properties via USERVP subroutine (all scalars at once)
-P031  NPERT       if >0, number of modes of the perturbation of the linearized NS ?????
+                  1: user-defined properties via USERVP subroutine (each scalar 
+                     separately)
+                  2: user-defined properties via USERVP subroutine (all scalars 
+                     at once)
+P031  NPERT       if >0, number of modes of the perturbation of the linearized 
+                  NS ?????
 P032              if >0, number of field for which BCs are specified in *.re2 file
                   User's responsibility to provide BC's for all fields!
 P033              not used
@@ -56,12 +60,18 @@ P037  NGRIDS      ?????
 P038  NORDER2     ?????
 P039  NORDER3     ?????
 P040              not used
-P041              1-->multiplicative SEMG ?????
+P041              0 - use additive SEMG
+                  1 - use hybrid SEMG (not yet working... but coming soon!)
 P042              linear solver for the pressure equation 0 -> GMRES, 1 -> PCG
+                  0 - use GMRES for iterative solver, use non-symmetric 
+                      weighting
+                  1 - use PCG for iterative solver, do not use weighting
 P043              Pressure preconditioner
-                  0: semg, additive multilevel scheme 
+                  0: semg, additive multilevel scheme (requires param(42).eq.0)
                   1: schwarz, original 2 level scheme
 P044              0=E-based/1=A-based preconditioner
+                  0 - base top-level additive Schwarz on restrictions of E
+                  1 - base top-level additive Schwarz on restrictions of A
 P045              Relaxation factor for DTFS
 P046              if >0, don't call subroutine SETICS  ?????
 P047  VNU         parameter for moving mesh (elastic material constant) ????
@@ -120,7 +130,8 @@ P091              if >0, tolerance for preconditioner (EPREC) ????
 P092              not used
 P093              if >0, number of previous pressure solutions saved to use
                   for residual projection (adjust MXPREF in SIZE accordingly)
-P094              if >0, start projecting velocity and passive scalars after P094 steps 
+P094              if >0, start projecting velocity and passive scalars after    
+                  P094 steps 
 P095              if >0, start projecting pressure after P095 steps
 P096              not used
 P097              not used
@@ -135,9 +146,11 @@ P100              pressure preconditioner when using CG solver
 P101              number of additional modes to filter (0: only last mode)
 P102              If >0, dump out divergence at each time step
 P103              filter weight for last mode (<0: disabled)
-P104              if !=0, turn off Jacobi preconditioner (debugging purposes ????)
+P104              if !=0, turn off Jacobi preconditioner (debugging 
+                  purposes ????)
 P105              save previous solutions for projection ????
-P106              if !=0, dump difference between filtered and unfiltered variables in *.flt
+P106              if !=0, dump difference between filtered and unfiltered 
+                  variables in *.flt
 P107              if !=0, add it to h2 in sethlm  (WHY ?????)
 P108
 P109
@@ -147,7 +160,8 @@ P112
 P113
 P114
 P115
-P116  NELX        number of elements in x for Fast Tensor Product FTP solver (0: do not use FTP)
+P116  NELX        number of elements in x for Fast Tensor Product FTP solver  
+                  (0: do not use FTP)
                   NOTE: box geometries, constant properties only!
 P117  NELY        number of elements in y for FTP
 P118  NELZ        number of elements in z for FTP
