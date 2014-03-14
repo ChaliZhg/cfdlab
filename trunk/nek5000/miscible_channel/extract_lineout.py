@@ -1,5 +1,11 @@
+'''
+Interpolates solution along a line
+'''
+
 DB = "avgchannel.nek5000"
 Mesh = "mesh"
+
+# End points of the line
 p0 = (7.0, 0.0, 0)
 p1 = (7.0, 1.0, 0)
 
