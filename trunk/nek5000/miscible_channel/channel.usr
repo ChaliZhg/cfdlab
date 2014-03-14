@@ -109,6 +109,7 @@ c     We put a smooth heaviside function
          ifxyo = .false.
       endif
       call avg_all()
+      if(nid.eq.0) call system("rm -f rmschannel* rm2channel*")
 
       ! Save initial condition
       if(istep.eq.0)then
