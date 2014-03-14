@@ -1,20 +1,35 @@
 Grid is specified in box.box
 Parameters are set in input.rea file
 
-genbox
-< box.box
 
-mv box.rea channel.rea
+----------
+Generating mesh
+----------
 
-genmap
-< channel
-< 0.01
+Run the script mkmesh, e.g.,
+
+./mkmesh 512x32.box
+
+This creates channel.rea, post.rea, channel.map, post.map files.
+
+----------
+Running
+----------
 
 makenek channel
 
 nek channel
 
-NOTE
+----------
+SOME IMPORTANT PARAMETERS
+----------
 
-* If you are calling hpts(), make sure to delete the old hpts.out file
+p068   To compute running time average. You must call avg_all function
+       in usrchk
+
+----------
+NOTE
+----------
+
+* If you are calling hpts(), make sure to delete the old hpts.out file,
   otherwise code will stop mysteriously.
