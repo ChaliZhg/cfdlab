@@ -60,7 +60,7 @@ enum FluxType {lxf, kfvs, roe, hllc};
 enum TestCase {sod, blast, blastwc, lax, shuosher, lowd, smooth};
 enum ShockIndicator { ind_None, ind_density, ind_energy, ind_entropy, ind_entfun,
                       ind_entropy_residual };
-enum ViscModel {constant, persson};
+enum ViscModel {constant, persson, kwh};
 
 //------------------------------------------------------------------------------
 // Computes entropy s = p / rho^gamma
@@ -305,6 +305,7 @@ private:
    void assemble_mass_matrix ();
    void compute_viscosity_constant ();
    void compute_viscosity_persson ();
+   void compute_viscosity_kwh ();
    void compute_viscosity ();
    void assemble_rhs ();
    void compute_averages ();
@@ -403,6 +404,7 @@ EulerProblem<dim>::EulerProblem (unsigned int degree,
    std::string vm  = prm.get("viscosity");
    if(vm == "constant") visc_model = constant;
    if(vm == "persson") visc_model = persson;
+   if(vm == "kwh") visc_model = kwh;
    
    if(limiter == "BDF" || limiter == "BSB") M = 0.0;
    
@@ -1194,6 +1196,77 @@ void EulerProblem<dim>::compute_viscosity_persson ()
       }
    }
 }
+
+//------------------------------------------------------------------------------
+// Based on Klockner , T. Warburton and J. S. Hesthaven
+// Author: Sudarshan Kumar K
+//------------------------------------------------------------------------------
+template <int dim>
+void EulerProblem<dim>::compute_viscosity_kwh ()
+{  
+   
+   std::vector<unsigned int> dof_indices(fe.dofs_per_cell);
+   typename DoFHandler<dim>::active_cell_iterator
+      cell = dof_handler.begin_active(),
+      endc = dof_handler.end();
+   n_troubled_cells=0;
+   
+   // constant viscosity per cell
+   for(unsigned int c=0; cell!=endc; ++cell, ++c)
+   {
+      double velocity = momentum_average[c] / density_average[c];
+      double pressure = (gas_gamma-1.0) * ( energy_average[c] -
+                                           0.5 * momentum_average[c] * velocity );
+      double sonic = std::sqrt ( gas_gamma * pressure / density_average[c] );
+      double speed = std::fabs(velocity) + sonic;
+      double mu0 = dx * speed / fe.degree;
+      
+      cell->get_dof_indices(dof_indices);
+      
+      double sum0=0.0, sum1=0.0, sum2=0.0, sum3=0.0;
+      for(unsigned int i=1; i<fe.dofs_per_cell; ++i)
+      {
+         double q = std::abs(std::sqrt(2*i+1) * density(dof_indices[i]));
+         double a = std::log(i);
+         double b = std::log(q + 1.0e-14);
+         sum0    += a;
+         sum1    += a*a;
+         sum2    += b;
+         sum3    += a*b;
+      }
+    
+      double s;
+      if(sum2 < -10.0)
+         s = 100;
+      else
+      {
+         s  = (fe.dofs_per_cell-1)*sum3 - sum0*sum2;
+         s /= std::pow(sum0,2) - (fe.dofs_per_cell-1)*sum1;
+      }
+
+      is_troubled[c] = false;
+      if(s < 1.0)
+      {
+         viscosity(c) = mu0;
+         is_troubled[c] = true;   
+         ++n_troubled_cells;
+      }
+      else if(s > 3.0)
+      { 
+         viscosity(c) = 0.0;
+      }      
+      else
+      {
+         double arg   = -0.5 * M_PI * (s - 2.0);
+         viscosity(c) =  0.5 * mu0 * (1.0 + std::sin(arg));
+         is_troubled[c] = true;
+         ++n_troubled_cells;
+      }
+
+   }
+   std::cout << "Number of troubled cells = " << n_troubled_cells << std::endl;
+}
+
 //------------------------------------------------------------------------------
 // Assemble system rhs
 //------------------------------------------------------------------------------
@@ -1214,6 +1287,10 @@ void EulerProblem<dim>::compute_viscosity ()
          
       case persson:
          compute_viscosity_persson();
+         break;
+
+      case kwh:
+         compute_viscosity_kwh();
          break;
    }
    
@@ -2637,7 +2714,7 @@ void declare_parameters(ParameterHandler& prm)
                      Patterns::Selection("None|TVB|BDF|BSB|visc"),
                      "limiter");
    prm.declare_entry("viscosity","constant",
-                     Patterns::Selection("constant|persson"),
+                     Patterns::Selection("constant|persson|kwh"),
                      "artificial viscosity");
    prm.declare_entry("indicator","None",
                      Patterns::Selection("None|density|energy|entropy|entfun|eresidual"),
