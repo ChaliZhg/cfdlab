@@ -1,5 +1,7 @@
 clear all
 load linear.mat
+load freeinds.txt
+load pinds.txt
 who
 
 nu = 2;
@@ -17,6 +19,13 @@ disp('Eigenvalues of A^T')
 diag(D2)
 
 % NOTE: check that eigenvalues are in same order
+
+% get indices of velocity+temperature
+[tmp,ii] = setdiff(freeinds, pinds);
+
+% eigenvector component for velocity+temperature
+V1y = V1(ii,:);
+V2y = V2(ii,:);
 
 % make V1 and V2 orthonormal
 % p must be diagonal
