@@ -20,12 +20,25 @@ diag(D2)
 
 % NOTE: check that eigenvalues are in same order
 
-% get indices of velocity+temperature
-[tmp,ii] = setdiff(freeinds, pinds);
+% freeinds, pinds are indices inside fenics
+% We have to shift by one since python indexing starts at 0 but matlab 
+% starts at 1
+freeinds = freeinds + 1;
+pinds    = pinds + 1;
+% get matlab indices of velocity+temperature
+[tmp,vTinds] = setdiff(freeinds, pinds);
+% get matlab indices of pressure
+pinds = setdiff(1:length(freeinds), vTinds);
 
 % eigenvector component for velocity+temperature
-V1y = V1(ii,:);
-V2y = V2(ii,:);
+V1y = V1(vTinds,:);  % eigenvectors of (A,M)
+V2y = V2(vTinds,:);  % eigenvectors of (A',M')
+
+E11 = M(vTinds,vTinds);
+A11 = A(vTinds,vTinds);
+A12 = A(vTinds,pinds);
+B1  = B(vTinds,3);
+B2  = B(pinds,3);
 
 % make V1 and V2 orthonormal
 % p must be diagonal
