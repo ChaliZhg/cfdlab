@@ -18,7 +18,7 @@ class HeatFlux(Expression):
       if ff < DOLFIN_EPS:
          value[0] = 0.0
       elif x[0]>0.4 and x[0]<0.6:
-         value[0] = exp(-0.00001/ff)
+         value[0] = 0.4 * exp(-0.00001/ff)
       else:
          value[0] = 0.0
       value[0] *= self.amp
@@ -101,11 +101,12 @@ def nonlinear_form(Re,Gr,Pr,hfamp,ds,up,vp):
    Ftemp =   inner(grad(T),u)*S*dx       \
            + k*inner(grad(T),grad(S))*dx \
            - hs*S*dx                     \
-           + hf*S*ds(3)
+           - hf*S*ds(3)
    Fdiv  =  - q*div(u)*dx
    return Fns + Ftemp + Fdiv
 
 #-----------------------------------------------------------------------------
+# contribution of heat flux term is not included here
 def linear_form(Re,Gr,Pr,us,Ts,u,T,p,v,S,q):
    nu    = 1/Re
    k     = 1/(Re*Pr)
@@ -141,9 +142,9 @@ class NSProblem():
       # heat flux control amplitude
       self.hfamp = Constant(0)
 
-      self.V = VectorFunctionSpace(mesh, "CG", self.udeg)
-      self.W = FunctionSpace(mesh, "CG", self.tdeg)
-      self.Q = FunctionSpace(mesh, "CG", self.pdeg)
+      self.V = VectorFunctionSpace(mesh, "CG", self.udeg)  # velocity
+      self.W = FunctionSpace(mesh, "CG", self.tdeg)        # temperature
+      self.Q = FunctionSpace(mesh, "CG", self.pdeg)        # pressure
       self.X = MixedFunctionSpace([self.V, self.W, self.Q])
 
       # Velocity bc
@@ -187,6 +188,9 @@ class NSProblem():
          print "-----------------------------------------------------"
          Re.assign(R)
          solver.solve()
+         u = as_vector((up[0],up[1]))
+         d = assemble(div(u)*div(u)*dx)
+         print "Divergence L2 norm = ", np.sqrt(d)
 
       # Save FE solution
       print "Saving FE solution into steady.xml"
@@ -238,6 +242,21 @@ class NSProblem():
       # indices of free nodes
       N = Aa.shape[0]
       innerinds = np.setdiff1d(range(N),bcinds).astype(np.int32)
+
+      # pressure indices
+      pinds = self.X.sub(2).dofmap().dofs()
+
+      print "Writing free indices into freeinds.txt"
+      f = open('freeinds.txt','w')
+      for item in innerinds:
+          f.write("%d\n" % item)
+      f.close()
+
+      print "Writing pressure indices into pinds.txt"
+      f = open('pinds.txt','w')
+      for item in pinds:
+          f.write("%d\n" % item)
+      f.close()
 
       # indices of velocity control
       vinds = []
