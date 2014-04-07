@@ -4,21 +4,37 @@ load freeinds.txt
 load pinds.txt
 who
 
-nu = 2;
+nc = size(B,2);   % number of control variables
+nu = 2;           % how many eigenvalues to compute
 shift = 0;
 
 % number of Lanczos vectors
 opts.p = 50;
 
-[V1,D1] = eigs(A,M,nu,'SM',opts);
+[Vt,D1] = eigs(A,M,nu,'SM',opts);
 disp('Eigenvalues of A')
 diag(D1)
 
-[V2,D2] = eigs(A',M',nu,'SM',opts);
+[Zt,D2] = eigs(A',M',nu,'SM',opts);
 disp('Eigenvalues of A^T')
 diag(D2)
 
+iu = find(real(D1) > 0);
+nu = length(iu);
+fprintf(1, 'Number of unstable eigenvalues = %d\n', nu)
+
 % NOTE: check that eigenvalues are in same order
+
+% make Vt and Zt orthonormal
+% p must be diagonal
+disp('Following must be a diagonal matrix. Is it ?')
+p = Vt.' * M * Zt
+p = diag(p);
+
+% normalize
+for j=1:nu
+   Zt(:,j) = Zt(:,j) / p(j);
+end
 
 % freeinds, pinds are indices inside fenics
 % We have to shift by one since python indexing starts at 0 but matlab 
@@ -31,51 +47,67 @@ pinds    = pinds + 1;
 pinds = setdiff(1:length(freeinds), vTinds);
 
 % eigenvector component for velocity+temperature
-V1y = V1(vTinds,:);  % eigenvectors of (A,M)
-V2y = V2(vTinds,:);  % eigenvectors of (A',M')
+Vty = Vt(vTinds,:);  % eigenvectors of (A,M)
+Zty = Zt(vTinds,:);  % eigenvectors of (A',M')
+Ztp = Zt(pinds,:);
 
 E11 = M(vTinds,vTinds);
 A11 = A(vTinds,vTinds);
 A12 = A(vTinds,pinds);
-B1  = B(vTinds,3);
-B2  = B(pinds,3);
+B1  = B(vTinds,:);
+B2  =-B(pinds,:);
 
-% make V1 and V2 orthonormal
-% p must be diagonal
-disp('Is this diagonal matrix ?')
-p = conj(V2')*M*V1
-p = diag(p);
-
-% normalize
-for j=1:nu
-   V2(:,j) = V2(:,j) / p(j);
-end
 % check orthonormality
 disp('Is this identity matrix ?')
-p = conj(V2')*M*V1
+p = Vty.' * E11 * Zty
 
-% check controllability by hautus
-for j=1:nu
-   B.' * V2(:,j)
-end
+U = (1/sqrt(2)) * [1,   1; ...
+                   1i, -1i];
 
-% number of unstable eigenvalues
-Du = D1(1:nu,1:nu) + shift*eye(nu);
-% Stabilization
-Bu=V2.'*B;
-Ru=eye(size(Bu,2));
-Qu=zeros(nu);
-[Pu,L,G]=care(Du,Bu,Qu,Ru);
-disp('eigenvalues with feedback of projected system')
+Vy = Vty * U';
+Zy = Zty * U.';
+Zp = Ztp * U.';
+
+
+disp('Vy and Zy must be real')
+max(abs(imag(Vy)))
+max(abs(imag(Vy)))
+
+% Vy and Zy must be real, making sure imaginary part is close to zero
+Vy = real(Vy);
+Zy = real(Zy);
+
+disp('Is this identity matrix ?')
+p = Vy.' * E11 * Zy
+
+
+% Compute B12
+np = length(pinds);
+ny = length(vTinds);
+N  = [E11, A12; A12' sparse(np,np)];
+RHS= [sparse(ny,nc); B2];
+Z1 = N\RHS;
+B12= B1 + A11*Z1(1:ny,:);
+
+% Project to unstable subspace
+Au = Zy' * A11 * Vy;
+Bu = Zy' * B12;
+Qu = zeros(size(Au));
+Ru = eye(nc);
+
+[Pu,L,G]=care(Au,Bu,Qu,Ru);
+disp('Eigenvalues of projected system with feedback')
 L
-K=(((B.')*V2)*Pu)*(V1.'*M);
-disp('norm of imag(K)')
-norm(imag(K))
-K=real(K);
-K=sparse(K);
-A=sparse(A);
-M=sparse(M);
-B=sparse(B);
-[Vc,Dc]=eigs(A-B*K,M,5,'SM',opts);
-disp('eigenvalues with feedback of full system')
-diag(Dc)
+
+B = sparse([B1; -B2]);
+E11 = sparse(E11);
+Z = sparse([Zy; Zp]);
+Zy = sparse(Zy);
+Pu = sparse(Pu);
+Kt = (B' * Z) * Pu * (Zy' * E11);
+S  = [Kt, sparse(nc,np)];
+A  = sparse([A11, A12; A12', sparse(np,np)]);
+M  = sparse([E11, sparse(ny,np); sparse(np,ny+np)]);
+[V,D] = eigs(A-B*S,M,nu,'SM',opts);
+disp('Eigenvalues of full system with feedback')
+diag(D)
