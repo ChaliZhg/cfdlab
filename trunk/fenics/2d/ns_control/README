@@ -23,8 +23,13 @@ $ python linear.py
 
 Look at eigenvalues in matlab by running evals.m
 
-Compute feedback gain from gain.m (not completed)
+Compute feedback gain from gain.m
 
-Run nonlinear model (not completed)
+Run nonlinear model
 
-$ python run.py
+$ python run.py > run.log &
+
+You can see evolution of energy by plotting kinetic energy
+
+$ gnuplot hist.gnu
+$ gv hist.ps &
