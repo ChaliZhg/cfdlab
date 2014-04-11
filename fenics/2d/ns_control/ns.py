@@ -297,7 +297,6 @@ class NSProblem():
       print "Saving linear system into linear.mat"
       sio.savemat('linear.mat', mdict={'M':M, 'A':A, 'B':B}, oned_as='column')
 
-      '''
       # Compute eigenvalues/vectors
       vals, vecs = la.eigs(A, k=2, M=M, sigma=0, which='LR')
       for val in vals:
@@ -306,18 +305,19 @@ class NSProblem():
       # TODO: eigenvectors are complex
       ua = Function(self.X)
 
+      # Save real part of eigenvector. << outputs only real part
       ua.vector()[innerinds] = vecs[:,0]
       File("evec1.xml") << ua.vector()
       u,T,p = ua.split()
       File("evec1_u.pvd") << u
       File("evec1_T.pvd") << T
 
-      ua.vector()[innerinds] = vecs[:,1]
+      # Save imaginary part of eigenvector. << outputs only real part
+      ua.vector()[innerinds] = vecs[:,0] * (-1j)
       File("evec2.xml") << ua.vector()
       u,T,p = ua.split()
       File("evec2_u.pvd") << u
       File("evec2_T.pvd") << T
-      '''
 
    # Runs nonlinear model
    def run(self):
@@ -329,9 +329,19 @@ class NSProblem():
       Pr = Constant(self.Pr)
       F = nonlinear_form(Re,Gr,Pr,self.hfamp,self.ds,up,vp)
 
+      fhist = open('history.dat','w')
+
+      ups = Function(self.X)
+      File("steady.xml") >> ups.vector()
+      us,Ts,ps = ups.split()
+      KEs = assemble(0.5*inner(us,us)*dx)
+      print 'Kinetic energy of steady state =', KEs
+
       # Set initial condition
       up1 = Function(self.X)
-      File("steady.xml") >> up1.vector()
+      up1.assign(ups)
+
+      # Add perturbation using unstable eigenvector
       uppert = Function(self.X)
       File("evec1.xml") >> uppert.vector()
       up1.vector()[:] += 0.01 * uppert.vector().array()
@@ -342,9 +352,13 @@ class NSProblem():
       u,T,p = up1.split()
       fu << u
       ft << T
+      KE  = assemble(0.5*inner(u,u)*dx)
+      dKE = assemble(0.5*inner(u-us,u-us)*dx)
+      print 'Kinetic energy =', KEs, KE, dKE
+      fhist.write(str(0)+" "+str(KEs)+" "+str(KE)+" "+str(dKE)+"\n")
 
       dt = 0.01
-      final_time = dt*100
+      final_time = dt*2000
       time, iter = 0, 0
 
       # First time step, we do backward euler
@@ -362,11 +376,15 @@ class NSProblem():
       iter += 1
       time += dt
       print 'Iter = {:5d}, t = {:f}'.format(iter, time)
-      print '--------------------------------------------------------------'
 
       u,T,p = up.split()
       fu << u
       ft << T
+      KE  = assemble(0.5*inner(u,u)*dx)
+      dKE = assemble(0.5*inner(u-us,u-us)*dx)
+      print 'Kinetic energy =', KEs, KE, dKE
+      fhist.write(str(time)+" "+str(KEs)+" "+str(KE)+" "+str(dKE)+"\n")
+      print '--------------------------------------------------------------'
 
       # From now on use BDF2
       up2 = Function(self.X)
@@ -384,7 +402,15 @@ class NSProblem():
          iter += 1
          time += dt
          print 'Iter = {:5d}, t = {:f}'.format(iter, time)
-         print '--------------------------------------------------------------'
          u,T,p = up.split()
-         fu << u
-         ft << T
+         if iter%10 == 0:
+            fu << u
+            ft << T
+         KE  = assemble(0.5*inner(u,u)*dx)
+         dKE = assemble(0.5*inner(u-us,u-us)*dx)
+         print 'Kinetic energy =', KEs, KE, dKE
+         fhist.write(str(time)+" "+str(KEs)+" "+str(KE)+" "+str(dKE)+"\n")
+         fhist.flush()
+         print '--------------------------------------------------------------'
+
+      fhist.close()
