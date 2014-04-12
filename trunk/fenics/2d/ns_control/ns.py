@@ -269,14 +269,10 @@ class NSProblem():
       f.close()
 
       # indices of velocity control
-      vinds = []
-      bcdict = self.vbc.get_boundary_values()
-      vinds.extend(bcdict.keys())
+      vinds = self.vbc.get_boundary_values().keys()
 
       # indices of temperature control
-      tinds = []
-      bcdict = self.tbc.get_boundary_values()
-      tinds.extend(bcdict.keys())
+      tinds = self.tbc.get_boundary_values().keys()
 
       # mass matrix
       M = Ma[freeinds,:][:,freeinds]
@@ -321,6 +317,7 @@ class NSProblem():
       u,T,p = ua.split()
       File("evec1_u.pvd") << u
       File("evec1_T.pvd") << T
+      File("evec1_p.pvd") << p
 
       # Save imaginary part of eigenvector. << outputs only real part
       ua.vector()[freeinds] = vecs[:,0] * (-1j)
@@ -328,6 +325,7 @@ class NSProblem():
       u,T,p = ua.split()
       File("evec2_u.pvd") << u
       File("evec2_T.pvd") << T
+      File("evec2_p.pvd") << p
 
    # Runs nonlinear model
    def run(self,with_control):
