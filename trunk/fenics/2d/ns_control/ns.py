@@ -202,6 +202,27 @@ class NSProblem():
       File("steady_p.pvd") << p
       File("steady_T.pvd") << T
 
+   # Returns dof indices which are free
+   # freeinds = free indices of velocity, temperature, pressure
+   # pinds    = free indices of pressure
+   def get_indices(self):
+      # Collect all dirichlet boundary dof indices
+      bcinds = []
+      for b in self.bc:
+         bcdict = b.get_boundary_values()
+         bcinds.extend(bcdict.keys())
+
+      # total number of dofs
+      N = self.X.dim()
+
+      # indices of free nodes
+      freeinds = np.setdiff1d(range(N),bcinds).astype(np.int32)
+
+      # pressure indices
+      pinds = self.X.sub(2).dofmap().dofs()
+
+      return freeinds, pinds
+
    # Generate linear state representation
    def linear_system(self):
       parameters.linear_algebra_backend = "uBLAS"
@@ -233,22 +254,11 @@ class NSProblem():
       Aa = sps.csc_matrix((values, cols, rows))
       print "Size of Aa =",Aa.shape
 
-      # Collect all dirichlet boundary dof indices
-      bcinds = []
-      for b in self.bc:
-         bcdict = b.get_boundary_values()
-         bcinds.extend(bcdict.keys())
-
-      # indices of free nodes
-      N = Aa.shape[0]
-      innerinds = np.setdiff1d(range(N),bcinds).astype(np.int32)
-
-      # pressure indices
-      pinds = self.X.sub(2).dofmap().dofs()
+      freeinds,pinds = self.get_indices()
 
       print "Writing free indices into freeinds.txt"
       f = open('freeinds.txt','w')
-      for item in innerinds:
+      for item in freeinds:
           f.write("%d\n" % item)
       f.close()
 
@@ -269,25 +279,25 @@ class NSProblem():
       tinds.extend(bcdict.keys())
 
       # mass matrix
-      M = Ma[innerinds,:][:,innerinds]
+      M = Ma[freeinds,:][:,freeinds]
       print "Size of M =",M.shape
 
       # stiffness matrix
-      A = Aa[innerinds,:][:,innerinds]
+      A = Aa[freeinds,:][:,freeinds]
       print "Size of A =",A.shape
 
       # velocity control operator
       ua = interpolate(allvar(1,1), self.X)
       ua = ua.vector().array()
-      Bv = Aa[innerinds,:][:,vinds].dot(ua[vinds])
+      Bv = Aa[freeinds,:][:,vinds].dot(ua[vinds])
       print "Size of Bv =",Bv.shape[0]
-      Bt = Aa[innerinds,:][:,tinds].dot(ua[tinds])
+      Bt = Aa[freeinds,:][:,tinds].dot(ua[tinds])
       print "Size of Bt =",Bt.shape[0]
 
       # heat flux control operator
       Bh = assemble(HeatFlux(1)*S*self.ds(3))
       Bh = Bh.array()
-      Bh = Bh[innerinds]
+      Bh = Bh[freeinds]
       print "Size of Bh =",Bh.shape[0]
 
       B = np.column_stack((Bv,Bt,Bh))
@@ -306,21 +316,21 @@ class NSProblem():
       ua = Function(self.X)
 
       # Save real part of eigenvector. << outputs only real part
-      ua.vector()[innerinds] = vecs[:,0]
+      ua.vector()[freeinds] = vecs[:,0]
       File("evec1.xml") << ua.vector()
       u,T,p = ua.split()
       File("evec1_u.pvd") << u
       File("evec1_T.pvd") << T
 
       # Save imaginary part of eigenvector. << outputs only real part
-      ua.vector()[innerinds] = vecs[:,0] * (-1j)
+      ua.vector()[freeinds] = vecs[:,0] * (-1j)
       File("evec2.xml") << ua.vector()
       u,T,p = ua.split()
       File("evec2_u.pvd") << u
       File("evec2_T.pvd") << T
 
    # Runs nonlinear model
-   def run(self):
+   def run(self,with_control):
       up = Function(self.X)
       vp = TestFunction(self.X)
 
@@ -328,6 +338,11 @@ class NSProblem():
       Gr = Constant(self.Gr)
       Pr = Constant(self.Pr)
       F = nonlinear_form(Re,Gr,Pr,self.hfamp,self.ds,up,vp)
+
+      if with_control:
+         # compute indices of velocity and temperature
+         freeinds,pinds = self.get_indices()
+         vTinds = np.setdiff1d(freeinds,pinds).astype(np.int32)
 
       fhist = open('history.dat','w')
 
