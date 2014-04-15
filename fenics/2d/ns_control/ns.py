@@ -341,6 +341,7 @@ class NSProblem():
          # compute indices of velocity and temperature
          freeinds,pinds = self.get_indices()
          vTinds = np.setdiff1d(freeinds,pinds).astype(np.int32)
+         gain = sio.loadmat('gain.mat')
 
       fhist = open('history.dat','w')
 
@@ -373,6 +374,14 @@ class NSProblem():
       dt = 0.01
       final_time = dt*2000
       time, iter = 0, 0
+
+      if with_control:
+        dy = up1.vector().array() - ups.vector().array()
+        a = -np.dot(gain['Kt'], dy[vTinds])
+        print a
+        self.vamp.assign(a[0])
+        self.tamp.assign(a[1])
+        self.hfamp.assign(a[2])
 
       # First time step, we do backward euler
       B1 = (1/dt)*inner(up[0] - up1[0], vp[0])*dx     \
@@ -411,6 +420,13 @@ class NSProblem():
       while time < final_time:
          up2.assign(up1)
          up1.assign(up)
+         if with_control:
+            dy = up1.vector().array() - ups.vector().array()
+            a = -np.dot(gain['Kt'], dy[vTinds])
+            print a
+            self.vamp.assign(a[0])
+            self.tamp.assign(a[1])
+            self.hfamp.assign(a[2])
          solver2.solve()
          iter += 1
          time += dt
