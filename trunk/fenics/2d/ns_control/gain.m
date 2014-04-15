@@ -76,6 +76,7 @@ max(abs(imag(Vy)))
 % Vy and Zy must be real, making sure imaginary part is close to zero
 Vy = real(Vy);
 Zy = real(Zy);
+Zp = real(Zp);
 
 disp('Is this identity matrix ?')
 p = Vy.' * E11 * Zy
@@ -111,3 +112,6 @@ M  = sparse([E11, sparse(ny,np); sparse(np,ny+np)]);
 [V,D] = eigs(A-B*S,M,nu,'SM',opts);
 disp('Eigenvalues of full system with feedback')
 diag(D)
+
+Kt = full(Kt);
+save('gain.mat','Kt')
