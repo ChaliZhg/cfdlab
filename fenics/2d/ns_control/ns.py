@@ -80,12 +80,11 @@ class allvar(Expression):
    def value_shape(self):
       return (4,)
 #-----------------------------------------------------------------------------
-def nonlinear_form(Re,Gr,Pr,hfamp,ds,up,vp):
+def nonlinear_form(Re,Gr,Pr,hf,ds,up,vp):
    nu    = 1/Re
    k     = 1/(Re*Pr)
    G     = Gr/Re**2
    hs    = HeatSource()
-   hf    = HeatFlux(hfamp)
    # Trial function
    u  = as_vector((up[0],up[1]))   # velocity
    T  = up[2]                      # temperature
@@ -135,13 +134,6 @@ class NSProblem():
       self.Pr = Pr
       self.ds = Measure("ds")[sub_domains]
 
-      # velocity control amplitude
-      self.vamp  = Constant(0)
-      # temperature control amplitude
-      self.tamp  = Constant(0)
-      # heat flux control amplitude
-      self.hfamp = Constant(0)
-
       self.V = VectorFunctionSpace(mesh, "CG", self.udeg)  # velocity
       self.W = FunctionSpace(mesh, "CG", self.tdeg)        # temperature
       self.Q = FunctionSpace(mesh, "CG", self.pdeg)        # pressure
@@ -151,18 +143,19 @@ class NSProblem():
       noslipbc1 = DirichletBC(self.X.sub(0), (0,0), sub_domains, 0)
       noslipbc2 = DirichletBC(self.X.sub(0), (0,0), sub_domains, 3)
       # velocity control boundary
-      gs        = velocity(self.vamp)
-      vconbc    = DirichletBC(self.X.sub(0).sub(0), gs, sub_domains, 2)
+      self.gs   = velocity(0.0)
+      vconbc    = DirichletBC(self.X.sub(0).sub(0), self.gs, sub_domains, 2)
       yvbc      = DirichletBC(self.X.sub(0).sub(1), 0,  sub_domains, 2)
 
       # Temperature bc
       tbc1    = DirichletBC(self.X.sub(1), 0.0, sub_domains, 0)
-      ts      = temperature(self.tamp)
-      tbc2    = DirichletBC(self.X.sub(1), ts, sub_domains, 2)
+      self.ts = temperature(0.0)
+      tbc2    = DirichletBC(self.X.sub(1), self.ts, sub_domains, 2)
 
       self.bc = [noslipbc1, noslipbc2, vconbc, yvbc, tbc1, tbc2]
       self.vbc= vconbc
       self.tbc= tbc2
+      self.hf = HeatFlux(0.0)
 
    # solves steady state equations
    def steady_state(self, Relist):
@@ -171,7 +164,7 @@ class NSProblem():
       Re = Constant(self.Re)
       Gr = Constant(self.Gr)
       Pr = Constant(self.Pr)
-      F = nonlinear_form(Re,Gr,Pr,self.hfamp,self.ds,up,vp)
+      F = nonlinear_form(Re,Gr,Pr,self.hf,self.ds,up,vp)
 
       dup = TrialFunction(self.X)
       dF  = derivative(F, up, dup)
@@ -335,7 +328,7 @@ class NSProblem():
       Re = Constant(self.Re)
       Gr = Constant(self.Gr)
       Pr = Constant(self.Pr)
-      F = nonlinear_form(Re,Gr,Pr,self.hfamp,self.ds,up,vp)
+      F = nonlinear_form(Re,Gr,Pr,self.hf,self.ds,up,vp)
 
       if with_control:
          # compute indices of velocity and temperature
@@ -379,9 +372,9 @@ class NSProblem():
         dy = up1.vector().array() - ups.vector().array()
         a = -np.dot(gain['Kt'], dy[vTinds])
         print a
-        self.vamp.assign(a[0])
-        self.tamp.assign(a[1])
-        self.hfamp.assign(a[2])
+        self.gs.amp = a[0]
+        self.ts.amp = a[1]
+        self.hf.amp = a[2]
 
       # First time step, we do backward euler
       B1 = (1/dt)*inner(up[0] - up1[0], vp[0])*dx     \
@@ -424,9 +417,9 @@ class NSProblem():
             dy = up1.vector().array() - ups.vector().array()
             a = -np.dot(gain['Kt'], dy[vTinds])
             print a
-            self.vamp.assign(a[0])
-            self.tamp.assign(a[1])
-            self.hfamp.assign(a[2])
+            self.gs.amp = a[0]
+            self.ts.amp = a[1]
+            self.hf.amp = a[2]
          solver2.solve()
          iter += 1
          time += dt
