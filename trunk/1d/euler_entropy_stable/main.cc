@@ -10,7 +10,7 @@
 
 enum ReconstructionScheme { FIRST, MINMOD, VANLEER, WENO};
 
-enum FluxScheme {KEPS, KEPSSENT, ROE, ROEFIXED, RUSANOV};
+enum FluxScheme {KEPSSENT, ROE, ROEFIXED, RUSANOV};
 
 enum TimeIntegrationScheme{RK1, SSPRK3, JAMESON_RK4};
 
@@ -21,7 +21,6 @@ enum TimeIntegrationScheme{RK1, SSPRK3, JAMESON_RK4};
 const double arks[] = {0.0, 3.0/4.0, 1.0/3.0};
 const double brks[] = {1.0, 1.0/4.0, 2.0/3.0};
 const double jameson_rks[] = {1.0/4.0,1.0/3.0,1.0/2.0, 1.0};
-const double ent_res_coef[] = {1.0/6.0, 1.0/6.0, 2.0/3.0};
 
 // These values are set below based on test case type
 double GAMMA;
@@ -213,9 +212,7 @@ class FVProblem
       void con_to_prim ();
       void reconstruct (const unsigned int face,
                         vector<double>& left,
-                        vector<double>& right) const;
-      void keps_flux (const int&,
-                      vector<double>&) const;                  
+                        vector<double>& right) const;               
       void ent_diss_flux(const vector<double>& left,
                                  const vector<double>& right,
                                  double rho,
@@ -270,10 +267,6 @@ class FVProblem
       void compute_residual_norm ();
       void update_solution (const unsigned int rk);
       void update_ent_res(const unsigned int rk);
-      void num_ent_flux(const vector<double>& left,
-                            const vector<double>& right,  
-                            const vector<double>& flux,
-                            double& eflux) const; 
       double entropy( const vector<double>& prim_var) const;                                            
       void output ();
       double conval(int i, int j) const;
@@ -308,18 +301,11 @@ class FVProblem
       vector< vector<double> > conserved_old;
       vector< vector<double> > conl, conr;
       vector<double> res_norm;
-      vector<double> ent_flux_diff, ent_res;
       
       double M; // Defining Mach numbers for the initial conditions
                  // of certain test cases
       int itermod; 
       int test_case;
-      
-      int u_avg_type; // For setting u average in entropy matrix dissipation
-      
-      int kep_rus_roe_hyb;
-      
-      int rho_avg_type; // for setting rho average in entropy matrix dissipation
       
       int ent_diss_order; // order of entropy based matrix dissiaption
 };
@@ -332,8 +318,6 @@ class FVProblem
 //    RK1, SSPRK3, JAMESON_RK4
 //
 // Choosing flux (flux_scheme):
-//    KEPS         :: Exact entropy conservative flux with scalar dissipation
-//                    scalar dissipation can be added only with drho if you set kepes_diss=0
 //    KEPSSENT     :: Exactly entropy conservative and kinetic energy preserving scheme with
 //                    entropy variable based matrix dissipation
 //                    We use kepes_rusanov_roe hybrid dissipation if kep_rus_roe_hyb = 1  
@@ -342,26 +326,11 @@ class FVProblem
 //    ROEFIXED     :: Roe scheme with entropy fix
 //    RUSSANOV     :: Rusanov flux 
 //
-// Setting type for averaging rho is entropy dissipation matrix (rho_avg_type):
-//    type = 1: logarithmic average
-//    type = 2: upwind average
-//    type = 3: arithmetic average
-//
-// Setting dissipation type for averaging u is entropy dissipation matrix (u_avg_type):
-//    type = 1: u = (ul + ur)/2
-//    type = 2: u = (sqrt(rhor)*ul + sqrt(rhol)*ur)/(sqrt(rhol) + sqrt(rhor))
-//    type = 3: u = (sqrt(1.0/Tl)*ul + sqrt(1.0/Tr)*ur)/(sqrt(1.0/Tl) + sqrt(1.0/Tr))
-//    type = 4: u = (rhor*ul + rhol*ur)/(rhol + rhor)
-//    type = 5: u = (Tr*ul + Tl*ur)/(Tl + Tr)
-//    type = 6: u = max{ul,ur}
-//    type = 7: u = (ul + ur)/2, li = (lil + lir)/2
 //
 // Scalar dissipation when flux_scheme = KEPS
 //    1.0 = full dissipation, 0.0 = only density dissipation
 //    K2, K4 to be specified with the test cases. These control the second and fourth order
 //    dissipation respectively
-//
-// For hybrid scheme with Roe and Russanov dissipation, set kep_rus_roe_hybrid = 1 
 //
 // Choose type of reconstruction (recon_scheme):
 //    FIRST,MINMOD,VANLEER,WENO
@@ -398,13 +367,7 @@ FVProblem::FVProblem ()
    
    flux_scheme = KEPSSENT; 
 
-   rho_avg_type = 1;
-   
-   u_avg_type = 1;
-
    kepes_diss = 0.0;
-   
-   kep_rus_roe_hyb = 0; 
    
    ent_diss_order = 1; 
    
@@ -939,8 +902,6 @@ void FVProblem::make_grid_and_dofs ()
    conr.resize (n_cell, vector<double>(n_var));
 
    res_norm.resize (n_var);
-   ent_res.resize (n_cell);
-   ent_flux_diff.resize (n_cell);
 }
 
 //------------------------------------------------------------------------------
@@ -1139,48 +1100,17 @@ void FVProblem::keps2_ent_flux(const int& f,
    double rho_a = 0.5*(left[0]+right[0]);
    double beta_a = 0.5*(betal+betar);
    double p   = 0.5 * rho_a / beta_a;
-   double u_dis,rho_dis;
     
    flux[0] = rho * u;
    flux[1] = p + u * flux[0];
    flux[2] = (1.0/(2.0*(GAMMA-1.0)*beta) - 0.5*u2) * flux[0] + u * flux[1];
-   
-   if(u_avg_type == 1 || u_avg_type == 7)
-       u_dis = u;
-   else if(u_avg_type == 2)
-       u_dis = (sqrt(right[0])*left[1] + sqrt(left[0])*right[1])/(sqrt(right[0]) + sqrt(left[0]));
-   else if(u_avg_type == 3) 
-       u_dis = (sqrt(1.0/Tl)*left[1] + sqrt(1.0/Tr)*right[1])/(sqrt(1.0/Tl) + sqrt(1.0/Tr));
-   else if(u_avg_type == 4) 
-       u_dis = (right[0]*left[1] + left[0]*right[1])/(right[0] + left[0]);    
-   else if(u_avg_type == 5) 
-       u_dis = (Tr*left[1] + Tr*right[1])/(Tl + Tr);
-   else if(u_avg_type == 6) 
-       u_dis = max(left[1] ,right[1]);  
-   else
-   {
-       cout<<"Unknown u_avg type specified"<<endl;
-       exit(0);      
-   }
-      
-   if(rho_avg_type == 1)
-       rho_dis = rho;
-   else if(rho_avg_type == 2)
-       rho_dis = uwavg(left[0],right[0],u_dis);
-   else if(rho_avg_type == 3)
-       rho_dis = rho_a;
-   else
-   {
-       cout<<"Unknown rho_avg type specified"<<endl;
-       exit(0);      
-   }    
        
    double a = sqrt(0.5 * GAMMA / beta);   
        
      
    // Add entropy dissipation
    if(ent_diss_order == 1)
-      ent_diss_flux(left, right, rho_dis, u_dis, a, betal, betar, flux);
+      ent_diss_flux(left, right, rho, u, a, betal, betar, flux);
    else if(ent_diss_order == 2)
    {
 	  double rho_m1 = logavg (left_m1[0], left[0]);
@@ -1190,30 +1120,6 @@ void FVProblem::keps2_ent_flux(const int& f,
       double betal_m1 = 1.0/(2.0*gas_const*Tl_m1);
       double betar_m1 = 1.0/(2.0*gas_const*Tr_m1);
       double beta_m1  = logavg(betal_m1, betar_m1);
-      double rho_a_m1 = 0.5*(left_m1[0]+left[0]);
-      //double beta_a_m1 = 0.5*(betal_m1+betar_m1);
-      double u_dis_m1 = u_m1;
-      double rho_dis_m1 = rho_m1;
-      
-      if(u_avg_type == 1 || u_avg_type == 7)
-         u_dis_m1 = u_m1;
-      else if(u_avg_type == 2)
-         u_dis_m1 = (sqrt(left[0])*left_m1[1] + sqrt(left_m1[0])*left[1])/(sqrt(left[0]) + sqrt(left_m1[0]));
-      else if(u_avg_type == 3) 
-         u_dis_m1 = (sqrt(1.0/Tl_m1)*left_m1[1] + sqrt(1.0/Tr_m1)*left[1])/(sqrt(1.0/Tl_m1) + sqrt(1.0/Tr_m1));
-      else if(u_avg_type == 4) 
-         u_dis_m1 = (left[0]*left_m1[1] + left_m1[0]*left[1])/(left[0] + left_m1[0]);    
-      else if(u_avg_type == 5) 
-         u_dis_m1 = (Tr_m1*left_m1[1] + Tr_m1*left[1])/(Tl_m1 + Tr_m1);
-      else if(u_avg_type == 6) 
-         u_dis_m1 = max(left_m1[1] ,left[1]);    
-       
-      if(rho_avg_type == 1)
-         rho_dis_m1 = rho_m1;
-      else if(rho_avg_type == 2)
-         rho_dis_m1 = uwavg(left_m1[0],left[0],u_dis_m1);
-      else if(rho_avg_type == 3)
-         rho_dis_m1 = rho_a_m1; 
        
       double a_m1 = sqrt(0.5 * GAMMA / beta_m1); 
    
@@ -1225,38 +1131,13 @@ void FVProblem::keps2_ent_flux(const int& f,
       double betal_p1 = 1.0/(2.0*gas_const*Tl_p1);
       double betar_p1 = 1.0/(2.0*gas_const*Tr_p1);
       double beta_p1  = logavg(betal_p1, betar_p1);
-      double rho_a_p1 = 0.5*(right_p1[0]+right_p2[0]);
-      //double beta_a_p1 = 0.5*(betal_p1+betar_p1);
-      //double p_p1   = 0.5 * rho_a_p1 / beta_a_p1;
-      double u_dis_p1 = u_p1;
-      double rho_dis_p1 = rho_p1;
-      
-      if(u_avg_type == 1 || u_avg_type == 7)
-         u_dis_p1 = u_p1;
-      else if(u_avg_type == 2)
-         u_dis_p1 = (sqrt(right[0])*right_p1[1] + sqrt(right_p1[0])*right[1])/(sqrt(right[0]) + sqrt(right_p1[0]));
-      else if(u_avg_type == 3) 
-         u_dis_p1 = (sqrt(1.0/Tl_p1)*right_p1[1] + sqrt(1.0/Tr_p1)*right[1])/(sqrt(1.0/Tl_p1) + sqrt(1.0/Tr_p1));
-      else if(u_avg_type == 4) 
-         u_dis_p1 = (right[0]*right_p1[1] + right_p1[0]*right[1])/(right[0] + right_p1[0]);    
-      else if(u_avg_type == 5) 
-         u_dis_p1 = (Tr_p1*right_p1[1] + Tr_p1*right[1])/(Tl_p1 + Tr_p1);
-      else if(u_avg_type == 6) 
-         u_dis_p1 = max(right_p1[1] ,right[1]);    
-       
-      if(rho_avg_type == 1)
-         rho_dis_p1 = rho_p1;
-      else if(rho_avg_type == 2)
-         rho_dis_p1 = uwavg(right[0],right_p1[0],u_dis_p1);
-      else if(rho_avg_type == 3)
-         rho_dis_p1 = rho_a_p1;  
        
       double a_p1 = sqrt(0.5 * GAMMA / beta_p1); 
      
 	  ent_diss_flux_2(left_m1,left, right, right_p1,right_p2, 
-	                rho_dis_m1, u_dis_m1, a_m1, betal_m1, betar_m1, 
-	                rho_dis, u_dis, a, betal, betar, 
-	                rho_dis_p1, u_dis_p1,  a_p1, betal_p1, betar_p1,  
+	                rho_m1, u_m1, a_m1, betal_m1, betar_m1, 
+	                rho, u, a, betal, betar, 
+	                rho_p1, u_p1,  a_p1, betal_p1, betar_p1,  
 	                flux); 
    }
    
@@ -1293,26 +1174,11 @@ void FVProblem::ent_diss_flux(const vector<double>& left,
    
    double l1,l2,l3;
    
-   if (u_avg_type == 7)
-   {
-	   l1 = fabs(0.5*(LambdaL[0] + LambdaR[0]));
-       l2 = fabs(0.5*(LambdaL[1] + LambdaR[1]));
-       l3 = fabs(0.5*(LambdaL[2] + LambdaR[2]));
-   }
-   else
-   {
-	   l1 = fabs(u-a);
-       l2 = fabs(u);
-       l3 = fabs(u+a);
-   }
+   l1 = fabs(u-a);
+   l2 = fabs(u);
+   l3 = fabs(u+a);
    
-   double phi_switch = 0.0; // for kep_rus_roe_hybrid scheme
-   if (kep_rus_roe_hyb == 1)
-   {
-	   phi_switch = sqrt(fabs((right[2] - left[2])/(right[2] + left[2])));
-	   alpha = 0.0;
-	   beta_upwind = 0.0;
-   }
+   double phi_switch = 0.0;
    
    double LambdaRoe[] = { (1+beta_upwind)*l1 + alpha*fabs(LambdaR[0]-LambdaL[0]), 
                            l2, 
@@ -1414,18 +1280,9 @@ void FVProblem::ent_diss_flux_2(const vector<double>& left_m1,
    
    double l1,l2,l3;
    
-   if (u_avg_type == 7)
-   {
-	   l1 = fabs(0.5*(LambdaL[0] + LambdaR[0]));
-       l2 = fabs(0.5*(LambdaL[1] + LambdaR[1]));
-       l3 = fabs(0.5*(LambdaL[2] + LambdaR[2]));
-   }
-   else
-   {
-	   l1 = fabs(u-a);
-       l2 = fabs(u);
-       l3 = fabs(u+a);
-   }
+   l1 = fabs(u-a);
+   l2 = fabs(u);
+   l3 = fabs(u+a);
    //l1 = l3 = min(l1, l3);
    //l1 = l3 = max(l1, l3);
    //l1 = l3 = 0.5*(l1 + l3);
@@ -1433,15 +1290,7 @@ void FVProblem::ent_diss_flux_2(const vector<double>& left_m1,
    //l1 = l3 = 2*l1*l3/(l1+l3);
    
    
-   double phi_switch = 0.0; // for kep_rus_roe_hybrid scheme
-   if (kep_rus_roe_hyb == 1)
-   {
-	   phi_switch = sqrt(fabs((right[2] - left[2])/(right[2] + left[2])));
-	   alpha = 0.0;
-	   beta_upwind = 0.0;
-	   alpha_cen = 0.0;
-	   beta_upwind_cen = 0.0;
-   }
+   double phi_switch = 0.0;
    
    double LambdaRoe[] = { (1+beta_upwind)*l1 + alpha*fabs(LambdaR[0]-LambdaL[0]), 
                            l2, 
@@ -1709,14 +1558,9 @@ void FVProblem::num_flux(const int&            f,
                          const vector<double>& right,
                          vector<double>&       flux) const
 {
-   vector<double> flux_pos(n_var);
-   vector<double> flux_neg(n_var);
    
    switch(flux_scheme)
    {
-         case KEPS:
-            keps_flux (f, flux);
-            break;
          case KEPSSENT:
             keps2_ent_flux(f, left,right,flux);
             break;
@@ -1742,13 +1586,11 @@ void FVProblem::compute_residual ()
    for(unsigned int i=0; i<n_cell; ++i)
    {   for(unsigned int j=0; j<n_var; ++j)
          residual[i][j] = 0.0;
-       ent_flux_diff[i] = 0.0;
    }
    
    vector<double> flux (n_var);
    vector<double> left (n_var);
-   vector<double> right(n_var);
-   double eflux;  
+   vector<double> right(n_var); 
    
    // Flux through left boundary
    num_flux (0, prim_left, primitive[0], flux);
@@ -1842,7 +1684,7 @@ void FVProblem::output ()
          << primitive[i][0] << " " 
          << primitive[i][1] << " "
          << primitive[i][2] << " "
-         << mach << "  " << H << "  " << s << " " << ent_res[i] << endl;
+         << mach << "  " << H << "  " << s << endl;
       
    }
    fo.close ();
@@ -1908,152 +1750,6 @@ void FVProblem::run ()
          //exit(0);
       }
    }
-   
-   
-//---------------------------For sorting solutions into directories-----------------------------
- 
-   string rkdir,superdirname ,dirname,test,fluxused,recon;
-   
-   if (time_scheme == RK1)
-      rkdir = "RK1";
-   else if(time_scheme == SSPRK3)
-      rkdir = "SSP_RK3";    
-   else if(time_scheme == JAMESON_RK4)
-      rkdir = "JAMESON_RK4";
-      
-   stringstream ss0;
-   if (test_case == 1)
-	test = "SODSHOCK";
-   else if (test_case == 11)
-	test = "MODIFIEDSOD";
-   else if (test_case == 12)
-	test = "STATIONARYCONTACT";
-   else if (test_case == 2)
-   {
-	   test = "SHOCKSTRUCTURE";
-	   ss0 <<"_M_"<<M;
-   }   
-   else if (test_case == 3)
-   {
-	   test = "STATIONARYSHOCK";
-	   ss0 <<"_M_"<<M;
-   }
-   else if (test_case == 4)
-   {
-	   test = "RAREFACTION";
-	   ss0 <<"_M_"<<M;
-   }
-   else if (test_case == 101)
-	test = "LAXPROBLEM";
-   else if (test_case == 102)
-	test = "LOWDENSITY";
-   else if (test_case == 103)
-	test = "SOD&LAX";
-   else if(test_case == 104)
-	test = "SLOWMOVINGSHOCK";
-   else if(test_case == 105)
-   {
-	   test = "NOH";	
-	   ss0 <<"_M_"<<M;
-   }
-   else if(test_case == 106)
-   {
-	   test = "TORO3";	
-   }
-   else if(test_case == 107)
-   {
-	   test = "TORO4";	
-   }
-   else if(test_case == 108)
-   {
-	   test = "SLOWMOVINGCONTACT";	
-   }
-   else if(test_case == 109)
-   {
-	   test = "MOVINGISOLATEDCONTACT";	
-   }
-   else if(test_case == 110)
-   {
-	   test = "MOVINGISOLATEDCONTACTREVERSE";	
-   }
-   else if(test_case == 111)
-   {
-	   test = "LAXPROBLEM_MISHRA_IC";	
-   }
-   else if(test_case == 112)
-   {
-	   test = "COQUEL_STAT";	
-   }
-   
-   
-   
-   superdirname = test;
-   
-   stringstream ss1;
-   if (flux_scheme  == KEPS)
-   {
-	   fluxused = "KEPS_";
-	   ss1 <<"K2_"<<K2<<"_K4_"<<K4;
-   }	   
-   else if (flux_scheme  == KEPSSENT)
-   {
-	   	if (kep_rus_roe_hyb == 1)
-	   	{
-			fluxused = "KEP_RUS_ROE_HYB_";
-		}
-		else
-		{
-			fluxused = "KEPSSENT_";      
-			ss1 <<"rho_avg_"<<rho_avg_type<<"_u_avg_"<<u_avg_type<<"_alpha_"<<alpha<<"_beta_"<<beta_upwind<<"_DIS_ORDER_"<<ent_diss_order;
-		}
-   }
-   else if (flux_scheme  == ROE)
-	fluxused = "ROE_";
-   else if (flux_scheme  == ROEFIXED)
-	fluxused = "ROEFIXED_";	
-   else if (flux_scheme  == RUSANOV)
-	fluxused = "RUSANOV_";		
-   
-   if (recon_scheme == FIRST)
-	recon = "_FIRST";
-   else if (recon_scheme  == MINMOD)
-	recon = "_MINMOD";
-   else if (recon_scheme  == VANLEER)
-	recon = "_VANLEER";
-   else if (recon_scheme  == WENO)
-	recon = "_WENO";
-	
-   ss0 <<"_ncells_"<<n_cell<<"_cfl_"<<cfl;
-   
-   dirname += fluxused + ss1.str() + recon + ss0.str();
-  
-        
-   string linerk = "mkdir -p ";
-   linerk+=rkdir;
-   
-   string line0 = "mkdir -p ";
-   line0+=rkdir + "/" +superdirname;
-   
-   cout<<"Deleting old directory /"<<rkdir<<"/"<<superdirname<<"/"<<dirname<<endl;
-   
-   string line1 = "rm -r -f ";
-   line1+=rkdir+"/"+superdirname + "/" + dirname;
-   
-   string line2 = "mkdir ";
-   line2+=rkdir+"/"+superdirname + "/" + dirname;   
-        
-   string line3 = "mv sol*.dat ";
-   line3+=rkdir+"/"+superdirname + "/" + dirname; 
-
-   cout<<"Moving files to directory /"<<rkdir<<"/"<<superdirname<<"/"<<dirname<<endl;
-    
-   system(linerk.c_str());
-   system(line0.c_str());		
-   system(line1.c_str());
-   system(line2.c_str());
-   system(line3.c_str());
-
-//------------------------------------------------------------------------------------------------
 
 
 }
