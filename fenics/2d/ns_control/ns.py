@@ -330,6 +330,7 @@ class NSProblem():
       Pr = Constant(self.Pr)
       F = nonlinear_form(Re,Gr,Pr,self.hf,self.ds,up,vp)
 
+      fcont = open('control.dat','w')
       if with_control:
          # compute indices of velocity and temperature
          freeinds,pinds = self.get_indices()
@@ -364,17 +365,17 @@ class NSProblem():
       print 'Kinetic energy =', KEs, KE, dKE
       fhist.write(str(0)+" "+str(KEs)+" "+str(KE)+" "+str(dKE)+"\n")
 
-      dt = 0.01
+      dt = 0.1
       final_time = dt*2000
       time, iter = 0, 0
 
       if with_control:
         dy = up1.vector().array() - ups.vector().array()
         a = -np.dot(gain['Kt'], dy[vTinds])
-        print a
         self.gs.amp = a[0]
         self.ts.amp = a[1]
         self.hf.amp = a[2]
+        fcont.write(str(time)+" "+str(a[0])+" "+str(a[1])+" "+str(a[2])+"\n")
 
       # First time step, we do backward euler
       B1 = (1/dt)*inner(up[0] - up1[0], vp[0])*dx     \
@@ -416,10 +417,11 @@ class NSProblem():
          if with_control:
             dy = up1.vector().array() - ups.vector().array()
             a = -np.dot(gain['Kt'], dy[vTinds])
-            print a
             self.gs.amp = a[0]
             self.ts.amp = a[1]
             self.hf.amp = a[2]
+            fcont.write(str(time)+" "+str(a[0])+" "+str(a[1])+" "+str(a[2])+"\n")
+            fcont.flush()
          solver2.solve()
          iter += 1
          time += dt
