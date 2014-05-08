@@ -115,3 +115,5 @@ diag(D)
 
 Kt = full(Kt);
 save('gain.mat','Kt')
+
+save('state.mat','M','A','B','S','Z')
