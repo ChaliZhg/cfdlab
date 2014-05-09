@@ -352,7 +352,7 @@ class NSProblem():
       # Add perturbation using unstable eigenvector
       uppert = Function(self.X)
       File("evec1.xml") >> uppert.vector()
-      up1.vector()[:] += 0.01 * uppert.vector().array()
+      up1.vector()[:] += uppert.vector()
 
       fu = File("u.pvd")
       ft = File("T.pvd")
@@ -362,8 +362,9 @@ class NSProblem():
       ft << T
       KE  = assemble(0.5*inner(u,u)*dx)
       dKE = assemble(0.5*inner(u-us,u-us)*dx)
-      print 'Kinetic energy =', KEs, KE, dKE
-      fhist.write(str(0)+" "+str(KEs)+" "+str(KE)+" "+str(dKE)+"\n")
+      dHE = assemble(0.5*inner(T-Ts,T-Ts)*dx)
+      print 'Kinetic energy =', KEs, KE, dKE, dHE
+      fhist.write(str(0)+" "+str(KEs)+" "+str(KE)+" "+str(dKE)+" "+str(dHE)+"\n")
 
       dt = 0.1
       final_time = dt*2000
@@ -398,8 +399,9 @@ class NSProblem():
       ft << T
       KE  = assemble(0.5*inner(u,u)*dx)
       dKE = assemble(0.5*inner(u-us,u-us)*dx)
-      print 'Kinetic energy =', KEs, KE, dKE
-      fhist.write(str(time)+" "+str(KEs)+" "+str(KE)+" "+str(dKE)+"\n")
+      dHE = assemble(0.5*inner(T-Ts,T-Ts)*dx)
+      print 'Kinetic energy =', KEs, KE, dKE, dHE
+      fhist.write(str(time)+" "+str(KEs)+" "+str(KE)+" "+str(dKE)+" "+str(dHE)+"\n")
       print '--------------------------------------------------------------'
 
       # From now on use BDF2
@@ -432,8 +434,9 @@ class NSProblem():
             ft << T
          KE  = assemble(0.5*inner(u,u)*dx)
          dKE = assemble(0.5*inner(u-us,u-us)*dx)
-         print 'Kinetic energy =', KEs, KE, dKE
-         fhist.write(str(time)+" "+str(KEs)+" "+str(KE)+" "+str(dKE)+"\n")
+         dHE = assemble(0.5*inner(T-Ts,T-Ts)*dx)
+         print 'Kinetic energy =', KEs, KE, dKE, dHE
+         fhist.write(str(time)+" "+str(KEs)+" "+str(KE)+" "+str(dKE)+" "+str(dHE)+"\n")
          fhist.flush()
          print '--------------------------------------------------------------'
 
