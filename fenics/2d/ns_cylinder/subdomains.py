@@ -37,7 +37,7 @@ class Noslip(SubDomain):
 mesh = Mesh("cylinder_in_channel.xml")
 
 # Create mesh functions over the cell facets
-sub_domains = MeshFunction("uint", mesh, mesh.topology().dim() - 1)
+sub_domains = MeshFunction("size_t", mesh, mesh.topology().dim() - 1)
 
 # Mark all facets as sub domain 3
 sub_domains.set_all(10)
