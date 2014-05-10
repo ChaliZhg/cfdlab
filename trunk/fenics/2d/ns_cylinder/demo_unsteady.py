@@ -31,7 +31,7 @@ from dolfin import *
 
 # Load mesh from file
 mesh = Mesh("cylinder_in_channel.xml")
-sub_domains = MeshFunction("uint", mesh, "subdomains.xml")
+sub_domains = MeshFunction("size_t", mesh, "subdomains.xml")
 dss = Measure("ds")[sub_domains]
 
 hmin = mesh.hmin()
