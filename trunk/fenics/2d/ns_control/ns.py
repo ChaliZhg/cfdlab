@@ -80,6 +80,10 @@ class allvar(Expression):
    def value_shape(self):
       return (4,)
 #-----------------------------------------------------------------------------
+# Returns symmetric part of strain tensor
+def epsilon(u):
+   return 0.5*(nabla_grad(u) + nabla_grad(u).T)
+#-----------------------------------------------------------------------------
 def nonlinear_form(Re,Gr,Pr,hf,ds,up,vp):
    nu    = 1/Re
    k     = 1/(Re*Pr)
@@ -89,12 +93,13 @@ def nonlinear_form(Re,Gr,Pr,hf,ds,up,vp):
    u  = as_vector((up[0],up[1]))   # velocity
    T  = up[2]                      # temperature
    p  = up[3]                      # pressure
+   tau= 2*nu*epsilon(u)
    # Test function
    v  = as_vector((vp[0],vp[1]))   # velocity
    S  = vp[2]                      # temperature
    q  = vp[3]                      # pressure
    Fns   =   inner(grad(u)*u, v)*dx      \
-          + nu*inner(grad(u),grad(v))*dx \
+          + inner(tau,epsilon(v))*dx     \
           - div(v)*p*dx                  \
           - G*T*v[1]*dx
    Ftemp =   inner(grad(T),u)*S*dx       \
@@ -110,10 +115,11 @@ def linear_form(Re,Gr,Pr,us,Ts,u,T,p,v,S,q):
    nu    = 1/Re
    k     = 1/(Re*Pr)
    G     = Gr/Re**2
+   tau   = 2*nu*epsilon(u)
    Aform = - inner( grad(u)*us, v )*dx \
            - inner( grad(us)*u, v )*dx \
            + div(v)*p*dx \
-           - nu*inner( grad(u), grad(v) )*dx \
+           - inner( tau, epsilon(v) )*dx \
            + G*T*v[1]*dx \
            + div(u)*q*dx \
            - inner(grad(Ts),u)*S*dx \
@@ -190,6 +196,7 @@ class NSProblem():
       File("steady.xml") << up.vector()
       # Save vtk format
       u,T,p = up.split()
+      u.rename("v","velocity"); T.rename("T","temperature"); p.rename("p","pressure");
       print "Saving vtk files steady_u.pvd, steady_p.pvd, steady_T.pvd"
       File("steady_u.pvd") << u
       File("steady_p.pvd") << p
