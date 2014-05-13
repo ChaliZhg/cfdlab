@@ -5,7 +5,7 @@ load pinds.txt
 who
 
 nc = size(B,2);   % number of control variables
-nu = 2;           % how many eigenvalues to compute
+nu = 4;           % how many eigenvalues to compute
 shift = 0;
 
 % number of Lanczos vectors
@@ -13,15 +13,30 @@ opts.p = 50;
 
 [Vt,D1] = eigs(A,M,nu,'SM',opts);
 disp('Eigenvalues of A')
-diag(D1)
+D1=diag(D1)
 
 [Zt,D2] = eigs(A',M',nu,'SM',opts);
 disp('Eigenvalues of A^T')
-diag(D2)
+D2=diag(D2)
 
+% find unstable eig
 iu = find(real(D1) > 0);
 nu = length(iu);
-fprintf(1, 'Number of unstable eigenvalues = %d\n', nu)
+fprintf(1, 'Number of unstable eigenvalues of A = %d\n', nu)
+
+D1 = D1(iu)
+Vt = Vt(:,iu);
+
+% find unstable eig
+iu = find(real(D2) > 0);
+nu = length(iu);
+fprintf(1, 'Number of unstable eigenvalues of A^T= %d\n', nu)
+
+D2 = D2(iu)
+Zt = Zt(:,iu);
+
+disp('Is the order of eigenvalues same ? Enter to continue')
+pause
 
 % NOTE: check that eigenvalues are in same order
 
@@ -42,9 +57,9 @@ end
 freeinds = freeinds + 1;
 pinds    = pinds + 1;
 % get matlab indices of velocity+temperature
-[tmp,vTinds] = setdiff(freeinds, pinds);
+[tmp,vTinds] = setdiff(freeinds, pinds, 'stable');
 % get matlab indices of pressure
-pinds = setdiff(1:length(freeinds), vTinds);
+pinds = setdiff(1:length(freeinds), vTinds, 'stable');
 
 % eigenvector component for velocity+temperature
 Vty = Vt(vTinds,:);  % eigenvectors of (A,M)
@@ -93,8 +108,13 @@ B12= B1 + A11*Z1(1:ny,:);
 % Project to unstable subspace
 Au = Zy' * A11 * Vy;
 Bu = Zy' * B12;
-Qu = zeros(size(Au));
 Ru = eye(nc);
+
+% minimal norm control
+%Qu = zeros(size(Au));
+
+% LQR problem
+Qu = Vy' * E11 * Vy;
 
 [Pu,L,G]=care(Au,Bu,Qu,Ru);
 disp('Eigenvalues of projected system with feedback')

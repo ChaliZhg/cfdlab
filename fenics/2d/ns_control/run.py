@@ -2,4 +2,4 @@ from param import *
 from ns import *
 
 problem = NSProblem(udeg, Re, Gr, Pr)
-problem.run(False)
+problem.run(with_control=True,Tstart=20.0)

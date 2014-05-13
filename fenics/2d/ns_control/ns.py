@@ -216,7 +216,7 @@ class NSProblem():
       N = self.X.dim()
 
       # indices of free nodes
-      freeinds = np.setdiff1d(range(N),bcinds).astype(np.int32)
+      freeinds = np.setdiff1d(range(N),bcinds,assume_unique=True).astype(np.int32)
 
       # pressure indices
       pinds = self.X.sub(2).dofmap().dofs()
@@ -328,7 +328,7 @@ class NSProblem():
       File("evec2_p.pvd") << p
 
    # Runs nonlinear model
-   def run(self,with_control):
+   def run(self,with_control=False,Tstart=0):
       up = Function(self.X)
       vp = TestFunction(self.X)
 
@@ -341,7 +341,7 @@ class NSProblem():
       if with_control:
          # compute indices of velocity and temperature
          freeinds,pinds = self.get_indices()
-         vTinds = np.setdiff1d(freeinds,pinds).astype(np.int32)
+         vTinds = np.setdiff1d(freeinds,pinds,assume_unique=True).astype(np.int32)
          gain = sio.loadmat('gain.mat')
 
       fhist = open('history.dat','w')
@@ -359,7 +359,7 @@ class NSProblem():
       # Add perturbation using unstable eigenvector
       uppert = Function(self.X)
       File("evec1.xml") >> uppert.vector()
-      up1.vector()[:] += uppert.vector()
+      up1.vector()[:] += 0.1 * uppert.vector()
 
       fu = File("u.pvd")
       ft = File("T.pvd")
@@ -377,7 +377,7 @@ class NSProblem():
       final_time = dt*2000
       time, iter = 0, 0
 
-      if with_control:
+      if with_control and time >= Tstart:
         dy = up1.vector().array() - ups.vector().array()
         a = -np.dot(gain['Kt'], dy[vTinds])
         self.gs.amp = a[0]
@@ -423,8 +423,10 @@ class NSProblem():
       while time < final_time:
          up2.assign(up1)
          up1.assign(up)
-         if with_control:
-            dy = up1.vector().array() - ups.vector().array()
+         # initial guess by extrapolation
+         up.vector()[:] = 2 * up1.vector() - up2.vector()
+         if with_control and time >= Tstart:
+            dy = up.vector().array() - ups.vector().array()
             a = -np.dot(gain['Kt'], dy[vTinds])
             self.gs.amp = a[0]
             self.ts.amp = a[1]
