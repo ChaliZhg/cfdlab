@@ -94,10 +94,12 @@ pfile    = File("pressure.pvd")
 vortfile = File("vorticity.pvd")
 
 # Time-stepping
-t = dt
+it= 0
+t = 0.0
 p = Progress("Time-stepping")
 while t < T + DOLFIN_EPS:
     print "----------------------------------------------------------"
+    vin.t = t + dt
     # Compute tentative velocity step
     begin("Computing tentative velocity")
     b1 = assemble(L1)
@@ -127,15 +129,14 @@ while t < T + DOLFIN_EPS:
     #plot(u1, title="Velocity", rescale=True)
     #plot(vort, title="Vorticity", rescale=True)
 
-    # Save to file
-    ufile << u1
-    pfile << p1
-    vortfile << vort
-
     # Move to next time step
     u0.assign(u1)
     p.update(t / T)
     t += dt
+    it += 1
 
-# Hold plot
-interactive()
+    # Save to file
+    if it%10 == 0:
+      ufile << u1
+      pfile << p1
+      vortfile << vort
