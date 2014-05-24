@@ -224,7 +224,8 @@ class NSProblem():
       return freeinds, pinds
 
    # Generate linear state representation
-   def linear_system(self):
+   # Also compute k eigenvalues/vectors
+   def linear_system(self, k=0):
       parameters.linear_algebra_backend = "uBLAS"
        
       # Load Stationary solution from file
@@ -303,29 +304,53 @@ class NSProblem():
       print "Saving linear system into linear.mat"
       sio.savemat('linear.mat', mdict={'M':M, 'A':A, 'B':B}, oned_as='column')
 
-      # Compute eigenvalues/vectors
-      vals, vecs = la.eigs(A, k=2, M=M, sigma=0, which='LR')
-      for val in vals:
-         print np.real(val), np.imag(val)
+      if k>0:
+        # Compute eigenvalues/vectors of (A,M)
+        vals, vecs = la.eigs(A, k=k, M=M, sigma=0, which='LR')
+        for val in vals:
+            print np.real(val), np.imag(val)
       
-      # TODO: eigenvectors are complex
-      ua = Function(self.X)
+        # TODO: eigenvectors are complex
+        ua = Function(self.X)
 
-      # Save real part of eigenvector. << outputs only real part
-      ua.vector()[freeinds] = vecs[:,0]
-      File("evec1.xml") << ua.vector()
-      u,T,p = ua.split()
-      File("evec1_u.pvd") << u
-      File("evec1_T.pvd") << T
-      File("evec1_p.pvd") << p
+        # Save real part of eigenvector. << outputs only real part
+        ua.vector()[freeinds] = vecs[:,0]
+        File("evec1.xml") << ua.vector()
+        u,T,p = ua.split()
+        File("evec1_u.pvd") << u
+        File("evec1_T.pvd") << T
+        File("evec1_p.pvd") << p
 
-      # Save imaginary part of eigenvector. << outputs only real part
-      ua.vector()[freeinds] = vecs[:,0] * (-1j)
-      File("evec2.xml") << ua.vector()
-      u,T,p = ua.split()
-      File("evec2_u.pvd") << u
-      File("evec2_T.pvd") << T
-      File("evec2_p.pvd") << p
+        # Save imaginary part of eigenvector. << outputs only real part
+        ua.vector()[freeinds] = vecs[:,0] * (-1j)
+        File("evec2.xml") << ua.vector()
+        u,T,p = ua.split()
+        File("evec2_u.pvd") << u
+        File("evec2_T.pvd") << T
+        File("evec2_p.pvd") << p
+
+        # Compute eigenvalues/vectors of (A^T,M^T)
+        # First transpose A; M is symmetric
+        A.transpose()
+        vals, vecs = la.eigs(A, k=k, M=M, sigma=0, which='LR')
+        for val in vals:
+            print np.real(val), np.imag(val)
+      
+        # Save real part of eigenvector. << outputs only real part
+        ua.vector()[freeinds] = vecs[:,0]
+        File("evec1a.xml") << ua.vector()
+        u,T,p = ua.split()
+        File("evec1a_u.pvd") << u
+        File("evec1a_T.pvd") << T
+        File("evec1a_p.pvd") << p
+
+        # Save imaginary part of eigenvector. << outputs only real part
+        ua.vector()[freeinds] = vecs[:,0] * (-1j)
+        File("evec2a.xml") << ua.vector()
+        u,T,p = ua.split()
+        File("evec2a_u.pvd") << u
+        File("evec2a_T.pvd") << T
+        File("evec2a_p.pvd") << p
 
    # Runs nonlinear model
    def run(self,with_control=False,Tstart=0):
