@@ -5,6 +5,27 @@ import scipy.io as sio
 import scipy.sparse.linalg as la
 
 #-----------------------------------------------------------------------------
+class UnitNormal(Expression):
+   def eval(self, value, x):
+       if near(x[0],0.0):
+           value[0] = -1.0
+           value[1] =  0.0
+       elif near(x[0],1.0):
+           value[0] =  1.0
+           value[1] =  0.0
+       elif near(x[1],0.0):
+           value[0] =  0.0
+           value[1] = -1.0
+       elif near(x[1],1.0):
+           value[0] =  0.0
+           value[1] =  1.0
+       else:
+           value[0] =  0.0
+           value[1] =  0.0
+       return value
+   def value_shape(self):
+      return (2,)
+#-----------------------------------------------------------------------------
 class HeatSource(Expression):
    def eval(self, value, x):
       value[0] = 7.0*sin(2.0*pi*x[0])*cos(2.0*pi*x[1])
@@ -351,6 +372,27 @@ class NSProblem():
         File("evec2a_u.pvd") << u
         File("evec2a_T.pvd") << T
         File("evec2a_p.pvd") << p
+
+   # Compute controllability term
+   def ctrb(self):
+      eigvec = Function(self.X)
+      File("evec1a.xml") >> eigvec.vector()
+
+      u = as_vector((eigvec[0], eigvec[1]))
+      T = eigvec[2]
+      p = eigvec[3]
+
+      n = UnitNormal()
+
+      # velocity control
+      nu  = 1.0/self.Re
+      tau   = 2*nu*epsilon(u)
+      sigma = project(-p*n + tau*n, self.V)
+      File("ctrb_u.pvd") << sigma
+
+      # temperature control
+      hf = project(inner(grad(T),n), self.Q)
+      File("ctrb_T.pvd") << hf
 
    # Runs nonlinear model
    def run(self,with_control=False,Tstart=0):
