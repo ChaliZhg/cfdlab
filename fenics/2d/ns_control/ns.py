@@ -5,6 +5,20 @@ import scipy.io as sio
 import scipy.sparse.linalg as la
 
 #-----------------------------------------------------------------------------
+def g(s):
+    if s < -1.0:
+        return 0.0
+    elif s > 1.0:
+        return 1.0
+    else:
+        return 0.5 + s*(0.9375 - s*s*(0.625 - 0.1875*s*s))
+#-----------------------------------------------------------------------------
+# Smooth ramp from 0 to 1; middle of ramp is at T, width dt
+def f(t):
+    T, dt = 20.0, 2.0
+    t1 = (t - T)/dt
+    return g(t1)
+#-----------------------------------------------------------------------------
 class UnitNormal(Expression):
    def eval(self, value, x):
        if near(x[0],0.0):
@@ -376,26 +390,36 @@ class NSProblem():
    # Compute controllability term
    def ctrb(self):
       eigvec = Function(self.X)
-      File("evec1a.xml") >> eigvec.vector()
-
       u = as_vector((eigvec[0], eigvec[1]))
       T = eigvec[2]
       p = eigvec[3]
-
       n = UnitNormal()
-
-      # velocity control
       nu  = 1.0/self.Re
       tau   = 2*nu*epsilon(u)
+
+      # first eigenvector
+      File("evec1a.xml") >> eigvec.vector()
+      # velocity control
       sigma = project(-p*n + tau*n, self.V)
-      File("ctrb_u.pvd") << sigma
+      File("ctrb1_u.pvd") << sigma
 
       # temperature control
       hf = project(inner(grad(T),n), self.Q)
-      File("ctrb_T.pvd") << hf
+      File("ctrb1_T.pvd") << hf
+
+      # second eigenvector
+      File("evec2a.xml") >> eigvec.vector()
+      # velocity control
+      sigma = project(-p*n + tau*n, self.V)
+      File("ctrb2_u.pvd") << sigma
+
+      # temperature control
+      hf = project(inner(grad(T),n), self.Q)
+      File("ctrb2_T.pvd") << hf
+
 
    # Runs nonlinear model
-   def run(self,with_control=False,Tstart=0):
+   def run(self,with_control=False):
       up = Function(self.X)
       vp = TestFunction(self.X)
 
@@ -444,12 +468,12 @@ class NSProblem():
       final_time = dt*2000
       time, iter = 0, 0
 
-      if with_control and time >= Tstart:
+      if with_control:
         dy = up1.vector().array() - ups.vector().array()
         a = -np.dot(gain['Kt'], dy[vTinds])
-        self.gs.amp = a[0]
-        self.ts.amp = a[1]
-        self.hf.amp = a[2]
+        self.gs.amp = f(time)*a[0]
+        self.ts.amp = f(time)*a[1]
+        self.hf.amp = f(time)*a[2]
         fcont.write(str(time)+" "+str(a[0])+" "+str(a[1])+" "+str(a[2])+"\n")
 
       # First time step, we do backward euler
@@ -492,12 +516,12 @@ class NSProblem():
          up1.assign(up)
          # initial guess by extrapolation
          up.vector()[:] = 2 * up1.vector() - up2.vector()
-         if with_control and time >= Tstart:
+         if with_control:
             dy = up.vector().array() - ups.vector().array()
             a = -np.dot(gain['Kt'], dy[vTinds])
-            self.gs.amp = a[0]
-            self.ts.amp = a[1]
-            self.hf.amp = a[2]
+            self.gs.amp = f(time)*a[0]
+            self.ts.amp = f(time)*a[1]
+            self.hf.amp = f(time)*a[2]
             fcont.write(str(time)+" "+str(a[0])+" "+str(a[1])+" "+str(a[2])+"\n")
             fcont.flush()
          solver2.solve()
