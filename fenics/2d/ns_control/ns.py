@@ -180,6 +180,8 @@ class NSProblem():
       self.Q = FunctionSpace(mesh, "CG", self.pdeg)        # pressure
       self.X = MixedFunctionSpace([self.V, self.W, self.Q])
 
+      print 'Number of degrees of freedom = ', self.X.dim()
+
       # Velocity bc
       noslipbc1 = DirichletBC(self.X.sub(0), (0,0), sub_domains, 0)
       noslipbc2 = DirichletBC(self.X.sub(0), (0,0), sub_domains, 3)
