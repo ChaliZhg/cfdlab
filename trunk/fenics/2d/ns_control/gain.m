@@ -4,35 +4,42 @@ load freeinds.txt
 load pinds.txt
 who
 
-nc = size(B,2);   % number of control variables
-ne = 10;           % how many eigenvalues to compute
-
+% Set some parameters
+mode = 'min'; % 'min' or 'lqr'
+ne = 10;      % how many eigenvalues to compute
+nes = 6;      % number of eigenvalues to shift
 % With shift=1, there are 6 complex unstable eigenvalues
-shift = 1.0;
+shift = 1.5;
+
+nc = size(B,2);   % number of control variables
 
 % number of Lanczos vectors
 opts.p = 50;
 
-% Apply shift. we shift back at the end of the code.
-A = A + shift*M;
-
 % Compute eigenvalues,vectors of (A,M)
-[Vt,D1] = eigs(A,M,ne,'SM',opts);
+[Vt,D1,flag] = eigs(A,M,ne,'SM',opts);
+assert(flag==0)
 disp('Eigenvalues of A')
 D1=diag(D1)
-
-% Compute eigenvalues,vectors of (A^T,M^T)
-[Zt,D2] = eigs(A',M',ne,'SM',opts);
-disp('Eigenvalues of A^T')
-D2=diag(D2)
 
 % find unstable eig
 iu = find(real(D1) > 0);
 nu = length(iu);
 fprintf(1, 'Number of unstable eigenvalues of A = %d\n', nu)
 
-D1 = D1(iu)
-Vt = Vt(:,iu);
+% select nes eigenvalues with largest real part
+% NOTE: Make sure they appear in conjugate pairs
+[d,ii]=sort(real(D1), 'descend');
+D1 = D1(ii(1:nes))
+% with shift all the D1 must be unstable
+assert(min(real(D1+shift)) > 0.0)
+Vt = Vt(:,ii(1:nes));
+
+% Compute eigenvalues,vectors of (A^T,M^T)
+[Zt,D2,flag] = eigs(A',M',ne,'SM',opts);
+assert(flag==0)
+disp('Eigenvalues of A^T')
+D2=diag(D2)
 
 % find unstable eig
 iu = find(real(D2) > 0);
@@ -40,22 +47,32 @@ nu2= length(iu);
 fprintf(1, 'Number of unstable eigenvalues of A^T= %d\n', nu2)
 assert(nu == nu2)
 
-D2 = D2(iu)
-Zt = Zt(:,iu);
+% select nes eigenvalues with largest real part
+[d,ii]=sort(real(D2), 'descend');
+D2 = D2(ii(1:nes))
+% with shift all the D2 must be unstable
+assert(min(real(D2+shift)) > 0.0)
+Zt = Zt(:,ii(1:nes));
 
 % NOTE: check that eigenvalues are in same order
-disp('Is the order of eigenvalues D1, D2, same ? Enter to continue')
-pause
+for j=1:nes
+   assert(abs(D1(j) - D2(j)) < 1.0e-10)
+   % check all eigenvalues are complex
+   assert(abs(imag(D1(j))) > eps)
+   Vt(:,j) = Vt(:,j) / max(abs(Vt(:,j)));
+end
 
 % make Vt and Zt orthonormal
 % p must be diagonal
-disp('Following must be a diagonal matrix. Is it ? Enter to continue')
+disp('Following must be a diagonal matrix. Is it ?')
 p = Vt.' * M * Zt
-pause
+% Check p is diagonal and diagonal entries are non-zero
+assert(min(abs(diag(p))) > 0.0);
+assert(is_diag(p)==1)
 p = diag(p);
 
 % normalize
-for j=1:nu
+for j=1:nes
    Zt(:,j) = Zt(:,j) / p(j);
 end
 
@@ -81,30 +98,35 @@ B1  = B(vTinds,:);
 B2  =-B(pinds,:);
 
 % check orthonormality
-disp('Is this identity matrix ? Enter to continue')
+disp('Is this identity matrix ?')
 p = Vty.' * E11 * Zty
-pause
+% Check diagonal entries are 1
+assert(max(abs(diag(p)-1.0)) < 1.0e-10);
+assert(is_diag(p)==1)
 
 U = (1/sqrt(2)) * [1,   1; ...
                    1i, -1i];
 U = blkdiag(U,U,U);
+assert(size(U,1) == nes)
 
 Vy = Vty * U';
 Zy = Zty * U.';
 Zp = Ztp * U.';
 
 disp('Vy and Zy must be real')
-max(abs(imag(Vy)))
-max(abs(imag(Vy)))
+assert(max(max(abs(imag(Vy)))) < 1.0e-13)
+assert(max(max(abs(imag(Vy)))) < 1.0e-13)
 
 % Vy and Zy must be real, making sure imaginary part is close to zero
 Vy = real(Vy);
 Zy = real(Zy);
 Zp = real(Zp);
 
-disp('Is this identity matrix ? Enter to continue')
+disp('Is this identity matrix ?')
 p = Vy.' * E11 * Zy
-pause
+% Check diagonal entries are 1
+assert(max(abs(diag(p)-1.0)) < 1.0e-10);
+assert(is_diag(p)==1)
 
 % Compute B12
 np = length(pinds);
@@ -116,19 +138,33 @@ B12= B1 + A11*Z1(1:ny,:);
 
 % Project to unstable subspace
 Au = Zy' * A11 * Vy;
+Au = Au + shift*eye(size(Au));
 Bu = Zy' * B12;
-Ru = eye(nc);
-Ru = diag([0.05, 0.01, 0.05]);
 
-% minimal norm control
-%Qu = zeros(size(Au));
-
-% LQR problem
-Qu = Vy' * E11 * Vy;
+if mode == 'min'
+   % minimal norm control
+   Ru = eye(nc);
+   Qu = zeros(size(Au));
+   fprintf(1,'Minimal norm feedback\n')
+else
+   % LQR problem
+   Ru = diag([0.05, 0.01, 0.05]);
+   Qu = Vy' * E11 * Vy;
+   fprintf(1,'LQR feedback\n')
+end
 
 [Pu,L,G]=care(Au,Bu,Qu,Ru);
 disp('Eigenvalues of projected system with feedback')
 L
+disp('Eigenvalues of Pu')
+ePu = eig(Pu)
+max_ePu = max(ePu);
+% save to file
+fid=fopen('maxeig.dat','w');
+fprintf(fid,'%24.14e',max_ePu);
+fclose(fid);
+% uncomment following if you are running best_loc.py
+%exit
 
 B = sparse([B1; -B2]);
 E11 = sparse(E11);
@@ -139,13 +175,11 @@ Kt = Ru \ ((B' * Z) * Pu * (Zy' * E11));
 S  = [Kt, sparse(nc,np)];
 A  = sparse([A11, A12; A12', sparse(np,np)]);
 M  = sparse([E11, sparse(ny,np); sparse(np,ny+np)]);
-% Apply reverse shift
-A = A - shift*M;
-[V,D] = eigs(A-B*S,M,ne,'SM',opts);
+[V,D,flag] = eigs(A-B*S,M,ne,'SM',opts);
+assert(flag==0)
 disp('Eigenvalues of full system with feedback')
 diag(D)
 
 Kt = full(Kt);
 save('gain.mat','Kt')
-
 save('state.mat','M','A','B','S','Z')
