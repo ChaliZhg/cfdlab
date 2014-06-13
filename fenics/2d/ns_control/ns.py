@@ -1,8 +1,12 @@
 from dolfin import *
+from bmark import *
 import numpy as np
 import scipy.sparse as sps
 import scipy.io as sio
 import scipy.sparse.linalg as la
+
+# Position of some boundary zones
+x1,x2,y1,y2 = 0.4,0.6,0.1,0.4
 
 #-----------------------------------------------------------------------------
 def g(s):
@@ -14,8 +18,9 @@ def g(s):
         return 0.5 + s*(0.9375 - s*s*(0.625 - 0.1875*s*s))
 #-----------------------------------------------------------------------------
 # Smooth ramp from 0 to 1; middle of ramp is at T, width dt
+# Put large negative value to disable ramp
 def f(t):
-    T, dt = 20.0, 2.0
+    T, dt = -20.0, 2.0
     t1 = (t - T)/dt
     return g(t1)
 #-----------------------------------------------------------------------------
@@ -49,10 +54,10 @@ class HeatFlux(Expression):
    def __init__(self, amp):
       self.amp = amp
    def eval(self, value, x):
-      ff = ((x[0]-0.4)*(x[0]-0.6))**2
+      ff = ((x[0]-x1)*(x[0]-x2))**2
       if ff < DOLFIN_EPS:
          value[0] = 0.0
-      elif x[0]>0.4 and x[0]<0.6:
+      elif x[0]>x1 and x[0]<x2:
          value[0] = 0.4 * exp(-0.00001/ff)
       else:
          value[0] = 0.0
@@ -61,13 +66,15 @@ class HeatFlux(Expression):
 #-----------------------------------------------------------------------------
 # Velocity at inflow boundary
 class velocity(Expression):
-   def __init__(self, amp):
+   def __init__(self, amp, y3, y4):
       self.amp = amp
+      self.y3  = y3
+      self.y4  = y4
    def eval(self, value, x):
-      ff = ((x[1]-0.7)*(x[1]-0.9))**2
+      ff = ((x[1]-self.y3)*(x[1]-self.y4))**2
       if ff < DOLFIN_EPS:
          value[0] = 0.0
-      elif x[1]>0.7 and x[1]<0.9:
+      elif x[1]>self.y3 and x[1]<self.y4:
          value[0] = exp(-0.0001/ff)
       else:
          value[0] = 0.0
@@ -76,13 +83,15 @@ class velocity(Expression):
 #-----------------------------------------------------------------------------
 # temperature at inflow boundary
 class temperature(Expression):
-   def __init__(self, amp):
+   def __init__(self, amp, y3, y4):
       self.amp = amp
+      self.y3  = y3
+      self.y4  = y4
    def eval(self, value, x):
-      ff = ((x[1]-0.7)*(x[1]-0.9))**2
+      ff = ((x[1]-self.y3)*(x[1]-self.y4))**2
       if ff < DOLFIN_EPS:
          value[0] = 0.0
-      elif x[1]>0.7 and x[1]<0.9:
+      elif x[1]>self.y3 and x[1]<self.y4:
          value[0] = 0.2 * exp(-0.00001/ff)
       else:
          value[0] = 0.0
@@ -93,15 +102,17 @@ class temperature(Expression):
 # we only need x velocity and temperature at inflow boundary
 # which is the control boundary
 class allvar(Expression):
-   def __init__(self, vamp, tamp):
+   def __init__(self, vamp, tamp, y3, y4):
       self.vamp = vamp
       self.tamp = tamp
+      self.y3   = y3
+      self.y4   = y4
    def eval(self, value, x):
-      ff = ((x[1]-0.7)*(x[1]-0.9))**2
+      ff = ((x[1]-self.y3)*(x[1]-self.y4))**2
       if ff < DOLFIN_EPS:
          value[0] = 0.0
          value[2] = 0.0
-      elif x[1]>0.7 and x[1]<0.9:
+      elif x[1]>self.y3 and x[1]<self.y4:
          value[0] = exp(-0.0001/ff)
          value[2] = 0.2 * exp(-0.00001/ff)
       else:
@@ -163,9 +174,9 @@ def linear_form(Re,Gr,Pr,us,Ts,u,T,p,v,S,q):
    return Aform
 #-----------------------------------------------------------------------------
 class NSProblem():
-   def __init__(self, udeg, Re, Gr, Pr):
+   def __init__(self, udeg, Re, Gr, Pr, y3, y4):
       mesh = Mesh("square.xml")
-      sub_domains = MeshFunction("size_t", mesh, "subdomains.xml")
+      sub_domains = create_subdomains(mesh,x1,x2,y1,y2,y3,y4)
 
       self.udeg = udeg
       self.tdeg = udeg
@@ -174,6 +185,8 @@ class NSProblem():
       self.Gr = Gr
       self.Pr = Pr
       self.ds = Measure("ds")[sub_domains]
+      self.y3 = y3
+      self.y4 = y4
 
       self.V = VectorFunctionSpace(mesh, "CG", self.udeg)  # velocity
       self.W = FunctionSpace(mesh, "CG", self.tdeg)        # temperature
@@ -186,13 +199,13 @@ class NSProblem():
       noslipbc1 = DirichletBC(self.X.sub(0), (0,0), sub_domains, 0)
       noslipbc2 = DirichletBC(self.X.sub(0), (0,0), sub_domains, 3)
       # velocity control boundary
-      self.gs   = velocity(0.0)
+      self.gs   = velocity(0.0,self.y3,self.y4)
       vconbc    = DirichletBC(self.X.sub(0).sub(0), self.gs, sub_domains, 2)
       yvbc      = DirichletBC(self.X.sub(0).sub(1), 0,  sub_domains, 2)
 
       # Temperature bc
       tbc1    = DirichletBC(self.X.sub(1), 0.0, sub_domains, 0)
-      self.ts = temperature(0.0)
+      self.ts = temperature(0.0,self.y3,self.y4)
       tbc2    = DirichletBC(self.X.sub(1), self.ts, sub_domains, 2)
 
       self.bc = [noslipbc1, noslipbc2, vconbc, yvbc, tbc1, tbc2]
@@ -312,6 +325,10 @@ class NSProblem():
       # indices of temperature control
       tinds = self.tbc.get_boundary_values().keys()
 
+      print 'size of pinds =', len(pinds)
+      print 'size of vinds =', len(vinds)
+      print 'size of tinds =', len(tinds)
+
       # mass matrix
       M = Ma[freeinds,:][:,freeinds]
       print "Size of M =",M.shape
@@ -321,7 +338,7 @@ class NSProblem():
       print "Size of A =",A.shape
 
       # velocity control operator
-      ua = interpolate(allvar(1,1), self.X)
+      ua = interpolate(allvar(1,1,self.y3,self.y4), self.X)
       ua = ua.vector().array()
       Bv = Aa[freeinds,:][:,vinds].dot(ua[vinds])
       print "Size of Bv =",Bv.shape[0]
@@ -343,7 +360,9 @@ class NSProblem():
 
       if k>0:
         # Compute eigenvalues/vectors of (A,M)
-        vals, vecs = la.eigs(A, k=k, M=M, sigma=0, which='LR')
+        print "Computing eigenvalues/vectors ..."
+        sigma = -1.0
+        vals, vecs = la.eigs(A, k=k, M=M, sigma=sigma, which='LR')
         for val in vals:
             print np.real(val), np.imag(val)
       
@@ -369,56 +388,61 @@ class NSProblem():
         # Compute eigenvalues/vectors of (A^T,M^T)
         # First transpose A; M is symmetric
         A.transpose()
-        vals, vecs = la.eigs(A, k=k, M=M, sigma=0, which='LR')
+        vals, vecs = la.eigs(A, k=k, M=M, sigma=sigma, which='LR')
         for val in vals:
             print np.real(val), np.imag(val)
       
-        # Save real part of eigenvector. << outputs only real part
-        ua.vector()[freeinds] = vecs[:,0]
-        File("evec1a.xml") << ua.vector()
-        u,T,p = ua.split()
-        File("evec1a_u.pvd") << u
-        File("evec1a_T.pvd") << T
-        File("evec1a_p.pvd") << p
+        for e in range(0,k,2):
+            filename = "evec"+str(e+1)+"a"
+            print "Writing into file ", filename
+            # Save real part of eigenvector. << outputs only real part
+            ua.vector()[freeinds] = vecs[:,e]
+            File(filename+".xml") << ua.vector()
+            u,T,p = ua.split()
+            File(filename+"_u.pvd") << u
+            File(filename+"_T.pvd") << T
+            File(filename+"_p.pvd") << p
 
-        # Save imaginary part of eigenvector. << outputs only real part
-        ua.vector()[freeinds] = vecs[:,0] * (-1j)
-        File("evec2a.xml") << ua.vector()
-        u,T,p = ua.split()
-        File("evec2a_u.pvd") << u
-        File("evec2a_T.pvd") << T
-        File("evec2a_p.pvd") << p
+            filename = "evec"+str(e+2)+"a"
+            print "Writing into file ", filename
+            # Save imaginary part of eigenvector. << outputs only real part
+            ua.vector()[freeinds] = vecs[:,e] * (-1j)
+            File(filename+".xml") << ua.vector()
+            u,T,p = ua.split()
+            File(filename+"_u.pvd") << u
+            File(filename+"_T.pvd") << T
+            File(filename+"_p.pvd") << p
 
    # Compute controllability term
-   def ctrb(self):
+   def ctrb(self,m):
       eigvec = Function(self.X)
       u = as_vector((eigvec[0], eigvec[1]))
       T = eigvec[2]
       p = eigvec[3]
       n = UnitNormal()
       nu  = 1.0/self.Re
-      tau   = 2*nu*epsilon(u)
+      tau = 2*nu*epsilon(u)
 
-      # first eigenvector
-      File("evec1a.xml") >> eigvec.vector()
-      # velocity control
-      sigma = project(-p*n + tau*n, self.V)
-      File("ctrb1_u.pvd") << sigma
+      for k in range(1,m+1):
+         f1 = "evec"+str(k)+"a.xml"
+         # first eigenvector
+         File(f1) >> eigvec.vector()
+         # velocity control
+         sigma = project(-p*n + tau*n, self.V)
+         f2 = "ctrb"+str(k)+"_u.pvd"
+         File(f2) << sigma
 
-      # temperature control
-      hf = project(inner(grad(T),n), self.Q)
-      File("ctrb1_T.pvd") << hf
+         # temperature control
+         #hf = project(inner(grad(T),n), self.Q)
+         hf = project(inner(grad(T),n)*n, self.V)
+         f3 = "ctrb"+str(k)+"_T.pvd"
+         File(f3) << hf
 
-      # second eigenvector
-      File("evec2a.xml") >> eigvec.vector()
-      # velocity control
-      sigma = project(-p*n + tau*n, self.V)
-      File("ctrb2_u.pvd") << sigma
-
-      # temperature control
-      hf = project(inner(grad(T),n), self.Q)
-      File("ctrb2_T.pvd") << hf
-
+         # heat flux control
+         t = project(T*n, self.V)
+         f4 = "ctrb"+str(k)+"_h.pvd"
+         File(f4) << t
+         print "Wrote files ", f2, f3, f4
 
    # Runs nonlinear model
    def run(self,with_control=False):
@@ -452,17 +476,18 @@ class NSProblem():
       # Add perturbation using unstable eigenvector
       uppert = Function(self.X)
       File("evec1.xml") >> uppert.vector()
-      up1.vector()[:] += 0.1 * uppert.vector()
+      up1.vector()[:] += 0.01 * uppert.vector()
 
       fu = File("u.pvd")
       ft = File("T.pvd")
 
-      u,T,p = up1.split()
+      uppert.vector()[:] = up1.vector() - ups.vector()
+      u,T,p = uppert.split()
       fu << u
       ft << T
       KE  = assemble(0.5*inner(u,u)*dx)
-      dKE = assemble(0.5*inner(u-us,u-us)*dx)
-      dHE = assemble(0.5*inner(T-Ts,T-Ts)*dx)
+      dKE = assemble(0.5*inner(u,u)*dx)
+      dHE = assemble(0.5*inner(T,T)*dx)
       print 'Kinetic energy =', KEs, KE, dKE, dHE
       fhist.write(str(0)+" "+str(KEs)+" "+str(KE)+" "+str(dKE)+" "+str(dHE)+"\n")
 
@@ -472,10 +497,10 @@ class NSProblem():
 
       if with_control:
         dy = up1.vector().array() - ups.vector().array()
-        a = -np.dot(gain['Kt'], dy[vTinds])
-        self.gs.amp = f(time)*a[0]
-        self.ts.amp = f(time)*a[1]
-        self.hf.amp = f(time)*a[2]
+        a = -f(time)*np.dot(gain['Kt'], dy[vTinds])
+        self.gs.amp = a[0]
+        self.ts.amp = a[1]
+        self.hf.amp = a[2]
         fcont.write(str(time)+" "+str(a[0])+" "+str(a[1])+" "+str(a[2])+"\n")
 
       # First time step, we do backward euler
@@ -494,12 +519,13 @@ class NSProblem():
       time += dt
       print 'Iter = {:5d}, t = {:f}'.format(iter, time)
 
-      u,T,p = up.split()
+      uppert.vector()[:] = up.vector() - ups.vector()
+      u,T,p = uppert.split()
       fu << u
       ft << T
       KE  = assemble(0.5*inner(u,u)*dx)
-      dKE = assemble(0.5*inner(u-us,u-us)*dx)
-      dHE = assemble(0.5*inner(T-Ts,T-Ts)*dx)
+      dKE = assemble(0.5*inner(u,u)*dx)
+      dHE = assemble(0.5*inner(T,T)*dx)
       print 'Kinetic energy =', KEs, KE, dKE, dHE
       fhist.write(str(time)+" "+str(KEs)+" "+str(KE)+" "+str(dKE)+" "+str(dHE)+"\n")
       print '--------------------------------------------------------------'
@@ -520,23 +546,24 @@ class NSProblem():
          up.vector()[:] = 2 * up1.vector() - up2.vector()
          if with_control:
             dy = up.vector().array() - ups.vector().array()
-            a = -np.dot(gain['Kt'], dy[vTinds])
-            self.gs.amp = f(time)*a[0]
-            self.ts.amp = f(time)*a[1]
-            self.hf.amp = f(time)*a[2]
+            a = -f(time)*np.dot(gain['Kt'], dy[vTinds])
+            self.gs.amp = a[0]
+            self.ts.amp = a[1]
+            self.hf.amp = a[2]
             fcont.write(str(time)+" "+str(a[0])+" "+str(a[1])+" "+str(a[2])+"\n")
             fcont.flush()
          solver2.solve()
          iter += 1
          time += dt
          print 'Iter = {:5d}, t = {:f}'.format(iter, time)
-         u,T,p = up.split()
+         uppert.vector()[:] = up.vector() - ups.vector()
+         u,T,p = uppert.split()
          if iter%10 == 0:
             fu << u
             ft << T
          KE  = assemble(0.5*inner(u,u)*dx)
-         dKE = assemble(0.5*inner(u-us,u-us)*dx)
-         dHE = assemble(0.5*inner(T-Ts,T-Ts)*dx)
+         dKE = assemble(0.5*inner(u,u)*dx)
+         dHE = assemble(0.5*inner(T,T)*dx)
          print 'Kinetic energy =', KEs, KE, dKE, dHE
          fhist.write(str(time)+" "+str(KEs)+" "+str(KE)+" "+str(dKE)+" "+str(dHE)+"\n")
          fhist.flush()

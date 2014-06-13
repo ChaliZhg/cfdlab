@@ -27,6 +27,8 @@ x1 = x;
 iter = iter + 1;
 t(iter) = dt;
 e(iter) = energy(x);
+u  = -S*x;
+u1(iter) = u(1); u2(iter) = u(2); u3(iter) = u(3);
 
 fprintf(1,'%d %e %e\n',iter,t(iter),e(iter))
 
@@ -43,12 +45,15 @@ while t<Tf
    x = Q1 * (U1 \ (L1 \ (P1 * rhs ) ) );
    x2 = x1;
    x1 = x;
+   u  = -S*x;
    iter = iter + 1;
    t(iter) = t(iter-1) + dt;
    e(iter) = energy(x);
+   u1(iter) = u(1); u2(iter) = u(2); u3(iter) = u(3);
    fprintf(1,'%d %e %e\n',iter,t(iter),e(iter))
    if(mod(iter,100)==0) 
-      semilogy(t,e)
+      figure(1), semilogy(t,e,'k-')
+      figure(2), plot(t,u1,t,u2,t,u3), legend('Velocity','Temperature','Heat')
       pause(0.1)
    end
 end
