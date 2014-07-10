@@ -28,10 +28,10 @@ program main
    ! options: 
    ! ient  = muscl type
    ! ifent = entropy stable
-   fluxtype = ient
+   fluxtype = ifent
 
    ! limiter: ford, muscl3, mmod
-   limtype = ford
+   limtype = mmod
 
    ! testcase: iot=orszag-tang, ikh=kelvin-helmholtz
    test_case = iot
@@ -57,7 +57,7 @@ program main
    allocate( pri( nvar*(nx+4)*(ny+4) ) )
    allocate( co0( nvar*(nx+4)*(ny+4) ) )
    allocate( co1( nvar*(nx+4)*(ny+4) ) )
-   allocate( divB( (nx+1)*(ny+1) ) )
+   allocate( divB( (nx+4)*(ny+4) ) )
 
    allocate( res(nvar*(nx+2)*(ny+2)) )
 

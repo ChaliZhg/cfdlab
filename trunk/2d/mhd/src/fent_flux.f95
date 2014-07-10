@@ -37,7 +37,7 @@ subroutine fent_flux(lx, ly, ll, left, right, rr, flux)
    B2   = 0.5 * (left(7) + right(7))
    B3   = 0.5 * (left(8) + right(8))
    Bnorm= B1*lx + B2*ly
-   
+
    Bl2 = left(6)*left(6) + left(7)*left(7) + left(8)*left(8)
    Br2 = right(6)*right(6) + right(7)*right(7) + right(8)*right(8)
    mB2  = 0.5*(Bl2 + Br2)
@@ -181,7 +181,11 @@ subroutine fent_flux(lx, ly, ll, left, right, rr, flux)
    Rp(8,6) =  Rp(8,5)
    
    ! slow magneto acoustic waves
-   sbn = sign(bn,1.0)
+   if(bn.gt.0)then
+      sbn = +1.0
+   else
+      sbn = -1.0
+   endif
    t1 = sbn*(alps*a*bn*n1 + alpf*cf*cf*np1)/(srho*cf)
    t2 = sbn*(alps*a*bn*n2 + alpf*cf*cf*np2)/(srho*cf)
    t3 = sbn*(alps*a*bn*n3 + alpf*cf*cf*np3)/(srho*cf)
@@ -270,6 +274,7 @@ subroutine fent_flux(lx, ly, ll, left, right, rr, flux)
       
       flux(i) = flux(i) - 0.5*Diff
    enddo
+
    
 end subroutine fent_flux
 
