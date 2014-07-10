@@ -9,7 +9,7 @@ subroutine solveFVM(pri, co0, co1, res, divB)
    real :: co0(nvar, -1:nx+2, -1:ny+2)
    real :: co1(nvar, -1:nx+2, -1:ny+2)
    real :: res(nvar,  0:nx+1,  0:ny+1)
-   real :: divB(1:nx+1, 1:ny+1)
+   real :: divB(0:nx+1, 0:ny+1)
 
    integer :: it, i, j, rks
    real    :: lambda
@@ -17,7 +17,7 @@ subroutine solveFVM(pri, co0, co1, res, divB)
    real    :: time
    real    :: resid(nvar), resid1(nvar)
    real    :: ke, entropy
-   real    :: div, source(nvar), maxdivB, divf_l(nvar), divf_r(nvar)
+   real    :: div, source(nvar), maxdivB
    real    :: minmod, minmod2, Bx, By
    logical :: tostop
 
@@ -61,14 +61,6 @@ subroutine solveFVM(pri, co0, co1, res, divB)
                             pri(:,i+1,j), &
                             pri(:,i+2,j), &
                             xflux)
-               !call divflux(1.0, 0.0,     &
-               !             pri(:,i-1,j), &
-               !             pri(:,i,j),   &
-               !             pri(:,i+1,j), &
-               !             pri(:,i+2,j), &
-               !             divf_l, divf_r)
-               !res(:,i,j)   = res(:,i,j)   + dy*(xflux(:) + divf_l(:))
-               !res(:,i+1,j) = res(:,i+1,j) - dy*(xflux(:) + divf_r(:))
                res(:,i,j)   = res(:,i,j)   + dy*xflux(:)
                res(:,i+1,j) = res(:,i+1,j) - dy*xflux(:)
             enddo
@@ -85,14 +77,6 @@ subroutine solveFVM(pri, co0, co1, res, divB)
                             pri(:,i,j+1), &
                             pri(:,i,j+2), &
                             yflux)
-               !call divflux(0.0, 1.0,     &
-               !             pri(:,i,j-1), &
-               !             pri(:,i,j),   &
-               !             pri(:,i,j+1), &
-               !             pri(:,i,j+2), &
-               !             divf_l, divf_r)
-               !res(:,i,j)   = res(:,i,j)   + dx*(yflux(:) + divf_l(:))
-               !res(:,i,j+1) = res(:,i,j+1) - dx*(yflux(:) + divf_r(:))
                res(:,i,j)   = res(:,i,j)   + dx*yflux(:)
                res(:,i,j+1) = res(:,i,j+1) - dx*yflux(:)
             enddo
@@ -104,15 +88,6 @@ subroutine solveFVM(pri, co0, co1, res, divB)
          !$omp parallel do private(Bx,By,div,source) shared(resid)
          do i=1,nx
             do j=1,ny
-               !source = 0.0
-               ! Limited divergence
-               !Bx = minmod2(2.0*(pri(6,i,j)-pri(6,i-1,j)), &
-               !            0.5*(pri(6,i+1,j)-pri(6,i-1,j)), &
-               !            2.0*(pri(6,i+1,j)-pri(6,i,j)))
-               !By = minmod2(2.0*(pri(7,i,j)-pri(7,i,j-1)), &
-               !            0.5*(pri(7,i,j+1)-pri(7,i,j-1)), &
-               !            2.0*(pri(7,i,j+1)-pri(7,i,j)))
-               !div = Bx/dx + By/dy
                ! Central divergence
                div = 0.5*( pri(6,i+1,j) - pri(6,i-1,j) ) / dx + &
                      0.5*( pri(7,i,j+1) - pri(7,i,j-1) ) / dy

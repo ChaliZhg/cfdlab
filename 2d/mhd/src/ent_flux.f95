@@ -35,7 +35,7 @@ subroutine ent_flux(lx, ly, left, right, left1, right1, flux)
    B2   = 0.5 * (left(7) + right(7))
    B3   = 0.5 * (left(8) + right(8))
    Bnorm= B1*lx + B2*ly
-   
+
    Bl2 = left(6)*left(6) + left(7)*left(7) + left(8)*left(8)
    Br2 = right(6)*right(6) + right(7)*right(7) + right(8)*right(8)
    mB2  = 0.5*(Bl2 + Br2)
@@ -52,7 +52,7 @@ subroutine ent_flux(lx, ly, left, right, left1, right1, flux)
    bu2   = (betal*left(3) + betar*right(3))/(betal+betar)
    bu3   = (betal*left(4) + betar*right(4))/(betal+betar)
    bunorm= bu1*lx + bu2*ly
-   
+
    flux(1) = rho * unorm
    flux(2) = (p + 0.5*mB2)*lx + u1 * flux(1) - Bnorm * B1
    flux(3) = (p + 0.5*mB2)*ly + u2 * flux(1) - Bnorm * B2
@@ -179,7 +179,11 @@ subroutine ent_flux(lx, ly, left, right, left1, right1, flux)
    Rp(8,6) =  Rp(8,5)
    
    ! slow magneto acoustic waves
-   sbn = sign(bn,1.0)
+   if(bn.gt.0)then
+      sbn = +1.0
+   else
+      sbn = -1.0
+   endif
    t1 = sbn*(alps*a*bn*n1 + alpf*cf*cf*np1)/(srho*cf)
    t2 = sbn*(alps*a*bn*n2 + alpf*cf*cf*np2)/(srho*cf)
    t3 = sbn*(alps*a*bn*n3 + alpf*cf*cf*np3)/(srho*cf)
@@ -286,5 +290,5 @@ subroutine ent_flux(lx, ly, left, right, left1, right1, flux)
       
       flux(i) = flux(i) - 0.5*Diff
    enddo
-   
+
 end subroutine ent_flux
