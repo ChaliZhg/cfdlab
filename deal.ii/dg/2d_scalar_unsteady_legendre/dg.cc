@@ -145,7 +145,7 @@ void InitialCondition<dim>::value_list(const std::vector<Point<dim> > &points,
       for (unsigned int i=0; i<values.size(); ++i)
       {
          const Point<dim>& p = points[i];
-         if(std::fabs(p(0)-0.5) < 0.25 && std::fabs(p(1)) < 0.25)
+         if(std::fabs(p(0)-0.5) < 0.20 && std::fabs(p(1)) < 0.20)
             values[i] = 2.0;
          else
             values[i] = 1.0;
@@ -252,6 +252,7 @@ class Step12
       LimiterType          limiter_type;
       TestCase             test_case;
       double               sol_min, sol_max;
+      double               h_min, h_max;
    
       std::vector<typename DoFHandler<dim>::cell_iterator>
          lcell, rcell, bcell, tcell;
@@ -929,12 +930,17 @@ void Step12<dim>::compute_min_max ()
 
    sol_min =  1.0e20; 
    sol_max = -1.0e20;
-
+   
+   h_min =  1.0e20;
+   h_max = -1.0e20;
+   
    for(; cell != endc; ++cell)
    {
       cell->get_dof_indices (dof_indices);
       sol_min = std::min( sol_min, solution(dof_indices[0]) );
       sol_max = std::max( sol_max, solution(dof_indices[0]) );
+      h_min = std::min(h_min, cell->diameter()/std::sqrt(2));
+      h_max = std::max(h_max, cell->diameter()/std::sqrt(2));
    }
 }
 
@@ -978,9 +984,10 @@ void Step12<dim>::solve ()
 //         compute_dt ();
 //      }
       
-      std::cout << "Iterations=" << iter
-                << ", t = " << time 
-                << ", min,max = " << sol_min << "  " << sol_max << std::endl;
+      std::cout << "It=" << iter
+                << ", t= " << time
+                << ", min,max u= " << sol_min << "  " << sol_max
+                << ", min,max h=" << h_min << " " << h_max << std::endl;
       if(std::fmod(iter,100)==0) output_results(iter);
    }
    
@@ -1143,7 +1150,7 @@ void Step12<dim>::output_results (const unsigned int cycle)
 template <int dim>
 void Step12<dim>::run ()
 {
-   GridGenerator::subdivided_hyper_cube (triangulation,40,-1.0,+1.0);
+   GridGenerator::subdivided_hyper_cube (triangulation,100,-1.0,+1.0);
    setup_system ();
    set_initial_condition ();
    
