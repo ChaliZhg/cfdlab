@@ -35,6 +35,7 @@ double xmin, xmax, xmid;
 double u_left, u_right;
 double final_time;
 double Mlim; // used in TVB limiter
+double Mh2;
 
 // Coefficients for 3-stage SSP RK scheme of Shu-Osher
 const double a_rk[3] = {0.0, 3.0/4.0, 1.0/3.0};
@@ -43,7 +44,7 @@ const double b_rk[3] = {1.0, 1.0/4.0, 2.0/3.0};
 // Numerical flux functions
 enum FluxType {upwind};
 enum TestCase {sine, hat};
-enum LimiterType {none, weno};
+enum LimiterType {none, tvd};
 
 //------------------------------------------------------------------------------
 // Scheme parameters
@@ -62,10 +63,10 @@ struct Parameter
 //------------------------------------------------------------------------------
 // minmod of three numbers
 //------------------------------------------------------------------------------
-double minmod (const double& a, const double& b, const double& c, const double& h)
+double minmod (const double& a, const double& b, const double& c)
 {
    double aa = std::fabs(a);
-   if(aa < Mlim*h*h) return a;
+   if(aa < Mh2) return a;
    
    int sa = sign(a);
    int sb = sign(b);
@@ -92,10 +93,16 @@ template <int dim>
 class InitialCondition : public Function<dim>
 {
 public:
-   InitialCondition () : Function<dim>() {}
+   InitialCondition (TestCase test_case)
+   :
+   Function<dim>(),
+   test_case (test_case)
+   {}
    
    virtual void value (const Point<dim>   &p,
                        double& values) const;
+   
+private:
    TestCase test_case;
 };
 
@@ -118,6 +125,10 @@ void InitialCondition<dim>::value (const Point<dim>   &p,
       else
          values = 0.0;
    }
+   else
+   {
+      AssertThrow(false, ExcMessage("Unknown test case"));
+   }
 }
 
 //------------------------------------------------------------------------------
@@ -127,10 +138,18 @@ template <int dim>
 class Solution : public Function<dim>
 {
 public:
-   Solution () : Function<dim>() {}
+   Solution (TestCase test_case)
+   :
+   Function<dim>(),
+   test_case (test_case)
+   {}
    
    virtual double value (const Point<dim>   &p,
                          const unsigned int  component = 0) const;
+   virtual Tensor<1,dim> gradient (const Point<dim>   &p,
+                                   const unsigned int  component = 0) const;
+private:
+   TestCase test_case;
 };
 
 // Exact solution works correctly only for periodic case
@@ -141,8 +160,34 @@ double Solution<dim>::value (const Point<dim>   &p,
    double values;
    Point<dim> pp(p);
    pp[0] -= final_time;
-   InitialCondition<dim> initial_condition;
+   InitialCondition<dim> initial_condition(test_case);
    initial_condition.value(pp, values);
+   return values;
+}
+
+
+// Exact solution works correctly only for periodic case
+template<int dim>
+Tensor<1,dim> Solution<dim>::gradient (const Point<dim>   &p,
+                                       const unsigned int) const
+{
+   Tensor<1,dim> values;
+   double x = p[0] - final_time;
+   
+   // test case: sine
+   if(test_case == sine)
+   {
+      values[0] = -M_PI * std::cos (M_PI * x);
+   }
+   else if(test_case == hat)
+   {
+      values[0] = 0;
+   }
+   else
+   {
+      AssertThrow(false, ExcMessage("Unknown test case"));
+   }
+   
    return values;
 }
 
@@ -166,7 +211,7 @@ private:
    void compute_averages ();
    void compute_dt ();
    void apply_limiter ();
-   void apply_weno_limiter ();
+   void apply_TVD_limiter ();
    void mark_troubled_cells ();
    void update (const unsigned int rk_stage);
    void output_results (const double& time) const;
@@ -178,7 +223,6 @@ private:
    double               dt;
    double               dx;
    double               cfl;
-   double               min_residue;
    unsigned int         n_rk_stages;
    FluxType             flux_type;
    LimiterType          limiter_type;
@@ -196,7 +240,7 @@ private:
    Vector<double>       solution_old;
    Vector<double>       rhs;
    
-   std::vector< Vector<double> > average;
+   Vector<double>    average;
    std::vector<bool> troubled_cell;
    
    double residual;
@@ -222,7 +266,7 @@ ScalarProblem<dim>::ScalarProblem (Parameter param,
     fe (param.degree),
     dof_handler (triangulation)
 {
-   Assert (dim==1, ExcIndexRange(dim, 0, 1));
+   AssertThrow (dim==1, ExcIndexRange(dim, 0, 1));
    
    final_time = param.final_time;
    
@@ -233,13 +277,11 @@ ScalarProblem<dim>::ScalarProblem (Parameter param,
    {
       xmin    = -1.0;
       xmax    = +1.0;
-      min_residue= 1.0e20;
    }
    else if(test_case == hat)
    {
       xmin    = -1.0;
       xmax    = +1.0;
-      min_residue= 1.0e20;
    }
    else
    {
@@ -247,6 +289,7 @@ ScalarProblem<dim>::ScalarProblem (Parameter param,
    }
    
    dx = (xmax - xmin) / n_cells;
+   Mh2 = Mlim*dx*dx;
 
 }
 
@@ -289,7 +332,7 @@ void ScalarProblem<dim>::make_grid_and_dofs (unsigned int step)
    solution_old.reinit (dof_handler.n_dofs());
    rhs.reinit (dof_handler.n_dofs());
    
-   average.resize (triangulation.n_cells(), Vector<double>(fe.degree+1));
+   average.reinit (triangulation.n_cells());
    troubled_cell.resize(n_cells);
    
    // Find first and last cell
@@ -354,8 +397,7 @@ void ScalarProblem<dim>::initialize ()
    
    std::vector<unsigned int> local_dof_indices (dofs_per_cell);
    
-   InitialCondition<dim> initial_condition;
-   initial_condition.test_case = test_case;
+   InitialCondition<dim> initial_condition (test_case);
    
    double initial_value;
 
@@ -372,12 +414,12 @@ void ScalarProblem<dim>::initialize ()
       {
          // Get primitive variable at quadrature point
          initial_condition.value(fe_values.quadrature_point(q_point),
-                                        initial_value);
+                                 initial_value);
          for (unsigned int i=0; i<dofs_per_cell; ++i)
          {
-            cell_rhs(i) += (fe_values.shape_value (i, q_point) *
-                            initial_value *
-                            fe_values.JxW (q_point));
+            cell_rhs(i) += fe_values.shape_value (i, q_point) *
+                           initial_value *
+                           fe_values.JxW (q_point);
          }
       }
       
@@ -619,15 +661,7 @@ void ScalarProblem<dim>::assemble_rhs ()
 template <int dim>
 void ScalarProblem<dim>::compute_averages ()
 {
-   QGauss<dim>  quadrature_formula(fe.degree+1);
-      
-   FEValues<dim> fe_values (fe, quadrature_formula,
-                            update_values   |  
-                            update_JxW_values);
-   
    const unsigned int   dofs_per_cell = fe.dofs_per_cell;
-   const unsigned int   n_q_points    = quadrature_formula.size();
-      
    std::vector<unsigned int> local_dof_indices (dofs_per_cell);
    
    typename DoFHandler<dim>::active_cell_iterator 
@@ -636,19 +670,8 @@ void ScalarProblem<dim>::compute_averages ()
    
    for (unsigned int c=0; cell!=endc; ++c, ++cell)
    {
-      fe_values.reinit (cell);
       cell->get_dof_indices (local_dof_indices);
-      
-      average[c] = 0.0;
-      for(unsigned int point=0; point<n_q_points; ++point)
-         for(unsigned int i=0; i<dofs_per_cell; ++i)
-         {
-            average[c](0) += solution(local_dof_indices[i]) * 
-                                     fe_values.shape_value (i, point) *
-                                     fe_values.JxW (point);
-         }
-      
-      average[c]  /= dx;
+      average[c] = solution(local_dof_indices[0]);
    }
 }
 
@@ -691,17 +714,17 @@ void ScalarProblem<dim>::mark_troubled_cells ()
          cl = c - 1;
          cr = c + 1;
       }
-      double db = average[c](0)  - average[cl](0);
-      double df = average[cr](0) - average[c](0);
+      double db = average[c]  - average[cl];
+      double df = average[cr] - average[c];
       
-      double DF = face_values[1] - average[c](0);
-      double DB = average[c](0) - face_values[0];
+      double DF = face_values[1] - average[c];
+      double DB = average[c] - face_values[0];
       
       double dl = minmod ( DB, db, df, dx);
       double dr = minmod ( DF, db, df, dx);
       
-      limited_face_values[0] = average[c](0) - dl;
-      limited_face_values[1] = average[c](0) + dr;
+      limited_face_values[0] = average[c] - dl;
+      limited_face_values[1] = average[c] + dr;
       bool c0 = std::fabs(limited_face_values[0]-face_values[0])
                 > EPS * std::fabs(face_values[0]);
       bool c1 = std::fabs(limited_face_values[1]-face_values[1])
@@ -721,24 +744,51 @@ void ScalarProblem<dim>::mark_troubled_cells ()
 // Apply weno limiter
 //------------------------------------------------------------------------------
 template <int dim>
-void ScalarProblem<dim>::apply_weno_limiter ()
+void ScalarProblem<dim>::apply_TVD_limiter ()
 {
-   QGauss<dim> quadrature_formula(fe.degree + 1);
-   FEValues<dim> fe_values_left (fe, quadrature_formula, update_values);
-
+   if (fe.degree==0) return;
+   
+   static const double sqrt_3 = std::sqrt(3.0);
+   
+   const unsigned int   dofs_per_cell = fe.dofs_per_cell;
+   std::vector<unsigned int> local_dof_indices (dofs_per_cell);
    
    typename DoFHandler<dim>::active_cell_iterator
-            cell = dof_handler.begin_active(),
-            endc = dof_handler.end();
+      cell = dof_handler.begin_active(),
+      endc = dof_handler.end();
    
-   for (unsigned int c=0; cell!=endc; ++c, ++cell)
+   for (unsigned int c=0; c<n_cells; ++c, ++cell)
    {
-      // extend neigbouring solution to current cell
-      fe_values_left.reinit(lcell[c]);
+      cell->get_dof_indices (local_dof_indices);
+
+      unsigned int cl, cr;
+      if(c==0)
+      {
+         cl = n_cells-1;
+         cr = c+1;
+      }
+      else if(c==n_cells-1)
+      {
+         cl = c-1;
+         cr = 0;
+      }
+      else
+      {
+         cl = c - 1;
+         cr = c + 1;
+      }
+      double db = average[c]  - average[cl];
+      double df = average[cr] - average[c];
       
-      // compute smoothness indicators
-      // compute weights
-      // compute limited solution
+      double Dx = solution(local_dof_indices[1]);
+      double Dx_new = minmod ( sqrt_3 * Dx, db, df) / sqrt_3;
+      
+      if(std::fabs(Dx - Dx_new) > 1.0e-6)
+      {
+         solution(local_dof_indices[1]) = Dx_new;
+         for(unsigned int i=2; i<dofs_per_cell; ++i)
+            solution(local_dof_indices[i]) = 0;
+      }
    }
 }
 
@@ -749,9 +799,7 @@ template <int dim>
 void ScalarProblem<dim>::apply_limiter ()
 {
    if (fe.degree == 0 || limiter_type == none) return;
-   
-   mark_troubled_cells ();
-   //apply_weno_limiter ();
+   apply_TVD_limiter ();
 }
 
 //------------------------------------------------------------------------------
@@ -814,7 +862,7 @@ void ScalarProblem<dim>::output_results (const double& time) const
    {
       Point<dim> x = cell->center();
       int tc = (troubled_cell[c] ? 1 : 0);
-      fo << x(0) << " " << average[c](0) << "  " << tc << endl;
+      fo << x(0) << " " << average[c] << "  " << tc << endl;
    }
    
    fo.close ();
@@ -864,7 +912,7 @@ void ScalarProblem<dim>::solve ()
        
       time += dt;
       ++iter;
-       if(debug && iter % 10 == 0) output_results (time);
+       if(iter % 10 == 0) output_results (time);
        
        if(debug)
       std::cout << "Iter = " << iter << " time = " << time 
@@ -881,14 +929,25 @@ void ScalarProblem<dim>::solve ()
 template <int dim>
 void ScalarProblem<dim>::process_solution (unsigned int step)
 {
+   // compute error in solution
+   Solution<dim> exact_solution(test_case);
    Vector<double> difference_per_cell (triangulation.n_active_cells());
    VectorTools::integrate_difference (dof_handler,
                                       solution,
-                                      Solution<dim>(),
+                                      exact_solution,
                                       difference_per_cell,
-                                      QGauss<dim>(4),
+                                      QGauss<dim>(2*fe.degree+1),
                                       VectorTools::L2_norm);
    const double L2_error = difference_per_cell.l2_norm();
+
+   // compute error in gradient
+   VectorTools::integrate_difference (dof_handler,
+                                      solution,
+                                      exact_solution,
+                                      difference_per_cell,
+                                      QGauss<dim>(2*fe.degree+1),
+                                      VectorTools::H1_norm);
+   const double H1_error = difference_per_cell.l2_norm();
    
    const unsigned int n_active_cells=triangulation.n_active_cells();
    const unsigned int n_dofs=dof_handler.n_dofs();
@@ -896,11 +955,12 @@ void ScalarProblem<dim>::process_solution (unsigned int step)
    convergence_table.add_value("cells", n_active_cells);
    convergence_table.add_value("dofs", n_dofs);
    convergence_table.add_value("L2", L2_error);
+   convergence_table.add_value("H1", H1_error);
    
    convergence_table.set_scientific("L2", true);
+   convergence_table.set_scientific("H1", true);
    
    std::cout << std::endl;
-   convergence_table.write_text(std::cout);
 }
 
 //------------------------------------------------------------------------------
@@ -918,15 +978,19 @@ void ScalarProblem<dim>::run ()
    }
 
    convergence_table.set_precision("L2", 3);
-   
    convergence_table.set_scientific("L2", true);
-   
-   convergence_table
-   .evaluate_convergence_rates("L2", ConvergenceTable::reduction_rate_log2);
-   
+   convergence_table.evaluate_convergence_rates("L2",
+                                                ConvergenceTable::reduction_rate_log2);
+
+   convergence_table.set_precision("H1", 3);
+   convergence_table.set_scientific("H1", true);
+   convergence_table.evaluate_convergence_rates("H1",
+                                                ConvergenceTable::reduction_rate_log2);
+
    convergence_table.set_tex_caption("cells", "\\# cells");
    convergence_table.set_tex_caption("dofs", "\\# dofs");
-   convergence_table.set_tex_caption("L2", "L^2-error");
+   convergence_table.set_tex_caption("L2", "$L^2$-error");
+   convergence_table.set_tex_caption("H1", "$H^1$-error");
    
    convergence_table.set_tex_format("cells", "r");
    convergence_table.set_tex_format("dofs", "r");
@@ -946,16 +1010,16 @@ int main ()
     deallog.depth_console (0);
     {
        Parameter param;
-       param.degree = 2;
+       param.degree = 1;
        param.n_cells = 50;
        param.nstep = 1;
        param.test_case = sine;
-       param.cfl = 1.0/(2.0*param.degree+1.0);
+       param.cfl = 0.95/(2.0*param.degree+1.0);
        param.final_time = 10;
        param.limiter_type = none;
        
-       bool debug = true;
-       Mlim = 10.0;
+       bool debug = false;
+       Mlim = 0.0;
        
        ScalarProblem<1> scalar_problem(param, debug);
        scalar_problem.run ();
