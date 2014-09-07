@@ -506,7 +506,7 @@ void numerical_flux (const FluxType& flux_type,
          break;
 
       default:
-         cout << "Unknown flux_type !!!\n";
+         std::cout << "Unknown flux_type !!!\n";
          abort ();
    }
 }
@@ -845,7 +845,7 @@ void ScalarProblem<dim>::output_results (const double& time) const
        data_out.build_patches (2*fe.degree);
    
     std::string filename = "sol_" + Utilities::int_to_string(c) + ".gpl";
-    cout << filename << endl;
+   std::cout << filename << std::endl;
    
    std::ofstream output (filename);
    data_out.write_gnuplot (output);
@@ -862,7 +862,7 @@ void ScalarProblem<dim>::output_results (const double& time) const
    {
       Point<dim> x = cell->center();
       int tc = (troubled_cell[c] ? 1 : 0);
-      fo << x(0) << " " << average[c] << "  " << tc << endl;
+      fo << x(0) << " " << average[c] << "  " << tc << std::endl;
    }
    
    fo.close ();
@@ -904,7 +904,7 @@ void ScalarProblem<dim>::solve ()
        
        if(iter==0)
        {
-          std::cout << "Initial residual = " << residual << endl;
+          std::cout << "Initial residual = " << residual << std::endl;
           residual0 = residual;
        }
        
@@ -912,14 +912,14 @@ void ScalarProblem<dim>::solve ()
        
       time += dt;
       ++iter;
-       if(iter % 10 == 0) output_results (time);
+       if(iter % 100 == 0) output_results (time);
        
        if(debug)
       std::cout << "Iter = " << iter << " time = " << time 
-                << " Res =" << residual << endl;
+                << " Res =" << residual << std::endl;
     }
    std::cout << "Iter = " << iter << " time = " << time 
-             << " Res =" << residual << endl;
+             << " Res =" << residual << std::endl;
 
     output_results (time);
 }
@@ -1010,16 +1010,16 @@ int main ()
     deallog.depth_console (0);
     {
        Parameter param;
-       param.degree = 1;
+       param.degree = 2;
        param.n_cells = 50;
        param.nstep = 1;
-       param.test_case = sine;
-       param.cfl = 0.95/(2.0*param.degree+1.0);
+       param.test_case = hat;
+       param.cfl = 0.9/(2.0*param.degree+1.0);
        param.final_time = 10;
        param.limiter_type = none;
        
        bool debug = false;
-       Mlim = 0.0;
+       Mlim = 100.0;
        
        ScalarProblem<1> scalar_problem(param, debug);
        scalar_problem.run ();
