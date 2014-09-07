@@ -720,8 +720,8 @@ void ScalarProblem<dim>::mark_troubled_cells ()
       double DF = face_values[1] - average[c];
       double DB = average[c] - face_values[0];
       
-      double dl = minmod ( DB, db, df, dx);
-      double dr = minmod ( DF, db, df, dx);
+      double dl = minmod ( DB, db, df);
+      double dr = minmod ( DF, db, df);
       
       limited_face_values[0] = average[c] - dl;
       limited_face_values[1] = average[c] + dr;
