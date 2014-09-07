@@ -14,7 +14,6 @@
 #include <lac/vector.h>
 #include <lac/full_matrix.h>
 #include <lac/sparse_matrix.h>
-#include <lac/compressed_sparsity_pattern.h>
 
 #include <numerics/data_out.h>
 #include <numerics/fe_field_function.h>
@@ -191,6 +190,46 @@ Tensor<1,dim> Solution<dim>::gradient (const Point<dim>   &p,
    return values;
 }
 
+
+
+//------------------------------------------------------------------------------
+// Flux of the PDE model
+//------------------------------------------------------------------------------
+double physical_flux (const double& u)
+{
+   return u;
+}
+
+//------------------------------------------------------------------------------
+// Upwind flux
+//------------------------------------------------------------------------------
+void UpwindFlux (const double& left_state,
+                 const double& right_state,
+                 double& flux)
+{
+   flux = left_state;
+}
+
+//------------------------------------------------------------------------------
+// Compute flux across cell faces
+//------------------------------------------------------------------------------
+void numerical_flux (const FluxType& flux_type,
+                     double& left_state,
+                     double& right_state,
+                     double& flux)
+{
+   switch (flux_type)
+   {
+      case upwind:
+         UpwindFlux (left_state, right_state, flux);
+         break;
+         
+      default:
+         std::cout << "Unknown flux_type !!!\n";
+         abort ();
+   }
+}
+
 //------------------------------------------------------------------------------
 // Main class of the problem
 //------------------------------------------------------------------------------
@@ -233,7 +272,6 @@ private:
    FE_DGP<dim>          fe;
    DoFHandler<dim>      dof_handler;
    
-   SparsityPattern      sparsity_pattern;
    std::vector< Vector<double> > inv_mass_matrix;
    
    Vector<double>       solution;
@@ -374,6 +412,45 @@ void ScalarProblem<dim>::make_grid_and_dofs (unsigned int step)
 }
 
 //------------------------------------------------------------------------------
+// Assemble mass matrix for each cell
+// Invert it and store
+//------------------------------------------------------------------------------
+template <int dim>
+void ScalarProblem<dim>::assemble_mass_matrix ()
+{
+   std::cout << "Constructing mass matrix ...\n";
+   std::cout << "  Quadrature using " << fe.degree+1 << " points\n";
+   
+   QGauss<dim>  quadrature_formula(fe.degree+1);
+   
+   FEValues<dim> fe_values (fe, quadrature_formula,
+                            update_values | update_JxW_values);
+   
+   const unsigned int   dofs_per_cell = fe.dofs_per_cell;
+   const unsigned int   n_q_points    = quadrature_formula.size();
+   
+   Vector<double>   cell_matrix (dofs_per_cell);
+   
+   // Cell iterator
+   typename DoFHandler<dim>::active_cell_iterator cell = dof_handler.begin_active(),
+   endc = dof_handler.end();
+   for (unsigned int c=0; cell!=endc; ++cell,++c)
+   {
+      fe_values.reinit (cell);
+      cell_matrix = 0.0;
+      
+      for (unsigned int q_point=0; q_point<n_q_points; ++q_point)
+         for (unsigned int i=0; i<dofs_per_cell; ++i)
+            cell_matrix(i) += fe_values.shape_value (i, q_point) *
+            fe_values.shape_value (i, q_point) *
+            fe_values.JxW (q_point);
+      
+      for (unsigned int i=0; i<dofs_per_cell; ++i)
+         inv_mass_matrix[c](i) = 1.0/cell_matrix(i);
+   }
+}
+
+//------------------------------------------------------------------------------
 // Set initial conditions
 // L2 projection of initial condition onto dofs
 //------------------------------------------------------------------------------
@@ -434,82 +511,6 @@ void ScalarProblem<dim>::initialize ()
    }
 }
 
-//------------------------------------------------------------------------------
-// Assemble mass matrix for each cell
-// Invert it and store
-//------------------------------------------------------------------------------
-template <int dim>
-void ScalarProblem<dim>::assemble_mass_matrix ()
-{
-    std::cout << "Constructing mass matrix ...\n";
-    std::cout << "  Quadrature using " << fe.degree+1 << " points\n";
-
-    QGauss<dim>  quadrature_formula(fe.degree+1);
-
-    FEValues<dim> fe_values (fe, quadrature_formula,
-                             update_values | update_JxW_values);
-
-    const unsigned int   dofs_per_cell = fe.dofs_per_cell;
-    const unsigned int   n_q_points    = quadrature_formula.size();
-
-    Vector<double>   cell_matrix (dofs_per_cell);
-   
-    // Cell iterator
-    typename DoFHandler<dim>::active_cell_iterator cell = dof_handler.begin_active(),
-                                                   endc = dof_handler.end();
-    for (unsigned int c=0; cell!=endc; ++cell,++c)
-    {
-        fe_values.reinit (cell);
-        cell_matrix = 0.0;
-
-        for (unsigned int q_point=0; q_point<n_q_points; ++q_point)
-            for (unsigned int i=0; i<dofs_per_cell; ++i)
-                    cell_matrix(i) += fe_values.shape_value (i, q_point) *
-                                      fe_values.shape_value (i, q_point) *
-                                      fe_values.JxW (q_point);
-       
-        for (unsigned int i=0; i<dofs_per_cell; ++i)
-           inv_mass_matrix[c](i) = 1.0/cell_matrix(i);
-    }
-}
-
-//------------------------------------------------------------------------------
-// Flux of the PDE model
-//------------------------------------------------------------------------------
-double physical_flux (const double& u)
-{
-   return u;
-}
-
-//------------------------------------------------------------------------------
-// Upwind flux
-//------------------------------------------------------------------------------
-void UpwindFlux (const double& left_state,
-                 const double& right_state,
-                 double& flux)
-{
-   flux = left_state;
-}
-
-//------------------------------------------------------------------------------
-// Compute flux across cell faces
-//------------------------------------------------------------------------------
-void numerical_flux (const FluxType& flux_type,
-                     double& left_state,
-                     double& right_state,
-                     double& flux)
-{
-   switch (flux_type) 
-   {
-      case upwind:
-         UpwindFlux (left_state, right_state, flux);
-         break;
-
-      default:
-         std::cout << "Unknown flux_type !!!\n";
-         abort ();
-   }
-}
 
 //------------------------------------------------------------------------------
 // Assemble system rhs
@@ -741,7 +742,7 @@ void ScalarProblem<dim>::mark_troubled_cells ()
 }
 
 //------------------------------------------------------------------------------
-// Apply weno limiter
+// Apply TVD limiter
 //------------------------------------------------------------------------------
 template <int dim>
 void ScalarProblem<dim>::apply_TVD_limiter ()
