@@ -41,7 +41,7 @@ const double a_rk[3] = {0.0, 3.0/4.0, 1.0/3.0};
 const double b_rk[3] = {1.0, 1.0/4.0, 2.0/3.0};
 
 // Numerical flux functions
-enum FluxType {upwind};
+enum FluxType {central, upwind};
 enum TestCase {sine, hat};
 enum LimiterType {none, tvd};
 
@@ -200,6 +200,17 @@ double physical_flux (const double& u)
    return u;
 }
 
+
+//------------------------------------------------------------------------------
+// Central flux
+//------------------------------------------------------------------------------
+void CentralFlux (const double& left_state,
+                  const double& right_state,
+                  double& flux)
+{
+   flux = 0.5*(left_state + right_state);
+}
+
 //------------------------------------------------------------------------------
 // Upwind flux
 //------------------------------------------------------------------------------
@@ -220,6 +231,10 @@ void numerical_flux (const FluxType& flux_type,
 {
    switch (flux_type)
    {
+      case central:
+         CentralFlux (left_state, right_state, flux);
+         break;
+         
       case upwind:
          UpwindFlux (left_state, right_state, flux);
          break;
