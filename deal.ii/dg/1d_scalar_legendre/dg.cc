@@ -57,6 +57,7 @@ struct Parameter
    unsigned int n_cells;
    unsigned int nstep;
    LimiterType limiter_type;
+   FluxType flux_type;
 };
 
 //------------------------------------------------------------------------------
@@ -278,8 +279,8 @@ private:
    double               dx;
    double               cfl;
    unsigned int         n_rk_stages;
-   FluxType             flux_type;
    LimiterType          limiter_type;
+   FluxType             flux_type;
    unsigned int         nstep;
    
    
@@ -315,6 +316,7 @@ ScalarProblem<dim>::ScalarProblem (Parameter param,
     n_cells (param.n_cells),
     cfl (param.cfl),
     limiter_type (param.limiter_type),
+    flux_type (param.flux_type),
     nstep (param.nstep),
     fe (param.degree),
     dof_handler (triangulation)
@@ -324,7 +326,6 @@ ScalarProblem<dim>::ScalarProblem (Parameter param,
    final_time = param.final_time;
    
    n_rk_stages = 3;
-   flux_type = upwind;
    
    if(test_case == sine)
    {
@@ -1026,13 +1027,14 @@ int main ()
     deallog.depth_console (0);
     {
        Parameter param;
-       param.degree = 2;
-       param.n_cells = 50;
-       param.nstep = 1;
-       param.test_case = hat;
-       param.cfl = 0.9/(2.0*param.degree+1.0);
-       param.final_time = 10;
+       param.degree       = 1;
+       param.n_cells      = 50;
+       param.nstep        = 1;
+       param.test_case    = sine;
+       param.cfl          = 0.9/(2.0*param.degree+1.0);
+       param.final_time   = 10;
        param.limiter_type = none;
+       param.flux_type    = upwind;
        
        bool debug = false;
        Mlim = 100.0;
