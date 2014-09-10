@@ -108,10 +108,14 @@ template <int dim>
 class InitialCondition: public Function<dim>
 {
 public:
-   InitialCondition () {};
+   InitialCondition (TestCase test_case)
+   :
+   test_case (test_case)
+   {};
    virtual void value_list (const std::vector<Point<dim> > &points,
                             std::vector<double> &values,
                             const unsigned int component=0) const;
+private:
    TestCase test_case;
 };
 
@@ -128,11 +132,7 @@ void InitialCondition<dim>::value_list(const std::vector<Point<dim> > &points,
       for (unsigned int i=0; i<values.size(); ++i)
       {
          double r2 = std::pow(points[i](0)-0.5, 2.0) + std::pow(points[i](1), 2.0);
-         double r = std::sqrt(r2);
-         if(r < 0.25)
-            values[i] = 1.0 + std::pow(std::cos(2.0*M_PI*r), 2.0);
-         else
-            values[i] = 1.0;
+         values[i] = 1.0 + exp(-50.0*r2);
       }
    else if(test_case == circ)
       for (unsigned int i=0; i<values.size(); ++i)
@@ -441,8 +441,7 @@ void Step12<dim>::assemble_mass_matrix ()
 template <int dim>
 void Step12<dim>::set_initial_condition ()
 {
-   InitialCondition<dim> initial_condition;
-   initial_condition.test_case = test_case;
+   InitialCondition<dim> initial_condition (test_case);
    VectorTools::create_right_hand_side(dof_handler,
                                        QGauss<dim>(fe.degree+1),
                                        initial_condition,
@@ -549,8 +548,7 @@ void Step12<dim>::assemble_rhs (RHSIntegrator<dim>& rhs_integrator)
        &Step12<dim>::integrate_cell_term,
        &Step12<dim>::integrate_boundary_term,
        &Step12<dim>::integrate_face_term,
-       rhs_integrator.assembler,
-       true);
+       rhs_integrator.assembler);
 
    // Multiply by inverse mass matrix
    const unsigned int dofs_per_cell = fe.dofs_per_cell;
@@ -1167,8 +1165,8 @@ int main ()
    try
    {
       unsigned int degree = 1;
-      LimiterType limiter_type = tvd;
-      TestCase test_case = square;
+      LimiterType limiter_type = none;
+      TestCase test_case = expo;
       Mlim = 0.0;
       Step12<2> dgmethod(degree, limiter_type, test_case);
       dgmethod.run ();
