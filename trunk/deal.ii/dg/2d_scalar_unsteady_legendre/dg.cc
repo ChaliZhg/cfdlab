@@ -1164,6 +1164,9 @@ int main ()
 {
    try
    {
+      MultithreadInfo  multithread_info;
+      std::cout << "Number of threads = " 
+                << multithread_info.n_threads() << std::endl;
       unsigned int degree = 1;
       LimiterType limiter_type = none;
       TestCase test_case = expo;
