@@ -54,7 +54,8 @@
 
 #include <deal.II/lac/generic_linear_algebra.h>
 
-#define USE_PETSC_LA
+//#define USE_PETSC_LA
+
 namespace LA
 {
 #ifdef USE_PETSC_LA
@@ -289,7 +290,6 @@ private:
    LA::MPI::Vector      solution_old;
    LA::MPI::Vector      average;
    LA::MPI::Vector      right_hand_side;
-   ConstraintMatrix     constraints;
    LA::MPI::Vector      shock_indicator;
    LA::MPI::Vector      jump_indicator;
    double               jump_ind_min, jump_ind_max, jump_ind_avg;
@@ -338,14 +338,21 @@ Step12<dim>::Step12 (unsigned int degree,
       limiter_type (limiter_type),
       test_case (test_case),
       pcout (std::cout,
-       (Utilities::MPI::this_mpi_process(mpi_communicator)
-        == 0)),
+             (Utilities::MPI::this_mpi_process(mpi_communicator)== 0)),
 
       computing_timer (pcout,
-                 TimerOutput::summary,
-                 TimerOutput::wall_times)
+                       TimerOutput::summary,
+                       TimerOutput::wall_times)
 {
    cfl = 0.9/(2.0*degree + 1.0);
+
+      MultithreadInfo multithread_info;
+      pcout << "Number of threads = "
+            << multithread_info.n_threads () << std::endl;
+      if(multithread_info.is_running_single_threaded())
+         pcout << "Running with single thread\n";
+      else
+         pcout << "Running with multiple threads\n";
 }
 
 //------------------------------------------------------------------------------
@@ -354,6 +361,8 @@ Step12<dim>::Step12 (unsigned int degree,
 template <int dim>
 void Step12<dim>::setup_system ()
 {
+   TimerOutput::Scope t(computing_timer, "setup");
+
    pcout << "Allocating memory ...\n";
 
    dof_handler.distribute_dofs (fe);
@@ -365,17 +374,13 @@ void Step12<dim>::setup_system ()
 
    solution.reinit (locally_owned_dofs, locally_relevant_dofs, mpi_communicator);
    solution_old.reinit (locally_owned_dofs, locally_relevant_dofs, mpi_communicator);
-
    right_hand_side.reinit (locally_owned_dofs, mpi_communicator);
+
    mass_matrix.reinit (locally_owned_dofs, mpi_communicator);
    
    average.reinit (locally_owned_dofs, mpi_communicator);
    shock_indicator.reinit (locally_owned_dofs, mpi_communicator);
    jump_indicator.reinit (locally_owned_dofs, mpi_communicator);
-
-   constraints.clear();
-   constraints.reinit (locally_relevant_dofs);
-   constraints.close();
    
    // For each cell, find neighbourig cell
    // This is needed for limiter
@@ -468,6 +473,8 @@ double Step12<dim>::compute_cell_average(const typename DoFHandler<dim>::cell_it
 template <int dim>
 void Step12<dim>::assemble_mass_matrix ()
 {
+   TimerOutput::Scope t(computing_timer, "mass matrix");
+
    pcout << "Constructing mass matrix ...\n";
    
    QGauss<dim>  quadrature_formula(fe.degree+1);
@@ -501,9 +508,8 @@ void Step12<dim>::assemble_mass_matrix ()
                                  fe_values.shape_value (i, q_point) *
                                  fe_values.JxW (q_point);
       
-      constraints.distribute_local_to_global(cell_matrix,
-                                             local_dof_indices,
-                                             mass_matrix);
+      mass_matrix.add(local_dof_indices,
+                      cell_matrix);
 
    }
    mass_matrix.compress(VectorOperation::add);
@@ -514,6 +520,8 @@ void Step12<dim>::assemble_mass_matrix ()
 template <int dim>
 void Step12<dim>::set_initial_condition ()
 {
+   TimerOutput::Scope t(computing_timer, "initial condition");
+
    pcout << "Setting initial condition ...";
    
    QGauss<dim> quadrature_formula (fe.degree+1);
@@ -552,15 +560,10 @@ void Step12<dim>::set_initial_condition ()
          cell_vector(i) /= mass_matrix(local_dof_indices[i]);
       }
       
-      constraints.distribute_local_to_global(cell_vector,
-                                             local_dof_indices,
-                                             rhs);
+      rhs.add(local_dof_indices, cell_vector);
    }
    rhs.compress(VectorOperation::add);
-//   constraints.distribute (rhs);
    solution = rhs;
-   
-   //solution.compress (VectorOperation::add);
    //apply_limiter ();
    pcout << " Done\n";
 }
@@ -599,8 +602,6 @@ void Step12<dim>::setup_mesh_worker (RHSIntegrator<dim>& rhs_integrator)
    
    // Attach rhs vector to assembler
    NamedData< LA::MPI::Vector* > rhs;
-   
-   //Vector<double>* data;
    LA::MPI::Vector* data;
    data = &right_hand_side;
    rhs.add (data, "RHS");
@@ -633,7 +634,9 @@ void Step12<dim>::compute_dt ()
    }
    
    dt *= cfl;
-   dt = Utilities::MPI::max (dt, mpi_communicator);
+   dt  = -dt;
+   dt = -Utilities::MPI::max (dt, mpi_communicator);
+   pcout << "      dt = " << dt << std::endl;
 }
 
 //------------------------------------------------------------------------------
@@ -642,6 +645,8 @@ void Step12<dim>::compute_dt ()
 template <int dim>
 void Step12<dim>::assemble_rhs (RHSIntegrator<dim>& rhs_integrator)
 {
+   TimerOutput::Scope t(computing_timer, "assemble");
+
    right_hand_side = 0.0;
 
    typedef
@@ -667,7 +672,7 @@ void Step12<dim>::assemble_rhs (RHSIntegrator<dim>& rhs_integrator)
    typename DoFHandler<dim>::active_cell_iterator 
       cell = dof_handler.begin_active(),
       endc = dof_handler.end();
-   for (unsigned int c = 0; cell!=endc; ++cell, ++c)
+   for (; cell!=endc; ++cell)
    if(cell->is_locally_owned())
    {
       cell->get_dof_indices (local_dof_indices);
@@ -676,7 +681,7 @@ void Step12<dim>::assemble_rhs (RHSIntegrator<dim>& rhs_integrator)
          right_hand_side(local_dof_indices[i]) /= mass_matrix(local_dof_indices[i]);
    }
 
-   right_hand_side.compress (VectorOperation::add);
+   right_hand_side.compress (VectorOperation::insert);
 
 }
 
@@ -1073,16 +1078,15 @@ void Step12<dim>::solve ()
       for(unsigned int r=0; r<3; ++r)
       {
          assemble_rhs (rhs_integrator);
-         
-         //solution.add (dt, right_hand_side);
-         right_hand_side.sadd(dt, solution);
-         right_hand_side.sadd (b_rk[r], a_rk[r], solution_old);
-         solution = right_hand_side;
-         
-//         for(unsigned int i=0; i<dof_handler.n_dofs(); ++i)
-//            solution(i) = a_rk[r] * solution_old(i) +
-//                          b_rk[r] * (solution(i) + dt * right_hand_side(i));
-
+         {
+            TimerOutput::Scope t(computing_timer, "update");
+            
+            // right_hand_side = dt*right_hand_side + solution
+            right_hand_side.sadd (dt, solution);
+            // right_hand_side = b_rk*right_hand_side + a_rk*solution_old
+            right_hand_side.sadd (b_rk[r], a_rk[r], solution_old);
+            solution = right_hand_side;
+         }
          apply_limiter ();
       }
       compute_min_max();
@@ -1100,7 +1104,7 @@ void Step12<dim>::solve ()
             << ", t= " << time
             << ", min,max u= " << sol_min << "  " << sol_max
             << ", min,max h=" << h_min << " " << h_max << std::endl;
-      if(std::fmod(iter,1)==0 || std::fabs(time-final_time) < 1.0e-14)
+      if(std::fmod(iter,100)==0 || std::fabs(time-final_time) < 1.0e-14)
          output_results(time);
    }
    
@@ -1208,9 +1212,7 @@ template <int dim>
 void Step12<dim>::output_results (double time)
 {
    static unsigned int cycle = 0;
-   static const unsigned int max_cycle = 1000;
-   AssertThrow(cycle < max_cycle, ExcMessage("Increase max_cycle"));
-   static std::vector< std::vector<std::string> > all_files(max_cycle);
+   static std::vector< std::vector<std::string> > all_files;
    
    {
       // Output of the polynomial solution
@@ -1242,11 +1244,12 @@ void Step12<dim>::output_results (double time)
          for (unsigned int i=0;
               i<Utilities::MPI::n_mpi_processes(mpi_communicator);
               ++i)
-            all_files[cycle].push_back ("sol-" +
+            filenames.push_back ("sol-" +
                                         Utilities::int_to_string (cycle, 4) +
                                         "." +
                                         Utilities::int_to_string (i, 2) +
                                         ".vtu");
+         all_files.push_back (filenames);
          std::ofstream visit_output ("master_file.visit");
          data_out.write_visit_record(visit_output, all_files);
       }
@@ -1276,6 +1279,11 @@ void Step12<dim>::run ()
    output_results(0);
    
    solve ();
+   
+   computing_timer.print_summary ();
+   computing_timer.reset ();
+   
+   pcout << std::endl;
 }
 
 //------------------------------------------------------------------------------
@@ -1285,7 +1293,7 @@ int main (int argc, char *argv[])
 {
    try
    {
-      Utilities::MPI::MPI_InitFinalize mpi_initialization(argc, argv, 1);
+      Utilities::MPI::MPI_InitFinalize mpi_initialization(argc, argv);
       //dealllog.depth_console(0);
 
       unsigned int degree = 1;
