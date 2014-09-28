@@ -541,8 +541,7 @@ void Step12<dim>::set_initial_condition ()
       cell = dof_handler.begin_active(),
       endc = dof_handler.end();
    
-   LA::MPI::Vector rhs (locally_owned_dofs, mpi_communicator);
-   
+   right_hand_side = 0;
    for (; cell!=endc; ++cell)
    if(cell->is_locally_owned())
    {
@@ -560,11 +559,11 @@ void Step12<dim>::set_initial_condition ()
          cell_vector(i) /= mass_matrix(local_dof_indices[i]);
       }
       
-      rhs.add(local_dof_indices, cell_vector);
+      right_hand_side.add(local_dof_indices, cell_vector);
    }
-   rhs.compress(VectorOperation::add);
-   solution = rhs;
-   //apply_limiter ();
+   right_hand_side.compress(VectorOperation::add);
+   solution = right_hand_side;
+   apply_limiter ();
    pcout << " Done\n";
 }
 //------------------------------------------------------------------------------
@@ -944,6 +943,8 @@ void Step12<dim>::apply_limiter_TVD ()
    double average_nbr, change, change_x, change_y;
    double db, df, Dx, Dy, Dx_new, Dy_new;
 
+   right_hand_side = solution;
+   
    for(unsigned int c=0; cell != endc; ++c, ++cell)
    if(cell->is_locally_owned())
    {
@@ -995,13 +996,15 @@ void Step12<dim>::apply_limiter_TVD ()
       {
          // Dont change cell average; zero other dofs
          for(unsigned int i=1; i<fe.dofs_per_cell; ++i)
-            solution(dof_indices[i]) = 0;
+            right_hand_side(dof_indices[i]) = 0;
          // NOTE: This part depends on the ordering of the basis functions.
-         solution(dof_indices[1]) = Dx_new;
-         solution(dof_indices[fe.degree+1]) = Dy_new;
+         right_hand_side(dof_indices[1]) = Dx_new;
+         right_hand_side(dof_indices[fe.degree+1]) = Dy_new;
       }
-
    }
+   
+   right_hand_side.compress(VectorOperation::insert);
+   solution = right_hand_side;
 }
 
 //------------------------------------------------------------------------------
