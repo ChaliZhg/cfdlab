@@ -614,6 +614,8 @@ void Step12<dim>::setup_mesh_worker (RHSIntegrator<dim>& rhs_integrator)
 template <int dim>
 void Step12<dim>::compute_dt ()
 {
+   TimerOutput::Scope t(computing_timer, "dt");
+
    pcout << "Computing local time-step ...\n";
       
    dt = 1.0e20;
@@ -930,6 +932,8 @@ void Step12<dim>::compute_shock_indicator ()
 template <int dim>
 void Step12<dim>::apply_limiter_TVD ()
 {
+   TimerOutput::Scope t(computing_timer, "limiter");
+
    if(fe.degree == 0) return;
    
    static const double sqrt_3 = std::sqrt(3.0);
@@ -1070,7 +1074,7 @@ void Step12<dim>::solve ()
    double final_time = 2.0*M_PI;
    unsigned int iter = 0;
    double time = 0;
-   while (time < final_time)
+   while (time < final_time && iter < 10)
    {
       // We want to reach final_time exactly
       if(time + dt > final_time) dt = final_time - time;
@@ -1214,6 +1218,8 @@ void Step12<dim>::refine_grid ()
 template <int dim>
 void Step12<dim>::output_results (double time)
 {
+   TimerOutput::Scope t(computing_timer, "output");
+
    static unsigned int cycle = 0;
    static std::vector< std::vector<std::string> > all_files;
    
