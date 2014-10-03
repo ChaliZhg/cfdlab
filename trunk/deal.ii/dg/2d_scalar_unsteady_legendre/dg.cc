@@ -1119,7 +1119,7 @@ void Step12<dim>::output_results (double time)
       
       DataOut<dim> data_out;
       data_out.attach_dof_handler (dof_handler_cell);
-      data_out.add_data_vector (average, "average");
+      data_out.add_data_vector (average, "average", DataOut<dim>::type_cell_data);
       
       compute_shock_indicator ();
       data_out.add_data_vector (shock_indicator, "shock_indicator");
