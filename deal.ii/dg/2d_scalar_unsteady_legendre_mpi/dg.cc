@@ -10,7 +10,7 @@
 /*    to the file deal.II/doc/license.html for the  text  and     */
 /*    further information on this license.                        */
 
-// Modifications by Praveen. C, http://math.tifrbng.res.in/~praveen
+// Modifications by Juan Pablo Gallego and Praveen. C
 // Explicit time-stepping Runge-Kutta DG method
 // Mass matrix on each cell is computed, inverted and the inverse 
 // is stored. Then in each time iteration, we need to compute right
@@ -21,27 +21,30 @@
 
 #include <base/quadrature_lib.h>
 #include <base/function.h>
-#include <deal.II/base/timer.h>
+#include <base/timer.h>
+#include <base/utilities.h>
+#include <base/conditional_ostream.h>
+#include <base/index_set.h>
 
-//#include <grid/tria.h>		//replaced by the parallel one
+#include <grid/tria.h>
 #include <grid/grid_generator.h>
 #include <grid/grid_out.h>
-#include <grid/grid_refinement.h>	//leave it for now... later try refinement and coarsening
+#include <grid/grid_refinement.h>
 #include <grid/tria_accessor.h>
 #include <grid/tria_iterator.h>
 #include <grid/grid_tools.h>
+
+#include <fe/mapping_q1.h>
 #include <fe/fe_values.h>
+#include <fe/fe_q.h>
+#include <fe/fe_dgp.h>
+
 #include <dofs/dof_handler.h>
 #include <dofs/dof_accessor.h>
 #include <dofs/dof_tools.h>
+
 #include <numerics/data_out.h>
 #include <numerics/vector_tools.h>
-
-#include <fe/mapping_q1.h>
-#include <deal.II/fe/fe_values.h>
-#include <deal.II/fe/fe_q.h>
-#include <fe/fe_dgp.h>
-				 
 #include <numerics/derivative_approximation.h>
 #include <numerics/solution_transfer.h>
 
@@ -50,47 +53,32 @@
 #include <meshworker/simple.h>
 #include <meshworker/loop.h>
 
-// MPI Libraries
+#include <lac/generic_linear_algebra.h>
+#include <lac/vector.h>
+#include <lac/full_matrix.h>
+#include <lac/solver_cg.h>
 
-#include <deal.II/lac/generic_linear_algebra.h>
-
-//#define USE_PETSC_LA
-
-namespace LA
-{
-#ifdef USE_PETSC_LA
-using namespace dealii::PETScWrappers;//dealii::LinearAlgebraPETSc;
-#else
-using namespace dealii::TrilinosWrappers;//dealii::LinearAlgebraTrilinos;
-#endif
-}
-#include <deal.II/lac/vector.h>
-#include <deal.II/lac/full_matrix.h>
-#include <deal.II/lac/solver_cg.h>
-#include <deal.II/lac/constraint_matrix.h>
-#include <deal.II/lac/compressed_simple_sparsity_pattern.h>
-
-#include <deal.II/lac/petsc_parallel_sparse_matrix.h>
-#include <deal.II/lac/petsc_parallel_vector.h>
-#include <deal.II/lac/petsc_solver.h>
-#include <deal.II/lac/petsc_precondition.h>
-
-#include <deal.II/base/utilities.h>
-
-#include <deal.II/base/conditional_ostream.h> 		//Don't know if we need it...
-#include <deal.II/base/index_set.h>
-#include <deal.II/lac/sparsity_tools.h>
-
-#include <deal.II/distributed/tria.h> 			//parallel version
-//#include <deal.II/distributed/grid_refinement.h> 	//Try later also with coarsening
+#include <distributed/tria.h>
+#include <distributed/grid_refinement.h>
+#include <distributed/solution_transfer.h>
 
 #include <iostream>
 #include <fstream>
 #include <cmath>
 
 #define sign(a)  ( (a) > 0 ? 1 : -1 )
+//#define USE_PETSC_LA
 
 using namespace dealii;
+
+namespace LA
+{
+#ifdef USE_PETSC_LA
+   using namespace ::PETScWrappers;
+#else
+   using namespace ::TrilinosWrappers;
+#endif
+}
 
 const double a_rk[] = {0.0, 3.0/4.0, 1.0/3.0};
 const double b_rk[] = {1.0, 1.0/4.0, 2.0/3.0};
@@ -290,8 +278,8 @@ private:
    LA::MPI::Vector      solution_old;
    LA::MPI::Vector      average;
    LA::MPI::Vector      right_hand_side;
-   LA::MPI::Vector      shock_indicator;
-   LA::MPI::Vector      jump_indicator;
+   Vector<double>       shock_indicator;
+   Vector<double>       jump_indicator;
    double               jump_ind_min, jump_ind_max, jump_ind_avg;
    double               dt;
    double               cfl;
@@ -325,10 +313,7 @@ Step12<dim>::Step12 (unsigned int degree,
       :
 
       mpi_communicator (MPI_COMM_WORLD),
-      triangulation (mpi_communicator,
-		     typename Triangulation<dim>::MeshSmoothing
-		     (Triangulation<dim>::smoothing_on_refinement |
-		     Triangulation<dim>::smoothing_on_coarsening)),
+      triangulation (mpi_communicator),
       mapping (),
       degree (degree),
       fe (degree),
@@ -379,8 +364,8 @@ void Step12<dim>::setup_system ()
    mass_matrix.reinit (locally_owned_dofs, mpi_communicator);
    
    average.reinit (locally_owned_dofs, mpi_communicator);
-   shock_indicator.reinit (locally_owned_dofs, mpi_communicator);
-   jump_indicator.reinit (locally_owned_dofs, mpi_communicator);
+   shock_indicator.reinit(triangulation.n_active_cells());
+   jump_indicator.reinit (triangulation.n_active_cells());
    
    // For each cell, find neighbourig cell
    // This is needed for limiter
@@ -430,7 +415,7 @@ void Step12<dim>::setup_system ()
    assemble_mass_matrix ();
    
    pcout << "Number of active cells:       "
-         << triangulation.n_active_cells()
+         << triangulation.n_global_active_cells()
          << std::endl;
    
    pcout << "Number of degrees of freedom: "
@@ -786,145 +771,142 @@ void Step12<dim>::integrate_face_term (DoFInfo& dinfo1, DoFInfo& dinfo2,
 template <int dim>
 void Step12<dim>::compute_shock_indicator ()
 {
-//   QGauss<dim-1> quadrature(fe.degree + 1);
-//   FEFaceValues<dim> fe_face_values (fe, quadrature,
-//                                     update_values | update_normal_vectors);
-//   FEFaceValues<dim> fe_face_values_nbr (fe, quadrature,
-//                                         update_values);
-//   FESubfaceValues<dim> fe_subface_values (fe, quadrature,
-//                                           update_values | update_normal_vectors);
-//   FESubfaceValues<dim> fe_subface_values_nbr (fe, quadrature,
-//                                               update_values);
-//   
-//   QGauss<dim> q_cell (fe.degree + 1);
-//   FEValues<dim> fe_values (fe, q_cell, update_values);
-//   std::vector<double> sol_values(q_cell.size());
-//   
-//   std::vector<unsigned int> dof_indices_cell (fe_cell.dofs_per_cell);
-//
-//   unsigned int n_q_points = quadrature.size();
-//   std::vector<double> face_values(n_q_points), face_values_nbr(n_q_points);
-//
-//   typename DoFHandler<dim>::active_cell_iterator
-//      cell = dof_handler.begin_active(),
-//      endc = dof_handler.end(),
-//      cell0 = dof_handler_cell.begin_active();
-//   
-//   jump_ind_min = 1.0e20;
-//   jump_ind_max = 0.0;
-//   jump_ind_avg = 0.0;
-//   
-//   for(; cell != endc; ++cell, ++cell0)
-//   {
-//      cell0->get_dof_indices(dof_indices_cell);
-//      double& cell_shock_ind = shock_indicator (dof_indices_cell[0]);
-//      double& cell_jump_ind = jump_indicator (dof_indices_cell[0]);
-//      
-//      cell_shock_ind = 0;
-//      cell_jump_ind = 0;
-//      double inflow_measure = 0;
-//      
-//      // advection speed at cell center
-//      Point<dim> beta;
-//      advection_speed(cell->center(), beta);
-//      
-//      for (unsigned int f=0; f<GeometryInfo<dim>::faces_per_cell; ++f)
-//         if (cell->at_boundary(f) == false)
-//         {
-//            if ((cell->neighbor(f)->level() == cell->level()) &&
-//                (cell->neighbor(f)->has_children() == false))
-//            {
-//               fe_face_values.reinit(cell, f);
-//               fe_face_values_nbr.reinit(cell->neighbor(f), cell->neighbor_of_neighbor(f));
-//               fe_face_values.get_function_values(solution, face_values);
-//               fe_face_values_nbr.get_function_values(solution, face_values_nbr);
-//               for(unsigned int q=0; q<n_q_points; ++q)
-//               {
-//                  int inflow_status = (beta * fe_face_values.normal_vector(q) < 0);
-//                  cell_shock_ind += inflow_status *
-//                                    (face_values[q] - face_values_nbr[q]) *
-//                                    fe_face_values.JxW(q);
-//                  cell_jump_ind += std::pow(face_values[q] - face_values_nbr[q], 2) *
-//                                   fe_face_values.JxW(q);
-//                  inflow_measure += inflow_status * fe_face_values.JxW(q);
-//               }
-//               
-//            }
-//            else if ((cell->neighbor(f)->level() == cell->level()) &&
-//                     (cell->neighbor(f)->has_children() == true))
-//            {
-//               for (unsigned int subface=0; subface<cell->face(f)->n_children(); ++subface)
-//               {
-//                  fe_subface_values.reinit (cell, f, subface);
-//                  fe_face_values_nbr.reinit (cell->neighbor_child_on_subface (f, subface),
-//                                             cell->neighbor_of_neighbor(f));
-//                  fe_subface_values.get_function_values(solution, face_values);
-//                  fe_face_values_nbr.get_function_values(solution, face_values_nbr);
-//                  for(unsigned int q=0; q<n_q_points; ++q)
-//                  {
-//                     int inflow_status = (beta * fe_subface_values.normal_vector(q) < 0);
-//                     cell_shock_ind += inflow_status *
-//                                       (face_values[q] - face_values_nbr[q]) *
-//                                       fe_subface_values.JxW(q);
-//                     cell_jump_ind += std::pow(face_values[q] - face_values_nbr[q], 2) *
-//                                      fe_face_values.JxW(q);
-//                     inflow_measure += inflow_status * fe_subface_values.JxW(q);
-//                  }
-//               }
-//            }
-//            else if (cell->neighbor_is_coarser(f))
-//            {
-//               fe_face_values.reinit(cell, f);
-//               fe_subface_values_nbr.reinit (cell->neighbor(f),
-//                                             cell->neighbor_of_coarser_neighbor(f).first,
-//                                             cell->neighbor_of_coarser_neighbor(f).second);
-//               fe_face_values.get_function_values(solution, face_values);
-//               fe_subface_values_nbr.get_function_values(solution, face_values_nbr);
-//               for(unsigned int q=0; q<n_q_points; ++q)
-//               {
-//                  int inflow_status = (beta * fe_face_values.normal_vector(q) < 0);
-//                  cell_shock_ind += inflow_status *
-//                                    (face_values[q] - face_values_nbr[q]) *
-//                                    fe_face_values.JxW(q);
-//                  cell_jump_ind += std::pow(face_values[q] - face_values_nbr[q], 2) *
-//                                   fe_face_values.JxW(q);
-//                  inflow_measure += inflow_status * fe_face_values.JxW(q);
-//               }
-//            }
-//         }
-//         else
-//         {
-//            // Boundary face
-//            // We dont do anything here since we assume solution is constant near
-//            // boundary.
-//         }
-//      
-//      // normalized shock indicator
-//      fe_values.reinit (cell);
-//      fe_values.get_function_values (solution, sol_values);
-//      double cell_norm = 0;
-//      for(unsigned int q=0; q<q_cell.size(); ++q)
-//         cell_norm = std::max(cell_norm, std::fabs(sol_values[q]));
-//      
-//      double denominator = std::pow(cell->diameter(), 0.5*(fe.degree+1)) *
-//                           inflow_measure *
-//                           cell_norm;
-//      if(denominator > 1.0e-12)
-//      {
-//         cell_shock_ind = std::fabs(cell_shock_ind) / denominator;
-//         cell_shock_ind = (cell_shock_ind > 1.0) ? 1.0 : 0.0;
-//      }
-//      else
-//         cell_shock_ind = 0;
-//      
-//      dx = cell->diameter() / std::sqrt(2.0);
-//      cell_jump_ind = std::sqrt( cell_jump_ind / (4.0*dx) ) * cell->diameter();
-//      jump_ind_min = std::min(jump_ind_min, cell_jump_ind);
-//      jump_ind_max = std::max(jump_ind_max, cell_jump_ind);
-//      jump_ind_avg += cell_jump_ind;
-//   }
-//   
-//   jump_ind_avg /= triangulation.n_active_cells();
+   TimerOutput::Scope t(computing_timer, "Shock Indicator");
+   
+   QGauss<dim-1> quadrature(fe.degree + 1);
+   FEFaceValues<dim> fe_face_values (fe, quadrature,
+                                     update_values | update_normal_vectors);
+   FEFaceValues<dim> fe_face_values_nbr (fe, quadrature,
+                                         update_values);
+   FESubfaceValues<dim> fe_subface_values (fe, quadrature,
+                                           update_values | update_normal_vectors);
+   FESubfaceValues<dim> fe_subface_values_nbr (fe, quadrature,
+                                               update_values);
+   
+   QGauss<dim> q_cell (fe.degree + 1);
+   FEValues<dim> fe_values (fe, q_cell, update_values);
+   std::vector<double> sol_values(q_cell.size());
+   
+   unsigned int n_q_points = quadrature.size();
+   std::vector<double> face_values(n_q_points), face_values_nbr(n_q_points);
+
+   typename DoFHandler<dim>::active_cell_iterator
+      cell = dof_handler.begin_active(),
+      endc = dof_handler.end();
+   
+   jump_ind_min = 1.0e20;
+   jump_ind_max = 0.0;
+   jump_ind_avg = 0.0;
+   
+   for(unsigned int c=0; cell != endc; ++cell, ++c)
+   if(cell->is_locally_owned())
+   {
+      double& cell_shock_ind = shock_indicator (c);
+      double& cell_jump_ind = jump_indicator (c);
+      double inflow_measure = 0;
+      
+      // advection speed at cell center
+      Point<dim> beta;
+      advection_speed(cell->center(), beta);
+      
+      for (unsigned int f=0; f<GeometryInfo<dim>::faces_per_cell; ++f)
+         if (cell->at_boundary(f) == false)
+         {
+            if ((cell->neighbor(f)->level() == cell->level()) &&
+                (cell->neighbor(f)->has_children() == false))
+            {
+               fe_face_values.reinit(cell, f);
+               fe_face_values_nbr.reinit(cell->neighbor(f), cell->neighbor_of_neighbor(f));
+               fe_face_values.get_function_values(solution, face_values);
+               fe_face_values_nbr.get_function_values(solution, face_values_nbr);
+               for(unsigned int q=0; q<n_q_points; ++q)
+               {
+                  int inflow_status = (beta * fe_face_values.normal_vector(q) < 0);
+                  cell_shock_ind += inflow_status *
+                                    (face_values[q] - face_values_nbr[q]) *
+                                    fe_face_values.JxW(q);
+                  cell_jump_ind += std::pow(face_values[q] - face_values_nbr[q], 2) *
+                                   fe_face_values.JxW(q);
+                  inflow_measure += inflow_status * fe_face_values.JxW(q);
+               }
+               
+            }
+            else if ((cell->neighbor(f)->level() == cell->level()) &&
+                     (cell->neighbor(f)->has_children() == true))
+            {
+               for (unsigned int subface=0; subface<cell->face(f)->n_children(); ++subface)
+               {
+                  fe_subface_values.reinit (cell, f, subface);
+                  fe_face_values_nbr.reinit (cell->neighbor_child_on_subface (f, subface),
+                                             cell->neighbor_of_neighbor(f));
+                  fe_subface_values.get_function_values(solution, face_values);
+                  fe_face_values_nbr.get_function_values(solution, face_values_nbr);
+                  for(unsigned int q=0; q<n_q_points; ++q)
+                  {
+                     int inflow_status = (beta * fe_subface_values.normal_vector(q) < 0);
+                     cell_shock_ind += inflow_status *
+                                       (face_values[q] - face_values_nbr[q]) *
+                                       fe_subface_values.JxW(q);
+                     cell_jump_ind += std::pow(face_values[q] - face_values_nbr[q], 2) *
+                                      fe_face_values.JxW(q);
+                     inflow_measure += inflow_status * fe_subface_values.JxW(q);
+                  }
+               }
+            }
+            else if (cell->neighbor_is_coarser(f))
+            {
+               fe_face_values.reinit(cell, f);
+               fe_subface_values_nbr.reinit (cell->neighbor(f),
+                                             cell->neighbor_of_coarser_neighbor(f).first,
+                                             cell->neighbor_of_coarser_neighbor(f).second);
+               fe_face_values.get_function_values(solution, face_values);
+               fe_subface_values_nbr.get_function_values(solution, face_values_nbr);
+               for(unsigned int q=0; q<n_q_points; ++q)
+               {
+                  int inflow_status = (beta * fe_face_values.normal_vector(q) < 0);
+                  cell_shock_ind += inflow_status *
+                                    (face_values[q] - face_values_nbr[q]) *
+                                    fe_face_values.JxW(q);
+                  cell_jump_ind += std::pow(face_values[q] - face_values_nbr[q], 2) *
+                                   fe_face_values.JxW(q);
+                  inflow_measure += inflow_status * fe_face_values.JxW(q);
+               }
+            }
+         }
+         else
+         {
+            // Boundary face
+            // We dont do anything here since we assume solution is constant near
+            // boundary.
+         }
+      
+      // normalized shock indicator
+      fe_values.reinit (cell);
+      fe_values.get_function_values (solution, sol_values);
+      double cell_norm = 0;
+      for(unsigned int q=0; q<q_cell.size(); ++q)
+         cell_norm = std::max(cell_norm, std::fabs(sol_values[q]));
+      
+      double denominator = std::pow(cell->diameter(), 0.5*(fe.degree+1)) *
+                           inflow_measure *
+                           cell_norm;
+      if(denominator > 1.0e-12)
+      {
+         cell_shock_ind = std::fabs(cell_shock_ind) / denominator;
+         cell_shock_ind = (cell_shock_ind > 1.0) ? 1.0 : 0.0;
+      }
+      else
+         cell_shock_ind = 0;
+      
+      dx = cell->diameter() / std::sqrt(2.0);
+      cell_jump_ind = std::sqrt( cell_jump_ind / (4.0*dx) ) * cell->diameter();
+      jump_ind_min = std::min(jump_ind_min, cell_jump_ind);
+      jump_ind_max = std::max(jump_ind_max, cell_jump_ind);
+      jump_ind_avg += cell_jump_ind;
+   }
+   
+   jump_ind_avg = Utilities::MPI::sum (jump_ind_avg, mpi_communicator);
+   jump_ind_avg /= triangulation.n_global_active_cells();
 }
 //------------------------------------------------------------------------------
 // Slope limiter based on minmod
@@ -1100,12 +1082,12 @@ void Step12<dim>::solve ()
       
       ++iter; time += dt;
 
-//      if(iter==1 || std::fmod(iter,10)==0)
-//      {
-//         compute_shock_indicator ();
-//         refine_grid ();
-//         compute_dt ();
-//      }
+      if(std::fmod(iter,10)==0)
+      {
+         compute_shock_indicator ();
+         refine_grid ();
+         compute_dt ();
+      }
       
       pcout << "It=" << iter
             << ", t= " << time
@@ -1125,12 +1107,15 @@ void Step12<dim>::refine_grid_initial ()
 {
    pcout << "Refining grid ...\n";
    
-   SolutionTransfer<dim, Vector<double> > soltrans(dof_handler);
-   
    //double threshold = 0.5*(jump_ind_min + jump_ind_max);
    double threshold = jump_ind_avg;
+   pcout << "Threshold = " << threshold << std::endl;
 
-   GridRefinement::refine (triangulation, jump_indicator, threshold);
+   parallel::distributed::GridRefinement::refine_and_coarsen_fixed_number
+      (triangulation,
+       jump_indicator,
+       0.1,
+       0.0);
    
    unsigned int min_grid_level = 0;
    unsigned int max_grid_level = 5;
@@ -1138,20 +1123,17 @@ void Step12<dim>::refine_grid_initial ()
       for (typename Triangulation<dim>::active_cell_iterator
            cell = triangulation.begin_active(max_grid_level);
            cell != triangulation.end(); ++cell)
+         if(cell->is_locally_owned())
          cell->clear_refine_flag ();
    
    for (typename Triangulation<dim>::active_cell_iterator
         cell = triangulation.begin_active(min_grid_level);
         cell != triangulation.end_active(min_grid_level); ++cell)
+      if(cell->is_locally_owned())
       cell->clear_coarsen_flag ();
    
-   // store solution on current mesh
-   LA::MPI::Vector previous_solution;
-   previous_solution = solution;
-   
-   triangulation.prepare_coarsening_and_refinement();
-   soltrans.prepare_for_coarsening_and_refinement(previous_solution);
-   triangulation.execute_coarsening_and_refinement ();
+   //triangulation.prepare_coarsening_and_refinement();
+   triangulation.execute_coarsening_and_refinement();
    
    setup_system ();
    
@@ -1164,7 +1146,7 @@ void Step12<dim>::refine_grid_initial ()
 template <int dim>
 void Step12<dim>::refine_grid ()
 {
-   std::cout << "Refining grid ...\n";
+   pcout << "Refining grid ...\n";
    Vector<float> gradient_indicator (triangulation.n_active_cells());
    
    DerivativeApproximation::approximate_gradient (mapping,
@@ -1178,10 +1160,10 @@ void Step12<dim>::refine_grid ()
    for (unsigned int cell_no=0; cell!=endc; ++cell, ++cell_no)
       gradient_indicator(cell_no) *= std::pow(cell->diameter(), 1.0+0.5*dim);
    
-   SolutionTransfer<dim, Vector<double> > soltrans(dof_handler);
-   GridRefinement::refine_and_coarsen_fixed_fraction (triangulation,
-                                                      gradient_indicator,
-                                                      0.5, 0.1, 5000);
+   parallel::distributed::SolutionTransfer<dim,LA::MPI::Vector> soltrans(dof_handler);
+   parallel::distributed::GridRefinement::refine_and_coarsen_fixed_fraction (triangulation,
+                                                                             gradient_indicator,
+                                                                             0.5, 0.1);
    
    unsigned int min_grid_level = 0;
    unsigned int max_grid_level = 5;
@@ -1189,27 +1171,30 @@ void Step12<dim>::refine_grid ()
       for (typename Triangulation<dim>::active_cell_iterator
             cell = triangulation.begin_active(max_grid_level);
             cell != triangulation.end(); ++cell)
-      cell->clear_refine_flag ();
+         if(cell->is_locally_owned())
+            cell->clear_refine_flag ();
    
    for (typename Triangulation<dim>::active_cell_iterator
         cell = triangulation.begin_active(min_grid_level);
         cell != triangulation.end_active(min_grid_level); ++cell)
-      cell->clear_coarsen_flag ();
+      if(cell->is_locally_owned())
+         cell->clear_coarsen_flag ();
    
    // store solution on current mesh
-   LA::MPI::Vector previous_solution;
+   //LA::MPI::Vector previous_solution;
    //Vector<double> previous_solution;
-   previous_solution = solution;
+   //previous_solution = solution;
    
    triangulation.prepare_coarsening_and_refinement();
-   soltrans.prepare_for_coarsening_and_refinement(previous_solution);
+   soltrans.prepare_for_coarsening_and_refinement(solution);
    triangulation.execute_coarsening_and_refinement ();
    
    setup_system ();
    
    // interpolate solution to new mesh
-   soltrans.interpolate(previous_solution, solution);
-   soltrans.clear();
+   LA::MPI::Vector distributed_solution(locally_owned_dofs, mpi_communicator);
+   soltrans.interpolate(distributed_solution);
+   solution = distributed_solution;
 }
 
 //------------------------------------------------------------------------------
@@ -1234,7 +1219,7 @@ void Step12<dim>::output_results (double time)
          subdomain(i) = triangulation.locally_owned_subdomain();
       data_out.add_data_vector(subdomain, "subdomain");
       
-      data_out.build_patches(fe.degree+1);
+      data_out.build_patches(fe.degree);
       
       std::string filename = ("sol-" +
                               Utilities::int_to_string(cycle,4) +
@@ -1273,18 +1258,18 @@ void Step12<dim>::output_results (double time)
 template <int dim>
 void Step12<dim>::run ()
 {
-   GridGenerator::subdivided_hyper_cube (triangulation,100,-1.0,+1.0);
+   GridGenerator::subdivided_hyper_cube (triangulation,20,-1.0,+1.0);
    setup_system ();
    set_initial_condition ();
    
    // Initial refinements
-//   unsigned int n_refine_init = 3;
-//   for(unsigned int i=0; i<n_refine_init; ++i)
-//   {
-//      compute_shock_indicator ();
-//      refine_grid_initial ();
-//      set_initial_condition();
-//   }
+   unsigned int n_refine_init = 5;
+   for(unsigned int i=0; i<n_refine_init; ++i)
+   {
+      compute_shock_indicator ();
+      refine_grid_initial ();
+      set_initial_condition();
+   }
    output_results(0);
    
    solve ();
@@ -1307,7 +1292,7 @@ int main (int argc, char *argv[])
 
       unsigned int degree = 1;
       LimiterType limiter_type = none;
-      TestCase test_case = expo;
+      TestCase test_case = square;
       Mlim = 0.0;
       Step12<2> dgmethod(degree, limiter_type, test_case);
       dgmethod.run ();
