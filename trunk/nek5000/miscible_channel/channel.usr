@@ -101,8 +101,12 @@ c     We put a smooth heaviside function
          endif
       endif
 
+c     Save solution at points specified in hpts.in
+c     Solution is written into hpts.out
+c     Make sure to delete old hpts.out file
       if(mod(istep,10).eq.0) call hpts()
 
+c     Compute running time average
       if(istep.eq.param(68))then
          ifxyo = .true.
       else
