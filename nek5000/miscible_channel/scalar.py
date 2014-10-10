@@ -12,5 +12,5 @@ for line in lines:
    smin.append(float(s[5]))
    smax.append(float(s[6]))
 
-print("Scalar min =", min(smin))
-print("Scalar max =", max(smax))
+print("Scalar min = %g" % min(smin))
+print("Scalar max = %g" % max(smax))
