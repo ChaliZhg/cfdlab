@@ -1,0 +1,266 @@
+c Pressure driven miscible channel flow
+c
+c Inlet velocity Uq is chosen so that velocity based on mass flow rate
+c is unity
+c    Um = int_0^1 u(y) dy = 1.0
+c
+c-----------------------------------------------------------------------
+      subroutine uservp (ix,iy,iz,ieg)
+      include 'SIZE'
+      include 'TOTAL'
+      include 'NEKUSE'
+      common /mygeom/ xmin,xmax
+      common /myparam/ smlen,r_k,r_T,Uq,Rey_no,Pr_no,Sc_no,visc_rat
+
+c     Clip concentration to interval [0,1]
+      sc    = max(0.0, ps(1))
+      sc    = min(1.0, sc)
+
+      if(ifield.eq.1)then   ! momentum equation
+         utrans= 1.0
+         udiff = exp(sc*log(visc_rat) - temp)/Rey_no
+      else if(ifield.eq.2)then ! temperature eqn
+         utrans= 1.0
+         udiff = sc*(r_k - 1.0) + 1.0
+         udiff = udiff/(Rey_no*Pr_no)
+      else if(ifield.eq.3)then  ! passive scalar
+         utrans= 1.0
+         udiff = 1.0/(Rey_no*Sc_no)
+      else
+         if(nid.eq.0) write(6,'("Only 3 fields")')
+         call exitt()
+      endif
+
+      return
+      end
+c-----------------------------------------------------------------------
+      subroutine userf  (ix,iy,iz,ieg)
+      include 'SIZE'
+      include 'TOTAL'
+      include 'NEKUSE'
+
+      ffx = 0.0
+      ffy = 0.0
+      ffz = 0.0
+
+      return
+      end
+c-----------------------------------------------------------------------
+      subroutine userq  (ix,iy,iz,ieg)
+      include 'SIZE'
+      include 'TOTAL'
+      include 'NEKUSE'
+C
+      qvol   = 0.0
+      source = 0.0
+      return
+      end
+c-----------------------------------------------------------------------
+      subroutine userchk
+      include 'SIZE'  
+      include 'TOTAL' 
+      common /cwdata/ cwgt(lx1*ly1*lz1*lelt),ctot0
+
+c     Calculate min, max values of concentration
+      if(mod(istep,10).eq.0)then
+         n    = nx1*ny1*nz1*nelt
+         cmin = glmin(t(1,1,1,1,2),n)
+         cmax = glmax(t(1,1,1,1,2),n)
+         if(nid.eq.0)then
+         write(6,'(5X,I6,5X,"Scalar min, max = ",2E12.4)') istep, 
+     1             cmin, cmax
+         endif
+      endif
+
+c     Clip the concentration to [0,1]
+      n    = nx1*ny1*nz1*nelt
+      do i=1,n
+         t(i,1,1,1,2) = max(0.0, t(i,1,1,1,2))
+         t(i,1,1,1,2) = min(1.0, t(i,1,1,1,2))
+      enddo
+
+c     Calculate total concentration
+c     Integrate c over regions where c > 0.95
+c     We put a smooth heaviside function
+      if(istep.eq.0.or.mod(istep,500).eq.0)then
+         xtip = 0.0
+         n    = nx1*ny1*nz1*nelt
+         do i=1,n
+            cc      = t(i,1,1,1,2) - 0.95
+            cwgt(i) = 0.5*(1.0 + erf(50.0*cc))
+            if(t(i,1,1,1,2).ge.0.95.and.t(i,1,1,1,2).lt.0.98)then
+               xtip = max(xtip, xm1(i,1,1,1))
+            endif
+         enddo
+         ctot = glsc3(t(1,1,1,1,2),cwgt,bm1,n)
+         if(istep.eq.0) ctot0 = ctot
+         xtip = glmax(xtip,1)
+         if(nid.eq.0)then
+            write(6,'(5X,"Time, ctot, xtip = ",3E14.6)') 
+     1               time, ctot/ctot0, xtip
+         endif
+      endif
+
+c     Save solution at points specified in hpts.in
+c     Solution is written into hpts.out
+c     Make sure to delete old hpts.out file
+      if(mod(istep,10).eq.0) call hpts()
+
+c     Compute running time average
+      if(istep.eq.param(68))then
+         ifxyo = .true.
+      else
+         ifxyo = .false.
+      endif
+      call avg_all()
+      if(nid.eq.0) call system("rm -f rmschannel* rm2channel*")
+
+      ! Save initial condition
+      if(istep.eq.0)then
+         ifxyo = .true.
+         call outpost2(vx,vy,vz,pr,t,2,'   ')
+      else
+         ifxyo = .false.
+      endif
+
+
+      return
+      end
+c-----------------------------------------------------------------------
+      subroutine userbc (ix,iy,iz,iside,ieg)
+      include 'SIZE'
+      include 'TOTAL'
+      include 'NEKUSE'
+      common /myparam/ smlen,r_k,r_T,Uq,Rey_no,Pr_no,Sc_no,visc_rat
+      dimension acheb(1000)
+      common /vprofile/ncheb,acheb,hi,delta
+
+      if(y.gt.0.5)then
+         ux    = chebev(0.5, 1.0, acheb, ncheb, y)
+      else
+         ux    = chebev(0.5, 1.0, acheb, ncheb, 1.0-y)
+      endif
+c     ux    = 4.0*Uq*y*(1.0-y)
+      uy    = 0.0
+      uz    = 0.0
+      temp  = 0.0
+
+      if(ifield.eq.2)then      ! temperature: inlet=r_T, sides=0
+         temp  = r_T*(1.0 - erf(smlen*x))
+      else if(ifield.eq.3)then ! passive scalar
+         if(y.gt.0.5)then
+            temp = 0.5*(1.0 + erf((y-hi)/delta))
+         else
+            temp = 0.5*(1.0 + erf((1.0-y-hi)/delta))
+         endif
+      endif
+
+      return
+      end
+c-----------------------------------------------------------------------
+      subroutine useric (ix,iy,iz,ieg)
+      include 'SIZE'
+      include 'TOTAL'
+      include 'NEKUSE'
+      common /myparam/ smlen,r_k,r_T,Uq,Rey_no,Pr_no,Sc_no,visc_rat
+      dimension acheb(1000)
+      common /vprofile/ncheb,acheb,hi,delta
+
+      if(y.gt.0.5)then
+         ux    = chebev(0.5, 1.0, acheb, ncheb, y)
+      else
+         ux    = chebev(0.5, 1.0, acheb, ncheb, 1.0-y)
+      endif
+c     ux    = 4.0*Uq*y*(1.0-y)*(1.0 - erf(smlen*x))
+      uy    = 0.0
+      uz    = 0.0
+
+      if(ifield.eq.2)then       ! temperature: inlet=r_T, sides=0
+         temp  = r_T*(1.0 - erf(smlen*x))
+      else if(ifield.eq.3)then  ! passive scalar
+         yy = y
+         if(y.lt.0.5) yy = 1.0 - y
+         temp = 0.5*(1.0 + erf((yy-0.5-hi)/delta))
+      endif
+
+      return
+      end
+c-----------------------------------------------------------------------
+      subroutine usrdat
+      include 'SIZE'
+      include 'TOTAL'
+      common /myparam/ smlen,r_k,r_T,Uq,Rey_no,Pr_no,Sc_no,visc_rat
+
+      ifpsco(1) = .true.   ! concentration
+      ifpsco(2) = .false.  ! used in post.usr to store vorticity
+
+      param(66) = 6
+      param(67) = 6
+
+c     Length over which to smooth initial condition at inlet
+      smlen = 5.0
+
+      r_k      = 1.0     ! ratio of thermal conducitivies
+      r_T      = 0.0     ! Temperature at inlet, walls = 0
+      Uq       = 1.5     ! avg velocity based on flow rate
+      Rey_no   = 500.0
+      Sc_no    = 100.0
+      Pr_no    = 7.0
+      visc_rat = 25.0
+
+      return
+      end
+c-----------------------------------------------------------------------
+      subroutine usrdat2
+      include 'SIZE'
+      include 'TOTAL'
+      common /mygeom/ xmin,xmax
+
+      ifuservp = .true.
+      ifstrs   = .true.
+
+      n    = nx1*ny1*nz1*nelv
+      xmin = glmin(xm1,n)
+      xmax = glmax(xm1,n)
+
+      return
+      end
+c-----------------------------------------------------------------------
+      subroutine usrdat3
+      dimension acheb(1000)
+      common/vprofile/ncheb,acheb,hi,delta
+
+c     Read chebyshev coefficients
+      ifid = 10
+      open(ifid,file='velcheb.dat',status='old')
+      read(ifid,*) ncheb, hi, delta
+      read(ifid,*)(acheb(i),i=1,ncheb)
+      close(ifid)
+
+      return
+      end
+c-----------------------------------------------------------------------
+      real*8 function CHEBEV(A,B,C,M,X)
+      !**********************************************************
+      !* Chebyshev evaluation: All arguments are input. C is an *
+      !* array of Chebyshev coefficients, of length M, the first*
+      !* M elements of Coutput from subroutine CHEBFT (which    *
+      !* must have been called with the same A and B). The Che- *
+      !* byshev polynomial is evaluated at a point Y determined *
+      !* from X, A and B, and the result FUNC(X) is returned as *
+      !* the function value.                                    *
+      !**********************************************************
+      parameter(HALF=0.5d0,TWO=2.d0,ZERO=0.d0)
+      real*8 A,B,C(M),X
+      real*8 D,DD,SV,Y,Y2
+      D=ZERO; DD=ZERO
+      Y=(TWO*X-A-B)/(B-A)  !change of variable
+      Y2=TWO*Y
+      do J=1,M-1
+         SV=D
+         D=Y2*D-DD+C(J)
+         DD=SV
+      end do
+      CHEBEV=Y*D-DD+C(M)
+      return
+      end
