@@ -442,6 +442,7 @@ double Step12<dim>::compute_cell_average(const typename DoFHandler<dim>::cell_it
       auto child_cells = GridTools::get_active_child_cells< DoFHandler<dim> > (cell);
       double avg = 0, measure = 0;
       for(unsigned int i=0; i<child_cells.size(); ++i)
+      if(!child_cells[i]->is_artificial())
       {
          child_cells[i]->get_dof_indices(dof_indices);
          avg += solution(dof_indices[0]) * child_cells[i]->measure();
@@ -1132,7 +1133,7 @@ void Step12<dim>::refine_grid_initial ()
       if(cell->is_locally_owned())
       cell->clear_coarsen_flag ();
    
-   //triangulation.prepare_coarsening_and_refinement();
+   triangulation.prepare_coarsening_and_refinement();
    triangulation.execute_coarsening_and_refinement();
    
    setup_system ();
@@ -1291,7 +1292,7 @@ int main (int argc, char *argv[])
       //dealllog.depth_console(0);
 
       unsigned int degree = 1;
-      LimiterType limiter_type = none;
+      LimiterType limiter_type = tvd;
       TestCase test_case = square;
       Mlim = 0.0;
       Step12<2> dgmethod(degree, limiter_type, test_case);
