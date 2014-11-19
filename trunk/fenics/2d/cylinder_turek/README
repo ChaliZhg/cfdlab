@@ -1,0 +1,11 @@
+* Run gmsh
+
+  $ gmsh -2 cylinder.geo
+
+* Convert gmsh to xml format
+
+  $ dolfin-convert -i gmsh -o xml cylinder.msh cylinder.xml
+
+* Run solver
+
+  $ python ns.py
