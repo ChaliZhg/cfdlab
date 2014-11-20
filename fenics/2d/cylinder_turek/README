@@ -1,11 +1,5 @@
-* Run gmsh
+Use makefile to generate gmsh grid and convert to xml format.
 
-  $ gmsh -2 cylinder.geo
-
-* Convert gmsh to xml format
-
-  $ dolfin-convert -i gmsh -o xml cylinder.msh cylinder.xml
-
-* Run solver
+Then run solver
 
   $ python ns.py

@@ -44,9 +44,9 @@ print "Pressure dofs = ", W.dim()
 print "Total    dofs = ", X.dim()
 
 # Solution variables
-up0 = Function(X)
-up1 = Function(X)
-up2 = Function(X)
+up0 = Function(X)  # u^{n-2}
+up1 = Function(X)  # u^{n-1}
+up2 = Function(X)  # u^{n}
 
 # Trial functions
 up  = TrialFunction(X)
@@ -65,9 +65,11 @@ bccyl= DirichletBC(X.sub(0), (0,0), boundaries, 2)
 bcwal= DirichletBC(X.sub(0), (0,0), boundaries, 4)
 bcs  = [bcin, bccyl, bcwal]
 
-Re = 50.0
-nu = Constant(1.0/Re)
-dt = 0.01
+Ur = 1.0                # Reference velocity
+D  = 0.1                # dia of cylinder
+Re = 100.0              # Reynolds number
+nu = Constant(Ur*D/Re)  # viscosity coefficient
+dt = 0.0001
 idt= Constant(1.0/dt)
 
 up0.interpolate(initial_condition())
@@ -94,12 +96,10 @@ L  = rhs(F1)
 
 A  = assemble(a)
 solver = LUSolver(A)
-solver.parameters['reuse_factorization'] = True
 
 b  = assemble(L)
 [bc.apply(A,b) for bc in bcs]
 solver.solve(up1.vector(), b)
-up0.assign(up1)
 t += dt
 it+= 1
 
@@ -107,10 +107,10 @@ it+= 1
 # Predicted velocity
 us = 2.0*u1 - u0
 
-F2 = idt*inner(1.5*u - 2.0*u1 + 0.5*u0, v)*dx       \
-   + inner(grad(us)*us, v)*dx      \
-   - p*div(v)*dx                   \
-   + nu*inner(grad(u), grad(v))*dx \
+F2 = idt*inner(1.5*u - 2.0*u1 + 0.5*u0, v)*dx  \
+   + inner(grad(us)*us, v)*dx                  \
+   - p*div(v)*dx                               \
+   + nu*inner(grad(u), grad(v))*dx             \
    - q*div(u)*dx
 
 a  = lhs(F2)
@@ -129,6 +129,6 @@ while t < Tf:
     t += dt
     it+= 1
     print "it = %6d,     t = %12.6e" % (it,t)
-    if it%10 == 0:
+    if it%100 == 0:
         u,p = up2.split()
         fu << u
