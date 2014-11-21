@@ -65,6 +65,12 @@ bccyl= DirichletBC(X.sub(0), (0,0), boundaries, 2)
 bcwal= DirichletBC(X.sub(0), (0,0), boundaries, 4)
 bcs  = [bcin, bccyl, bcwal]
 
+# These are used to estimate cfl number
+DG = FunctionSpace(mesh, 'DG', 0)
+vdg= TestFunction(DG)
+h    = [cell.diameter() for cell in cells(mesh)]
+area = [cell.volume()   for cell in cells(mesh)]
+
 Ur = 1.0                # Reference velocity
 D  = 0.1                # dia of cylinder
 Re = 100.0              # Reynolds number
@@ -121,6 +127,10 @@ solver = LUSolver(A)
 solver.parameters['reuse_factorization'] = True
 
 while t < Tf:
+    uavg = assemble(sqrt(us[0]**2+us[1]**2)*vdg*dx)
+    uavg = uavg.array()/area
+    cfl  = dt * max(uavg/h)
+    print "cfl = ", cfl
     b  = assemble(L)
     [bc.apply(A,b) for bc in bcs]
     solver.solve(up2.vector(), b)
