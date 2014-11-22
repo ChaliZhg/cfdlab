@@ -123,6 +123,7 @@ L  = rhs(F2)
 A  = assemble(a)
 solver = LUSolver(A)
 solver.parameters['reuse_factorization'] = True
+[bc.apply(A) for bc in bcs]
 
 while t < Tf:
     # estimate cfl number
@@ -134,7 +135,7 @@ while t < Tf:
     up2.vector()[:] = 2.0*up1.vector() - up0.vector()
     for i in range(4):
         b  = assemble(L)
-        [bc.apply(A,b) for bc in bcs]
+        [bc.apply(b) for bc in bcs]
         res= A * up2.vector() - b
         res_norm = norm(res)/sqrt(X.dim())
         print "%3d %12.4e" % (i, res_norm)

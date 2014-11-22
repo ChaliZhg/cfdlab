@@ -125,6 +125,7 @@ L  = rhs(F2)
 A  = assemble(a)
 solver = LUSolver(A)
 solver.parameters['reuse_factorization'] = True
+[bc.apply(A) for bc in bcs]
 
 while t < Tf:
     uavg = assemble(sqrt(us[0]**2+us[1]**2)*vdg*dx)
@@ -132,7 +133,7 @@ while t < Tf:
     cfl  = dt * max(uavg/h)
     print "cfl = ", cfl
     b  = assemble(L)
-    [bc.apply(A,b) for bc in bcs]
+    [bc.apply(b) for bc in bcs]
     solver.solve(up2.vector(), b)
     up0.assign(up1)
     up1.assign(up2)
