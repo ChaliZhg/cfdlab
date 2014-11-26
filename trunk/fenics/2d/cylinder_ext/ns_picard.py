@@ -1,7 +1,7 @@
 """
-Flow over cylinder in channel
-Test case from Turek
+Flow over cylinder in external flow
 
+No stress BC on top, bottom and outflow boundaries
 Picard iteration on convective term
 BDF1 in first step, BDF2 subsequently
 """
