@@ -12,7 +12,8 @@ class inlet_velocity(Expression):
       self.t = t
    def eval(self, value, x):
       yc = x[1]/0.41
-      value[0] = 6.0*yc*(1.0-yc)
+      ff = 1.0 - exp(-5.0*self.t)
+      value[0] = 6.0*yc*(1.0-yc)*ff
       value[1] = 0.0
       return value
    def value_shape(self):
@@ -21,7 +22,7 @@ class inlet_velocity(Expression):
 class initial_condition(Expression):
    def eval(self, value, x):
       yc = x[1]/0.41
-      value[0] = 6.0*yc*(1.0-yc)
+      value[0] = 6.0*yc*(1.0-yc)*0.0
       value[1] = 0.0
       value[2] = 0.0
       return value
@@ -105,6 +106,7 @@ A  = assemble(a)
 solver = LUSolver(A)
 
 b  = assemble(L)
+vin.t = t + dt
 [bc.apply(A,b) for bc in bcs]
 solver.solve(up1.vector(), b)
 t += dt
@@ -135,6 +137,7 @@ while t < Tf:
     up2.vector()[:] = 2.0*up1.vector() - up0.vector()
     for i in range(4):
         b  = assemble(L)
+        vin.t = t + dt
         [bc.apply(b) for bc in bcs]
         res= A * up2.vector() - b
         res_norm = norm(res)/sqrt(X.dim())

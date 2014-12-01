@@ -12,7 +12,8 @@ class inlet_velocity(Expression):
       self.t = t
    def eval(self, value, x):
       yc = x[1]/0.41
-      value[0] = 6.0*yc*(1.0-yc)
+      ff = 1.0 - exp(-5.0*self.t)
+      value[0] = 6.0*yc*(1.0-yc)*ff
       value[1] = 0.0
       return value
    def value_shape(self):
@@ -21,7 +22,7 @@ class inlet_velocity(Expression):
 class initial_condition(Expression):
    def eval(self, value, x):
       yc = x[1]/0.41
-      value[0] = 6.0*yc*(1.0-yc)
+      value[0] = 6.0*yc*(1.0-yc)*0.0
       value[1] = 0.0
       value[2] = 0.0
       return value
@@ -75,7 +76,7 @@ Ur = 1.0                # Reference velocity
 D  = 0.1                # dia of cylinder
 Re = 100.0              # Reynolds number
 nu = Constant(Ur*D/Re)  # viscosity coefficient
-dt = 0.0001
+dt = 0.001
 idt= Constant(1.0/dt)
 
 up0.interpolate(initial_condition())
@@ -104,6 +105,7 @@ A  = assemble(a)
 solver = LUSolver(A)
 
 b  = assemble(L)
+vin.t = t + dt
 [bc.apply(A,b) for bc in bcs]
 solver.solve(up1.vector(), b)
 t += dt
@@ -131,15 +133,15 @@ while t < Tf:
     uavg = assemble(sqrt(us[0]**2+us[1]**2)*vdg*dx)
     uavg = uavg.array()/area
     cfl  = dt * max(uavg/h)
-    print "cfl = ", cfl
     b  = assemble(L)
+    vin.t = t + dt
     [bc.apply(b) for bc in bcs]
     solver.solve(up2.vector(), b)
     up0.assign(up1)
     up1.assign(up2)
     t += dt
     it+= 1
-    print "it = %6d,     t = %12.6e" % (it,t)
+    print "it = %6d,   t = %12.6e,   cfl = %e" % (it,t,cfl)
     if it%100 == 0:
         u,p = up2.split()
         fu << u
