@@ -21,6 +21,16 @@ makenek channel
 nek channel
 
 ----------
+Making a movie
+----------
+
+Run the visit.py script
+
+$ visit -movie -geometry 1500x300 -fps 10 -scriptfile visit.py
+
+This creates movie.mpg file.
+
+----------
 SOME IMPORTANT PARAMETERS
 ----------
 
