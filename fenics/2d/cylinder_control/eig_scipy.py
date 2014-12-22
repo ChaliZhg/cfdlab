@@ -79,13 +79,13 @@ nu = Constant(Ur*D/Re)  # viscosity coefficient
 
 
 # Form for linearized NS equation
-F  = inner(grad(u)*us, v)*dx      \
-   + inner(grad(us)*u, v)*dx      \
-   - p*div(v)*dx                   \
-   + nu*inner(grad(u), grad(v))*dx \
-   - q*div(u)*dx
+F  = - inner(grad(u)*us, v)*dx      \
+     - inner(grad(us)*u, v)*dx      \
+     + p*div(v)*dx                   \
+     - nu*inner(grad(u), grad(v))*dx \
+     + q*div(u)*dx
 
-Aa = assemble(-F)
+Aa = assemble(F)
 
 # Convert to sparse format
 rows, cols, values = Aa.data()
@@ -111,24 +111,23 @@ freeinds = np.setdiff1d(range(N),bcinds,assume_unique=True).astype(np.int32)
 A = Aa[freeinds,:][:,freeinds]
 print "Size of A =",A.shape
 
-
 M = Ma[freeinds,:][:,freeinds]
 print "Size of M =",M.shape
 
 # Compute eigenvalues/vectors of (A,M)
 print "Computing eigenvalues/vectors ..."
 sigma = 0.0
-vals, vecs = la.eigs(A, k=5, M=M, sigma=sigma, which='LM', ncv=50, tol=1.0e-6)
+vals, vecs = la.eigs(A, k=6, M=M, sigma=sigma, which='LM', ncv=50, tol=1.0e-8)
 for val in vals:
     print np.real(val), np.imag(val)
 
 fv = File("eig.pvd")
 up = Function(X)
 
-up.vector()[freeinds] = np.real(vecs[:,0])
+up.vector()[freeinds] = np.array(np.real(vecs[:,0]))
 u,p = up.split()
 fv << u
 
-up.vector()[freeinds] = np.imag(vecs[:,0])
+up.vector()[freeinds] = np.array(np.imag(vecs[:,0]))
 u,p = up.split()
 fv << u
