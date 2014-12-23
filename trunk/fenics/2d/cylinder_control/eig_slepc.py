@@ -65,7 +65,8 @@ bcs  = [bcin, bccyl]
 # Used in residual computation
 bcin0 = DirichletBC(X.sub(0), (0,0), boundaries, 1)
 bccyl0= DirichletBC(X.sub(0), (0,0), boundaries, 2)
-bcs0  = [bcin0, bccyl0]
+bcsid0= DirichletBC(X.sub(0).sub(1), 0, boundaries, 4)
+bcs0  = [bcin0, bccyl0, bcsid0]
 
 Ur = 1.0                # Reference velocity
 D  = 0.1                # dia of cylinder
@@ -93,23 +94,24 @@ for bc in bcs0:
 #create eigensolver
 eigensolver = SLEPcEigenSolver(A, M)
 eigensolver.parameters['spectrum'] = 'smallest magnitude'
-#eigensolver.parameters['spectrum'] = 'largest real'
-#eigensolver.parameters['spectrum'] = 'target magnitude'
 #eigensolver.parameters['solver'] = 'arnoldi'
-eigensolver.parameters['problem_type'] = 'gen_non_hermitian'
+#eigensolver.parameters['problem_type'] = 'gen_non_hermitian'
 eigensolver.parameters["spectral_transform"] = "shift-and-invert"
 eigensolver.parameters["spectral_shift"] = 0.0
 #eigensolver.parameters['verbose'] = True
 
 print 'solving: start'
-num = 6
+num = 20
 eigensolver.solve(num)
 print 'solving: end'
+
+print "Number of converged eigenvalues = %d" % eigensolver.get_number_converged()
 
 fe = File("eig.pvd")
 ue = Function(X)
 for i in range(num):
     r, c, rx, cx = eigensolver.get_eigenpair(i)
-    print("Eigenvalue:", i, r, c)
+    print "Eigenvalue: %5d %20.10e %20.10e" % (i, r, c)
     ue.vector()[:] = rx
-    fe << ue
+    u,p = ue.split()
+    fe << u

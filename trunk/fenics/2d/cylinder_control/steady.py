@@ -58,13 +58,15 @@ q   = vq[2]
 vin  = inlet_velocity()
 bcin = DirichletBC(X.sub(0), vin,   boundaries, 1)
 bccyl= DirichletBC(X.sub(0), (0,0), boundaries, 2)
-bcs  = [bcin, bccyl]
+bcsid= DirichletBC(X.sub(0).sub(1), 0, boundaries, 4)
+bcs  = [bcin, bccyl, bcsid]
 
 # Same as above, but all zero dirichlet bc.
 # Used in residual computation
 bcin0 = DirichletBC(X.sub(0), (0,0), boundaries, 1)
 bccyl0= DirichletBC(X.sub(0), (0,0), boundaries, 2)
-bcs0  = [bcin0, bccyl0]
+bcsid0= DirichletBC(X.sub(0).sub(1), 0, boundaries, 4)
+bcs0  = [bcin0, bccyl0, bcsid0]
 
 Ur = 1.0                # Reference velocity
 D  = 0.1                # dia of cylinder
@@ -88,7 +90,7 @@ L = Constant(0)*inner(u0,v)*dx \
   + Constant(0)*q*dx
 
 # Picard iteration
-for i in range(10):
+for i in range(20):
     A = assemble(F)
     b = assemble(L)
     solver = LUSolver(A)

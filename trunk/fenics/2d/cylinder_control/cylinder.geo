@@ -169,8 +169,7 @@ Physical Surface(100) = {38,30,32,34,36,28,26,-50,-57,-62,-67,-72,-39,-44};
 Physical Line(1) = {19,53};               // Inlet
 Physical Line(2) = {7,2,3,6,58,63,68,73}; // cylinder
 Physical Line(3) = {16,23,42,48};         // outlet
-Physical Line(4) = {18,17};               // top wall
-Physical Line(5) = {52,49};               // bottom wall
+Physical Line(4) = {18,17,52,49};         // top and bottom wall
 
 //Geometry.Normals = 100;
 

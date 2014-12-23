@@ -70,7 +70,8 @@ bcs  = [bcin, bccyl]
 # Used in residual computation
 bcin0 = DirichletBC(X.sub(0), (0,0), boundaries, 1)
 bccyl0= DirichletBC(X.sub(0), (0,0), boundaries, 2)
-bcs0  = [bcin0, bccyl0]
+bcsid0= DirichletBC(X.sub(0).sub(1), 0, boundaries, 4)
+bcs0  = [bcin0, bccyl0, bcsid0]
 
 Ur = 1.0                # Reference velocity
 D  = 0.1                # dia of cylinder
