@@ -63,7 +63,7 @@ utheta = (1.0-theta)*uold + theta*u
 ptheta = (1.0-theta)*pold + theta*p
 
 # Define boundary conditions
-uinlet = Expression(("F*(1.0 - (x[1]/0.2)*(x[1]/0.2))", "0"), F=1)
+uinlet = Expression(("F*(1.0 - (x[1]/0.2)*(x[1]/0.2))", "0"), F=1.5)
 cyl    = DirichletBC(W.sub(0), (0, 0), sub_domains, 0)
 inlet  = DirichletBC(W.sub(0), uinlet, sub_domains, 1)
 noslip = DirichletBC(W.sub(0), (0, 0), sub_domains, 3)

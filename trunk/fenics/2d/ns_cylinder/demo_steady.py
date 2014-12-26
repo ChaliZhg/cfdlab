@@ -29,8 +29,10 @@ sub_domains = MeshFunction("size_t", mesh, "subdomains.xml")
 dss = Measure("ds")[sub_domains]
 
 # Define function spaces (P2-P1)
-V = VectorFunctionSpace(mesh, "CG", 2)
-Q = FunctionSpace(mesh, "CG", 1)
+udeg = 2
+pdeg = udeg - 1
+V = VectorFunctionSpace(mesh, "CG", udeg)
+Q = FunctionSpace(mesh, "CG", pdeg)
 W = V * Q
 
 # Define test functions
@@ -41,7 +43,7 @@ w     = Function(W)
 (u,p) = (as_vector((w[0], w[1])), w[2])
 
 # Define boundary conditions
-uinlet = Expression(("(1.0 - (x[1]/0.2)*(x[1]/0.2))", "0"))
+uinlet = Expression(("1.5*(1.0 - (x[1]/0.2)*(x[1]/0.2))", "0"))
 cyl    = DirichletBC(W.sub(0), (0, 0), sub_domains, 0)
 inlet  = DirichletBC(W.sub(0), uinlet, sub_domains, 1)
 noslip = DirichletBC(W.sub(0), (0, 0), sub_domains, 3)
