@@ -23,8 +23,10 @@ sub_domains = MeshFunction("size_t", mesh, "subdomains.xml")
 dss = Measure("ds")[sub_domains]
 
 # Define function spaces (P2-P1)
-V = VectorFunctionSpace(mesh, "CG", 2)
-Q = FunctionSpace(mesh, "CG", 1)
+udeg = 2
+pdeg = udeg - 1
+V = VectorFunctionSpace(mesh, "CG", udeg)
+Q = FunctionSpace(mesh, "CG", pdeg)
 W = V * Q
 
 ups = Function(W)
@@ -39,9 +41,8 @@ us = as_vector((ups[0],ups[1]))
 (u,p) = TrialFunctions(W)
 
 # Define boundary conditions
-uinlet = Expression(("(1.0 - (x[1]/0.2)*(x[1]/0.2))", "0"))
 cyl    = DirichletBC(W.sub(0), (0, 0), sub_domains, 0)
-inlet  = DirichletBC(W.sub(0), uinlet, sub_domains, 1)
+inlet  = DirichletBC(W.sub(0), (0, 0), sub_domains, 1)
 noslip = DirichletBC(W.sub(0), (0, 0), sub_domains, 3)
 bcs    = [noslip, inlet, cyl]
 
@@ -72,7 +73,7 @@ eigensolver.parameters["spectral_shift"] = 0.0
 #eigensolver.parameters['verbose'] = True
 
 print 'solving: start'
-num = 20
+num = 100
 eigensolver.solve(num)
 print 'solving: end'
 

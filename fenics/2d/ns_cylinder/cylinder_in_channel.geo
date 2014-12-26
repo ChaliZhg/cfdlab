@@ -1,21 +1,23 @@
 D    = 0.1;   // diameter
 r    = D/2.0; // radius
 
-h1   =  0.001; // on cylinder
-h2   =  0.02; // on boundary
+h1   =  0.003; // on cylinder
+h2   =  0.05; // on boundary
+h3   =  0.01; // at inlet
 xmin = -1.5;  // left end
 xmax =  2.2;  // right end
 H    =  0.2;  // half channel height
+xc   =  0.25; // center of cylinder
 
-Point(1) = {xmin, 0, 0, h2};
-Point(2) = {-r,   0, 0, h1};
-Point(3) = { 0,   r, 0, h1};
-Point(4) = { r,   0, 0, h1};
+Point(1) = {xmin, 0, 0, h3};
+Point(2) = {-r+xc,0, 0, h1};
+Point(3) = { xc,  r, 0, h1};
+Point(4) = { r+xc,0, 0, h1};
 Point(5) = {xmax, 0, 0, h2};
 Point(6) = {xmax, H, 0, h2};
-Point(7) = {xmin, H, 0, h2};
+Point(7) = {xmin, H, 0, h3};
 
-Point(8) = {0, 0, 0, h1};
+Point(8) = {xc, 0, 0, h1};
 
 Line(1)   = {1, 2};
 Circle(2) = {2, 8, 3};
