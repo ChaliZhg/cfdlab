@@ -21,3 +21,8 @@ Cylinder in channel
   eig#.vtu files in VisIt. Eigenfunctions are arranged in order of decreasing
   value of real part; real and imaginary part of eigenfunctions are saved in 
   the files.
+
+
+Unsteady solver
+
+   $ python ns_picard.py
