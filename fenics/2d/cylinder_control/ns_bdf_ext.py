@@ -112,7 +112,10 @@ while t < Tf:
     uavg = uavg.array()/area
     cfl  = dt * max(uavg/h)
 
-    assemble(a, tensor=A)
+    if it==1:
+        assemble(a, tensor=A)
+    else:
+        assemble(a, tensor=A, reset_sparsity=False)
     assemble(L, tensor=b)
     [bc.apply(A,b) for bc in bcs]
     solver.solve(up2.vector(), b)
