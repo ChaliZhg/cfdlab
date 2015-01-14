@@ -1,9 +1,9 @@
-set degree                 = 1
-set ncells                 = 200
+set degree                 = 3
+set ncells                 = 100
 set test case              = lax
-set flux                   = kfvs
+set flux                   = roe
 set limiter                = TVB
-set indicator              = None
+set indicator              = density
 set characteristic limiter = true
 set positivity limiter     = false
 set M                      = 0.0

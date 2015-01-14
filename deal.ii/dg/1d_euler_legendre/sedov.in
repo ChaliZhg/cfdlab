@@ -1,9 +1,9 @@
 set degree                 = 1
 set ncells                 = 801
 set test case              = sedov
-set flux                   = kfvs
+set flux                   = lxf
 set limiter                = TVB
-set indicator              = None
+set indicator              = energy
 set characteristic limiter = true
 set positivity limiter     = true
 set M                      = 0.0
