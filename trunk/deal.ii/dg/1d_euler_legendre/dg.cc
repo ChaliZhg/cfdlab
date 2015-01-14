@@ -9,7 +9,7 @@
    * KXRCF shock indicator
    * Numerical fluxes: Lax-Friedrich, KFVS
    *
-   * Author: Praveen. C, http://praveen.cfdlab.net
+   * Author: Praveen. C, http://praveen.tifrbng.res.in
 */
 #include <grid/tria.h>
 #include <dofs/dof_handler.h>
@@ -1160,7 +1160,7 @@ template <int dim>
 void EulerProblem<dim>::compute_viscosity_persson ()
 {
    static const double s0 =  std::log10( 1.0/std::pow(fe.degree, 4) );
-   static const double kappa = 4.0;
+   static const double kappa = 4.0 * std::log10( fe.degree );
    
    std::vector<unsigned int> dof_indices(fe.dofs_per_cell);
    typename DoFHandler<dim>::active_cell_iterator
@@ -1294,7 +1294,7 @@ void EulerProblem<dim>::compute_viscosity ()
          break;
    }
    
-   /*
+   
    Vector<double> tmp(n_cells);
    tmp = viscosity;
    for(unsigned int i=0; i<1; ++i)
@@ -1302,7 +1302,7 @@ void EulerProblem<dim>::compute_viscosity ()
       for(unsigned int c=1; c<n_cells-1; ++c)
          viscosity(c) = 0.25*(tmp(c-1) + 2.0*tmp(c) + tmp(c+1));
    }
-   */
+   
 
 }
 //------------------------------------------------------------------------------
