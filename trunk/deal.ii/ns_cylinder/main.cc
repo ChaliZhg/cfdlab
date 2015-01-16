@@ -155,9 +155,11 @@ NS<dim>::NS (unsigned int degree)
    static const HyperBallBoundary<dim> boundary_description (center, radius);
    triangulation.set_boundary (2, boundary_description);
    
-   std::ofstream grid_output_file("grid.eps");
+   std::string grid_output_file = "grid.eps";
+   std::ofstream grid_output(grid_output_file);
    GridOut grid_out;
-   grid_out.write_eps (triangulation, grid_output_file);
+   grid_out.write_eps (triangulation, grid_output);
+   std::cout << "Saved grid into " << grid_output_file << std::endl;
 }
 
 //------------------------------------------------------------------------------------
@@ -563,12 +565,13 @@ NS<dim>::output_results ()  const
    .push_back (DataComponentInterpretation::component_is_scalar);
    
    DataOut<dim> data_out;
-   //data_out.attach_dof_handler (dof_handler);
-   data_out.add_data_vector (dof_handler, solution2, solution_names,
-                             /*DataOut<dim>::type_dof_data,*/
+   data_out.add_data_vector (dof_handler,
+                             solution2,
+                             solution_names,
                              data_component_interpretation);
-   data_out.add_data_vector (dof_handler_scalar, vorticity, "vorticity"/*,
-                             DataOut<dim>::type_dof_data*/);
+   data_out.add_data_vector (dof_handler_scalar,
+                             vorticity,
+                             "vorticity");
 
    data_out.build_patches (mapping, degree+1);
    
