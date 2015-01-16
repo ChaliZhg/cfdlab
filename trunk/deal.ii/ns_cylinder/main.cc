@@ -14,6 +14,8 @@
 #include <deal.II/base/logstream.h>
 #include <deal.II/base/function.h>
 #include <deal.II/base/utilities.h>
+#include <deal.II/base/work_stream.h>
+#include <deal.II/base/multithread_info.h>
 
 #include <deal.II/grid/tria.h>
 #include <deal.II/grid/grid_in.h>
@@ -89,11 +91,34 @@ public:
    void run ();
    
 private:
+   struct AssemblyScratchData
+   {
+      AssemblyScratchData (const unsigned int degree,
+                           const FESystem<dim> &fe,
+                           MappingQ<dim>& mapping,
+                           const unsigned int order);
+      AssemblyScratchData (const AssemblyScratchData &scratch_data);
+      FEValues<dim>     fe_values;
+      double            a0, a1;
+   };
+   
+   struct AssemblyCopyData
+   {
+      FullMatrix<double>                   local_matrix;
+      Vector<double>                       local_rhs;
+      std::vector<types::global_dof_index> local_dof_indices;
+   };
+   
    void run_steady ();
    void run_unsteady ();
    void make_grid_dofs ();
    void assemble_mass_matrix ();
    void assemble_matrix (unsigned int order);
+   void local_assemble_system
+      (const typename DoFHandler<dim>::active_cell_iterator &cell,
+       AssemblyScratchData                                  &scratch_data,
+       AssemblyCopyData                                     &copy_data);
+   void copy_local_to_global (const AssemblyCopyData &copy_data);
    void assemble_matrix_and_rhs (unsigned int order);
    void solve ();
    void compute_vorticity ();
@@ -363,9 +388,17 @@ void NS<dim>::assemble_matrix (unsigned int order)
 //------------------------------------------------------------------------------------
 //------------------------------------------------------------------------------------
 template <int dim>
-void NS<dim>::assemble_matrix_and_rhs (unsigned int order)
+NS<dim>::AssemblyScratchData::
+AssemblyScratchData (const unsigned int   degree,
+                     const FESystem<dim>& fe,
+                     MappingQ<dim>&       mapping,
+                     const unsigned int   order)
+:
+fe_values (mapping, fe,
+           QGauss<dim>(degree+2),
+           update_values   | update_gradients |
+           update_JxW_values)
 {
-   double a0, a1;
    if(order == 0)
    {
       a0 = 0.0;
@@ -383,7 +416,99 @@ void NS<dim>::assemble_matrix_and_rhs (unsigned int order)
    }
    else
       Assert(false, ExcMessage("Not implemented"));
+}
+
+//------------------------------------------------------------------------------------
+//------------------------------------------------------------------------------------
+template <int dim>
+NS<dim>::AssemblyScratchData::
+AssemblyScratchData (const AssemblyScratchData &scratch_data)
+:
+fe_values (scratch_data.fe_values.get_mapping(),
+           scratch_data.fe_values.get_fe(),
+           scratch_data.fe_values.get_quadrature(),
+           update_values   | update_gradients |
+           update_JxW_values),
+a0 (scratch_data.a0),
+a1 (scratch_data.a1)
+{}
+
+//------------------------------------------------------------------------------------
+//------------------------------------------------------------------------------------
+template <int dim>
+void
+NS<dim>::
+local_assemble_system (const typename DoFHandler<dim>::active_cell_iterator &cell,
+                       AssemblyScratchData                                  &scratch_data,
+                       AssemblyCopyData                                     &copy_data)
+{
+   const double a0 = scratch_data.a0;
+   const double a1 = scratch_data.a1;
    
+   FEValues<dim>&      fe_values         = scratch_data.fe_values;
+   const unsigned int  dofs_per_cell     = fe.dofs_per_cell;
+   const unsigned int  n_q_points        = scratch_data.fe_values.get_quadrature().size();
+   FullMatrix<double>& local_matrix      = copy_data.local_matrix;
+   Vector<double>&     local_rhs         = copy_data.local_rhs;
+   std::vector<types::global_dof_index>&
+                       local_dof_indices = copy_data.local_dof_indices;
+   
+   local_matrix.reinit (dofs_per_cell, dofs_per_cell);
+   local_rhs.reinit (dofs_per_cell);
+   local_dof_indices.resize (dofs_per_cell);
+   
+   const FEValuesExtractors::Vector velocities (0);
+   const FEValuesExtractors::Scalar pressure (dim);
+   
+   std::vector<Tensor<2,dim> >  grad_phi_u (dofs_per_cell);
+   std::vector<Tensor<1,dim> >  phi_u      (dofs_per_cell);
+   std::vector<Tensor<1,dim> >  velocity   (n_q_points, Tensor<1,dim>());
+   
+   fe_values.reinit (cell);
+   fe_values[velocities].get_function_values (solution2, velocity);
+
+   cell->get_dof_indices (local_dof_indices);
+   
+   for (unsigned int q=0; q<n_q_points; ++q)
+   {
+      for (unsigned int k=0; k<dofs_per_cell; ++k)
+      {
+         grad_phi_u[k] = fe_values[velocities].gradient (k, q);
+         phi_u[k]      = fe_values[velocities].value (k, q);
+      }
+      for (unsigned int i=0; i<dofs_per_cell; ++i)
+         for (unsigned int j=0; j<dofs_per_cell; ++j)
+         {
+            local_matrix(i,j) += (grad_phi_u[j] * velocity[q]) * phi_u[i]
+                                 * fe_values.JxW(q);
+            local_rhs(i) += (1.0/dt) *
+                            (-a1 * solution1(local_dof_indices[j]) - a0 * solution0(local_dof_indices[j]))
+                            * phi_u[i] * phi_u[j] * fe_values.JxW(q);
+         }
+   }
+}
+
+//------------------------------------------------------------------------------------
+//------------------------------------------------------------------------------------
+template <int dim>
+void
+NS<dim>::copy_local_to_global (const AssemblyCopyData &copy_data)
+{
+   for (unsigned int i=0; i<copy_data.local_dof_indices.size(); ++i)
+   {
+      for (unsigned int j=0; j<copy_data.local_dof_indices.size(); ++j)
+         system_matrix.add (copy_data.local_dof_indices[i],
+                            copy_data.local_dof_indices[j],
+                            copy_data.local_matrix(i,j));
+      system_rhs(copy_data.local_dof_indices[i]) += copy_data.local_rhs(i);
+   }
+}
+
+//------------------------------------------------------------------------------------
+//------------------------------------------------------------------------------------
+template <int dim>
+void NS<dim>::assemble_matrix_and_rhs (unsigned int order)
+{
    // use solution2 for extrapolated velocity
    if(order == 0)
       ; // nothing to do; we use solution2
@@ -396,64 +521,15 @@ void NS<dim>::assemble_matrix_and_rhs (unsigned int order)
    system_matrix.copy_from(system_matrix_constant);
    system_rhs    = 0;
    
-   QGauss<dim>   quadrature_formula(degree+2);
-   FEValues<dim> fe_values (mapping, fe, quadrature_formula,
-                            update_values    |
-                            update_gradients |
-                            update_JxW_values);
-   const unsigned int   dofs_per_cell   = fe.dofs_per_cell;
-   const unsigned int   n_q_points      = quadrature_formula.size();
-   FullMatrix<double>   local_matrix (dofs_per_cell, dofs_per_cell);
-   Vector<double>       local_rhs (dofs_per_cell);
-   std::vector<types::global_dof_index> local_dof_indices (dofs_per_cell);
+   WorkStream::run(dof_handler.begin_active(),
+                   dof_handler.end(),
+                   *this,
+                   &NS::local_assemble_system,
+                   &NS::copy_local_to_global,
+                   AssemblyScratchData(degree, fe, mapping, order),
+                   AssemblyCopyData());
    
    const FEValuesExtractors::Vector velocities (0);
-   const FEValuesExtractors::Scalar pressure (dim);
-   
-   std::vector<Tensor<2,dim> >  grad_phi_u (dofs_per_cell);
-   std::vector<Tensor<1,dim> >  phi_u         (dofs_per_cell);
-   std::vector<Tensor<1,dim> >  velocity(n_q_points, Tensor<1,dim>());
-   
-   typename DoFHandler<dim>::active_cell_iterator
-      cell = dof_handler.begin_active(),
-      endc = dof_handler.end();
-   for (; cell!=endc; ++cell)
-   {
-      fe_values.reinit (cell);
-      fe_values[velocities].get_function_values (solution2, velocity);
-      local_matrix = 0;
-      local_rhs    = 0;
-      cell->get_dof_indices (local_dof_indices);
-      
-      for (unsigned int q=0; q<n_q_points; ++q)
-      {
-         for (unsigned int k=0; k<dofs_per_cell; ++k)
-         {
-            grad_phi_u[k] = fe_values[velocities].gradient (k, q);
-            phi_u[k]      = fe_values[velocities].value (k, q);
-         }
-         for (unsigned int i=0; i<dofs_per_cell; ++i)
-         {
-            for (unsigned int j=0; j<dofs_per_cell; ++j)
-            {
-               local_matrix(i,j) += (grad_phi_u[j] * velocity[q]) * phi_u[i]
-                                     * fe_values.JxW(q);
-               local_rhs(i) += (1.0/dt) *
-                               (-a1 * solution1(local_dof_indices[j]) - a0 * solution0(local_dof_indices[j]))
-                               * phi_u[i] * phi_u[j] * fe_values.JxW(q);
-            }
-         }
-      }
-      
-      for (unsigned int i=0; i<dofs_per_cell; ++i)
-      {
-         system_rhs(local_dof_indices[i]) += local_rhs(i);
-         for (unsigned int j=0; j<dofs_per_cell; ++j)
-            system_matrix.add (local_dof_indices[i],
-                               local_dof_indices[j],
-                               local_matrix(i,j));
-      }
-   }
    
    // Apply boundary conditions
    std::map<types::global_dof_index,double> boundary_values;
@@ -632,7 +708,6 @@ void NS<dim>::run_unsteady ()
 {
    unsigned int order = 1;
    assemble_matrix (order);
-   
    
    // Set initial condition
    std::cout << "Setting initial condition ..." << std::endl;
