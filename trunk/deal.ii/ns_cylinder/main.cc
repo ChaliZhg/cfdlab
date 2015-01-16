@@ -17,6 +17,7 @@
 
 #include <deal.II/grid/tria.h>
 #include <deal.II/grid/grid_in.h>
+#include <deal.II/grid/grid_out.h>
 #include <deal.II/grid/tria_boundary_lib.h>
 
 #include <deal.II/fe/fe_q.h>
@@ -88,25 +89,35 @@ public:
    void run ();
    
 private:
+   void run_steady ();
+   void run_unsteady ();
    void make_grid_dofs ();
+   void assemble_mass_matrix ();
    void assemble_matrix (unsigned int order);
    void assemble_matrix_and_rhs (unsigned int order);
    void solve ();
+   void compute_vorticity ();
    void output_results() const;
    
    unsigned int               degree;
    FESystem<dim>              fe;
+   FE_Q<dim>                  fe_scalar;
    Triangulation<dim>         triangulation;
    DoFHandler<dim>            dof_handler;
+   DoFHandler<dim>            dof_handler_scalar;
    MappingQ<dim>              mapping;
    
    ConstraintMatrix           constraints;
    BlockSparsityPattern       sparsity_pattern;
    BlockSparseMatrix<double>  system_matrix_constant;
    BlockSparseMatrix<double>  system_matrix;
-   
    BlockVector<double>        solution0, solution1, solution2;
    BlockVector<double>        system_rhs;
+   
+   SparsityPattern            sparsity_pattern_scalar;
+   SparseMatrix<double>       mass_matrix;
+   Vector<double>             vorticity;
+   SparseDirectUMFPACK        vorticity_solver;
    
    // Parameters
    double                     dt, Uref, Lref, Re, viscosity, final_time;
@@ -120,7 +131,9 @@ NS<dim>::NS (unsigned int degree)
    degree (degree),
    fe( FE_Q<dim>(QGaussLobatto<1>(degree+2)), dim,
        FE_Q<dim>(QGaussLobatto<1>(degree+1)),   1),
+   fe_scalar (FE_Q<dim>(QGaussLobatto<1>(degree+2))),
    dof_handler (triangulation),
+   dof_handler_scalar (triangulation),
    mapping (degree+1)
 {
    dt = 0.01;
@@ -141,6 +154,10 @@ NS<dim>::NS (unsigned int degree)
    Point<dim> center (0.0, 0.0);
    static const HyperBallBoundary<dim> boundary_description (center, radius);
    triangulation.set_boundary (2, boundary_description);
+   
+   std::ofstream grid_output_file("grid.eps");
+   GridOut grid_out;
+   grid_out.write_eps (triangulation, grid_output_file);
 }
 
 //------------------------------------------------------------------------------------
@@ -154,7 +171,7 @@ void NS<dim>::make_grid_dofs()
    std::vector<unsigned int> block_component (dim+1,0);
    block_component[dim] = 1;
    DoFRenumbering::component_wise (dof_handler, block_component);
-   
+
    std::vector<types::global_dof_index> dofs_per_block (2);
    DoFTools::count_dofs_per_block (dof_handler, dofs_per_block, block_component);
    const unsigned int n_u = dofs_per_block[0],
@@ -172,6 +189,7 @@ void NS<dim>::make_grid_dofs()
       csp.block(0,0).reinit (n_u, n_u);
       csp.block(1,0).reinit (n_p, n_u);
       csp.block(0,1).reinit (n_u, n_p);
+      csp.block(1,1).reinit (n_p, n_p);
       csp.collect_sizes();
       DoFTools::make_sparsity_pattern (dof_handler, csp, constraints, false);
       sparsity_pattern.copy_from (csp);
@@ -199,6 +217,66 @@ void NS<dim>::make_grid_dofs()
    system_rhs.block(0).reinit (n_u);
    system_rhs.block(1).reinit (n_p);
    system_rhs.collect_sizes ();
+   
+   // These are needed for computing vorticity
+   dof_handler_scalar.distribute_dofs (fe_scalar);
+   DoFRenumbering::Cuthill_McKee (dof_handler_scalar);
+
+   {
+      CompressedSparsityPattern csp (dof_handler_scalar.n_dofs());
+      DoFTools::make_sparsity_pattern (dof_handler_scalar, csp);
+      sparsity_pattern_scalar.copy_from (csp);
+   }
+   
+   mass_matrix.reinit (sparsity_pattern_scalar);
+   vorticity.reinit (dof_handler_scalar.n_dofs());
+   std::cout << "   Number of vorticity dofs: "
+             << dof_handler_scalar.n_dofs()
+             << std::endl;
+}
+
+//------------------------------------------------------------------------------------
+//------------------------------------------------------------------------------------
+template <int dim>
+void NS<dim>::assemble_mass_matrix ()
+{
+   mass_matrix = 0;
+   
+   QGauss<dim>   quadrature_formula(degree+2);
+   FEValues<dim> fe_values (mapping, fe_scalar, quadrature_formula,
+                            update_values    |
+                            update_JxW_values);
+   const unsigned int   dofs_per_cell   = fe_scalar.dofs_per_cell;
+   const unsigned int   n_q_points      = quadrature_formula.size();
+   FullMatrix<double>   local_matrix (dofs_per_cell, dofs_per_cell);
+   std::vector<types::global_dof_index> local_dof_indices (dofs_per_cell);
+   
+   typename DoFHandler<dim>::active_cell_iterator
+      cell = dof_handler_scalar.begin_active(),
+      endc = dof_handler_scalar.end();
+   for (; cell!=endc; ++cell)
+   {
+      fe_values.reinit (cell);
+      local_matrix = 0;
+      
+      for (unsigned int q=0; q<n_q_points; ++q)
+         for (unsigned int i=0; i<dofs_per_cell; ++i)
+            for (unsigned int j=0; j<=i; ++j)
+               local_matrix(i,j) +=   fe_values.shape_value(i,q)
+                                    * fe_values.shape_value(j,q)
+                                    * fe_values.JxW(q);
+      
+      for (unsigned int i=0; i<dofs_per_cell; ++i)
+         for (unsigned int j=i+1; j<dofs_per_cell; ++j)
+            local_matrix(i,j) = local_matrix(j,i);
+      
+      cell->get_dof_indices (local_dof_indices);
+      for (unsigned int i=0; i<dofs_per_cell; ++i)
+         for (unsigned int j=0; j<dofs_per_cell; ++j)
+            mass_matrix.add (local_dof_indices[i],
+                             local_dof_indices[j],
+                             local_matrix(i,j));
+   }
 }
 
 //------------------------------------------------------------------------------------
@@ -207,7 +285,9 @@ template <int dim>
 void NS<dim>::assemble_matrix (unsigned int order)
 {
    double a2;
-   if(order == 1)
+   if(order == 0)
+      a2 = 0.0;
+   else if(order == 1)
       a2 = 1.0;
    else if(order == 2)
       a2 = 1.5;
@@ -284,12 +364,17 @@ template <int dim>
 void NS<dim>::assemble_matrix_and_rhs (unsigned int order)
 {
    double a0, a1;
-   if(order==1)
+   if(order == 0)
+   {
+      a0 = 0.0;
+      a1 = 0.0;
+   }
+   else if(order == 1)
    {
       a0 =-1.0;
       a1 = 0.0;
    }
-   else if(order==2)
+   else if(order == 2)
    {
       a0 =  0.5;
       a1 = -2.0;
@@ -298,7 +383,9 @@ void NS<dim>::assemble_matrix_and_rhs (unsigned int order)
       Assert(false, ExcMessage("Not implemented"));
    
    // use solution2 for extrapolated velocity
-   if(order == 1)
+   if(order == 0)
+      ; // nothing to do; we use solution2
+   else if(order == 1)
       solution2.block(0) = solution0.block(0);
    else
       // solution2 = 2 * solution1 - solution0
@@ -405,11 +492,67 @@ void NS<dim>::solve()
 //------------------------------------------------------------------------------------
 //------------------------------------------------------------------------------------
 template <int dim>
+void NS<dim>::compute_vorticity ()
+{
+   static unsigned int status = 0;
+   
+   if(status == 0)
+   {
+      assemble_mass_matrix ();
+      vorticity_solver.initialize (mass_matrix);
+      status = 1;
+   }
+   
+   Vector<double> vorticity_rhs (dof_handler_scalar.n_dofs());
+   
+   QGauss<dim>   quadrature_formula(degree+2);
+   FEValues<dim> fe_values (mapping, fe, quadrature_formula,
+                            update_gradients);
+   FEValues<dim> fe_values_vorticity (mapping, fe_scalar, quadrature_formula,
+                            update_values | update_JxW_values);
+   const unsigned int   dofs_per_cell   = fe_scalar.dofs_per_cell;
+   const unsigned int   n_q_points      = quadrature_formula.size();
+   Vector<double>       local_rhs (dofs_per_cell);
+   std::vector<types::global_dof_index> local_dof_indices (dofs_per_cell);
+   
+   const FEValuesExtractors::Vector velocities (0);
+   std::vector<typename FEValuesViews::Vector<dim>::curl_type> vorticity_values (n_q_points);
+   
+   typename DoFHandler<dim>::active_cell_iterator
+      cell = dof_handler.begin_active(),
+      endc = dof_handler.end(),
+      cell_vorticity = dof_handler_scalar.begin_active();
+   for (; cell!=endc; ++cell, ++cell_vorticity)
+   {
+      fe_values.reinit (cell);
+      fe_values_vorticity.reinit (cell_vorticity);
+
+      fe_values[velocities].get_function_curls (solution2, vorticity_values);
+      
+      local_rhs    = 0;
+      
+      for (unsigned int q=0; q<n_q_points; ++q)
+         for (unsigned int i=0; i<dofs_per_cell; ++i)
+            local_rhs(i) +=   vorticity_values[q][0]
+                            * fe_values_vorticity.shape_value(i,q)
+                            * fe_values_vorticity.JxW(q);
+      
+      cell_vorticity->get_dof_indices (local_dof_indices);
+      for (unsigned int i=0; i<dofs_per_cell; ++i)
+         vorticity_rhs(local_dof_indices[i]) += local_rhs(i);
+   }
+   
+   vorticity_solver.vmult (vorticity, vorticity_rhs);
+}
+
+//------------------------------------------------------------------------------------
+//------------------------------------------------------------------------------------
+template <int dim>
 void
 NS<dim>::output_results ()  const
 {
    static unsigned int cycle = 0;
-   
+
    std::vector<std::string> solution_names (dim, "velocity");
    solution_names.push_back ("pressure");
    
@@ -420,10 +563,13 @@ NS<dim>::output_results ()  const
    .push_back (DataComponentInterpretation::component_is_scalar);
    
    DataOut<dim> data_out;
-   data_out.attach_dof_handler (dof_handler);
-   data_out.add_data_vector (solution2, solution_names,
-                             DataOut<dim>::type_dof_data,
+   //data_out.attach_dof_handler (dof_handler);
+   data_out.add_data_vector (dof_handler, solution2, solution_names,
+                             /*DataOut<dim>::type_dof_data,*/
                              data_component_interpretation);
+   data_out.add_data_vector (dof_handler_scalar, vorticity, "vorticity"/*,
+                             DataOut<dim>::type_dof_data*/);
+
    data_out.build_patches (mapping, degree+1);
    
    std::ostringstream filename;
@@ -439,10 +585,9 @@ NS<dim>::output_results ()  const
 //------------------------------------------------------------------------------------
 //------------------------------------------------------------------------------------
 template <int dim>
-void NS<dim>::run()
+void NS<dim>::run_steady ()
 {
-   make_grid_dofs ();
-   unsigned int order = 1;
+   unsigned int order = 0;
    assemble_matrix (order);
    
    // Set initial condition
@@ -451,6 +596,48 @@ void NS<dim>::run()
                             InitialCondition<dim>(), solution0);
    solution1 = solution0;
    solution2 = solution0;
+   compute_vorticity ();
+   output_results ();
+   
+   unsigned int iter = 0;
+   
+   while (iter < 10)
+   {
+      // Assemble matrix and rhs
+      assemble_matrix_and_rhs (order);
+      
+      // solve
+      solve ();
+      
+      ++iter;
+      std::cout << iter << std::endl;
+      
+      compute_vorticity ();
+      output_results ();
+   }
+   
+   // save solution to file
+   std::ofstream output_file("steady.dat");
+   solution2.block_write (output_file);
+   
+}
+
+//------------------------------------------------------------------------------------
+//------------------------------------------------------------------------------------
+template <int dim>
+void NS<dim>::run_unsteady ()
+{
+   unsigned int order = 1;
+   assemble_matrix (order);
+   
+   
+   // Set initial condition
+   std::cout << "Setting initial condition ..." << std::endl;
+   VectorTools::interpolate(mapping, dof_handler,
+                            InitialCondition<dim>(), solution0);
+   solution1 = solution0;
+   solution2 = solution0;
+   compute_vorticity ();
    output_results ();
    
    double time = 0;
@@ -482,10 +669,25 @@ void NS<dim>::run()
       }
       
       if(iter%10 == 0)
+      {
+         compute_vorticity ();
          output_results ();
+      }
    }
    
 }
+
+//------------------------------------------------------------------------------------
+//------------------------------------------------------------------------------------
+template <int dim>
+void NS<dim>::run ()
+{
+   make_grid_dofs ();
+
+   //run_steady ();
+   run_unsteady ();
+}
+
 //------------------------------------------------------------------------------------
 //------------------------------------------------------------------------------------
 int main(int argc, char *argv[])
@@ -494,7 +696,7 @@ int main(int argc, char *argv[])
    {
       deallog.depth_console (0);
 
-      unsigned int pressure_degree = 1;
+      unsigned int pressure_degree = 2;
       NS<2> ns_problem (pressure_degree);
       ns_problem.run();
    }
