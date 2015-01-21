@@ -1,0 +1,17 @@
+Incompressible flow past a cylinder.
+
+Create mesh
+
+   $ gmsh -2 karman.geo
+
+Run steady solver
+
+   $ ./main -steady
+
+Run unsteady solver
+
+   $ ./main -unsteady
+
+Run unsteady solver starting from steady solution
+
+   $ ./main -unsteady -restart

@@ -45,7 +45,65 @@
 
 using namespace dealii;
 
+enum runMode { norun, steady, unsteady };
+runMode run_mode;
+bool restart;
+
 //------------------------------------------------------------------------------------
+// Get command line arguments
+//------------------------------------------------------------------------------------
+void
+parse_command_line (const int     argc,
+                    char *const  *argv)
+{
+   if (argc < 2)
+   {
+      std::cerr << "Not enough parameters given\n";
+      exit (1);
+   }
+   
+   std::list<std::string> args;
+   for (int i=1; i<argc; ++i)
+      args.push_back (argv[i]);
+   
+   run_mode = norun;
+   restart = false;
+   
+   while (args.size())
+   {
+      if (args.front() == std::string("-steady"))
+      {
+         run_mode = steady;
+         args.pop_front ();
+      }
+      else if (args.front() == std::string("-unsteady"))
+      {
+         run_mode = unsteady;
+         args.pop_front ();
+      }
+      else if (args.front() == std::string("-restart"))
+      {
+         restart = true;
+         args.pop_front ();
+      }
+      else
+      {
+         std::cerr << "Unknown parameter: " << args.front() << std::endl;
+         exit(1);
+      }
+   }
+   
+   if(run_mode == norun)
+   {
+      std::cerr << "Run mode must be specified\n";
+      exit(1);
+   }
+
+}
+
+//------------------------------------------------------------------------------------
+// Initial condition. Sets parabolic velocity profile which is x direction only
+// Pressure is set to zero which is not important.
 //------------------------------------------------------------------------------------
 template <int dim>
 class InitialCondition : public Function<dim>
@@ -81,6 +139,7 @@ InitialCondition<dim>::vector_value (const Point<dim> &p,
 }
 
 //------------------------------------------------------------------------------------
+// Main class of the problem
 //------------------------------------------------------------------------------------
 template <int dim>
 class NS
@@ -149,6 +208,7 @@ private:
 };
 
 //------------------------------------------------------------------------------------
+// Constructor of the main class.
 //------------------------------------------------------------------------------------
 template <int dim>
 NS<dim>::NS (unsigned int degree)
@@ -175,6 +235,7 @@ NS<dim>::NS (unsigned int degree)
    std::ifstream input_file (grid_file.c_str());
    grid_in.read_msh (input_file);
    
+   // Set cylinder boundary description
    double radius = Lref / 2.0;
    Point<dim> center (0.0, 0.0);
    static const HyperBallBoundary<dim> boundary_description (center, radius);
@@ -188,6 +249,7 @@ NS<dim>::NS (unsigned int degree)
 }
 
 //------------------------------------------------------------------------------------
+// Allocate memory for matrices and vectors.
 //------------------------------------------------------------------------------------
 template <int dim>
 void NS<dim>::make_grid_dofs()
@@ -263,6 +325,7 @@ void NS<dim>::make_grid_dofs()
 }
 
 //------------------------------------------------------------------------------------
+// Assemble mass matrix which is used for vorticity projection.
 //------------------------------------------------------------------------------------
 template <int dim>
 void NS<dim>::assemble_mass_matrix ()
@@ -307,6 +370,8 @@ void NS<dim>::assemble_mass_matrix ()
 }
 
 //------------------------------------------------------------------------------------
+// Assemble part of matrix which is independent of time. We assume that time step
+// is fixed. Only the convective terms are not assembled here.
 //------------------------------------------------------------------------------------
 template <int dim>
 void NS<dim>::assemble_matrix (unsigned int order)
@@ -386,6 +451,7 @@ void NS<dim>::assemble_matrix (unsigned int order)
 }
 
 //------------------------------------------------------------------------------------
+// Data used in parallel assembly
 //------------------------------------------------------------------------------------
 template <int dim>
 NS<dim>::AssemblyScratchData::
@@ -419,6 +485,7 @@ fe_values (mapping, fe,
 }
 
 //------------------------------------------------------------------------------------
+// Data used in parallel assembly
 //------------------------------------------------------------------------------------
 template <int dim>
 NS<dim>::AssemblyScratchData::
@@ -434,6 +501,7 @@ a1 (scratch_data.a1)
 {}
 
 //------------------------------------------------------------------------------------
+// Assemble matrix/rhs on one cell
 //------------------------------------------------------------------------------------
 template <int dim>
 void
@@ -489,6 +557,7 @@ local_assemble_system (const typename DoFHandler<dim>::active_cell_iterator &cel
 }
 
 //------------------------------------------------------------------------------------
+// Copy cell assembly to global position
 //------------------------------------------------------------------------------------
 template <int dim>
 void
@@ -505,6 +574,9 @@ NS<dim>::copy_local_to_global (const AssemblyCopyData &copy_data)
 }
 
 //------------------------------------------------------------------------------------
+// Assemble matrix and rhs. Only the convective term is assembled in the matrix.
+// The other terms are independent of time and have been assembled before. This is
+// thread parallel using WorkStream.
 //------------------------------------------------------------------------------------
 template <int dim>
 void NS<dim>::assemble_matrix_and_rhs (unsigned int order)
@@ -558,6 +630,7 @@ void NS<dim>::assemble_matrix_and_rhs (unsigned int order)
 }
 
 //------------------------------------------------------------------------------------
+// Solve linear system. At present only direct solver is implemented.
 //------------------------------------------------------------------------------------
 template <int dim>
 void NS<dim>::solve()
@@ -568,6 +641,8 @@ void NS<dim>::solve()
 }
 
 //------------------------------------------------------------------------------------
+// Compute vorticity by doing an L2 projection. Vorticity space has same degree as
+// velocity space.
 //------------------------------------------------------------------------------------
 template <int dim>
 void NS<dim>::compute_vorticity ()
@@ -624,6 +699,7 @@ void NS<dim>::compute_vorticity ()
 }
 
 //------------------------------------------------------------------------------------
+// Save solution to vtk file
 //------------------------------------------------------------------------------------
 template <int dim>
 void
@@ -662,6 +738,8 @@ NS<dim>::output_results ()  const
 }
 
 //------------------------------------------------------------------------------------
+// Run steady state computation. The convection term is treated linearly and a Picard
+// iteration is performed on it.
 //------------------------------------------------------------------------------------
 template <int dim>
 void NS<dim>::run_steady ()
@@ -702,6 +780,7 @@ void NS<dim>::run_steady ()
 }
 
 //------------------------------------------------------------------------------------
+// Run unsteady computations
 //------------------------------------------------------------------------------------
 template <int dim>
 void NS<dim>::run_unsteady ()
@@ -710,11 +789,22 @@ void NS<dim>::run_unsteady ()
    assemble_matrix (order);
    
    // Set initial condition
-   std::cout << "Setting initial condition ..." << std::endl;
-   VectorTools::interpolate(mapping, dof_handler,
-                            InitialCondition<dim>(), solution0);
+   if(restart == false)
+   {
+      std::cout << "Setting initial condition ..." << std::endl;
+      VectorTools::interpolate(mapping, dof_handler,
+                               InitialCondition<dim>(), solution0);
+   }
+   else
+   {
+      std::cout << "Read initial condition from file steady.dat\n";
+      std::ifstream restart_file("steady.dat");
+      solution0.block_read (restart_file);
+   }
+   
    solution1 = solution0;
    solution2 = solution0;
+   
    compute_vorticity ();
    output_results ();
    
@@ -756,23 +846,31 @@ void NS<dim>::run_unsteady ()
 }
 
 //------------------------------------------------------------------------------------
+// Run the code in specified mode
 //------------------------------------------------------------------------------------
 template <int dim>
 void NS<dim>::run ()
 {
    make_grid_dofs ();
 
-   //run_steady ();
-   run_unsteady ();
+   if(run_mode == steady)
+      run_steady ();
+   else if(run_mode == unsteady)
+      run_unsteady ();
+   else
+      AssertThrow(false, ExcMessage("Unknown run mode"));
 }
 
 //------------------------------------------------------------------------------------
+// Main function
 //------------------------------------------------------------------------------------
 int main(int argc, char *argv[])
 {
    try
    {
       deallog.depth_console (0);
+
+      parse_command_line (argc, argv);
 
       unsigned int pressure_degree = 2;
       NS<2> ns_problem (pressure_degree);
