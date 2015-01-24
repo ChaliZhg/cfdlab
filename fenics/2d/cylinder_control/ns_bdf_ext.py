@@ -57,7 +57,7 @@ Ur = 1.0                # Reference velocity
 D  = 0.1                # dia of cylinder
 Re = 100.0              # Reynolds number
 nu = Constant(Ur*D/Re)  # viscosity coefficient
-dt = 0.005
+dt = 0.01
 idt= Constant(1.0/dt)
 
 #up0.interpolate(initial_condition())
@@ -65,6 +65,16 @@ File("steady.xml") >> up0.vector()
 u0 = as_vector((up0[0], up0[1]))
 u1 = as_vector((up1[0], up1[1]))
 u2 = as_vector((up2[0], up2[1]))
+
+# Compute force on cylinder
+dss = Measure("ds")[boundaries]
+# Stress tensor
+T    = nu*(grad(u2) + grad(u2).T) - up2[2]*Identity(2)
+# Face normals
+n = FacetNormal(mesh)
+drag = -T[0,j]*n[j]*dss(2)
+lift = -T[1,j]*n[j]*dss(2)
+ffile = open('force.dat', 'w')
 
 t  = 0.0
 Tf = 50.0
@@ -124,9 +134,15 @@ while t < Tf:
     t += dt
     it+= 1
     print "it = %6d,   t = %12.6e,   cfl = %12.3e" % (it,t,cfl)
-    if cfl > 10.0:
+    # Compute lift/drag and store in arrays
+    cl = assemble(lift)
+    cd = assemble(drag)
+    force=str(it)+" "+str(t)+" "+str(cl)+" "+str(cd)+"\n"
+    ffile.write(force)
+    ffile.flush()
+    if cfl > 100.0:
         print "cfl is too large !!!"
         break
-    if it%10 == 0:
+    if it%50 == 0:
         u,p = up2.split()
         fu << u
