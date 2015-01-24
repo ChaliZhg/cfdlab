@@ -5,8 +5,8 @@
 //Mesh.SecondOrderIncomplete = 1;
 
 lc = 0.02;
-lo = 1.0;  // outer boundary
-lw = 0.2;  // wake outlet
+lo = 0.05;  // outer boundary
+lw = 0.05;  // wake outlet
 
 d = 0.1;
 r = 0.5*d;
@@ -14,17 +14,17 @@ R = 5*r;
 
 assym = 0.0*d;
 
-h = 50*d;
-l1 = 50*d;
-l2 = 100*d;
+h = 15*d;
+l1 = 15*d;
+l2 = 35*d;
 
 n = 2;
 nl1 = 4;  // along x before cylinder
-nl2 = 200; // along wake
-nr  = 20;  // along radius
+nl2 = 150; // along wake
+nr  = 40;  // along radius
 nw  = 10; // normal to side wall
 
-nc = 10; // around cylinder
+nc = 15; // around cylinder
 
 //nz = 30;
 nz = 1;
@@ -33,7 +33,7 @@ Point(1) = {0,0,0,lc};
 Point(2) = {0,r,0,lc};
 Point(3) = {r,0,0,lc};
 Point(4) = {-r,0,0,lc};
-Point(5) = {-l1,0,0,lo};
+Point(5) = {-l1,0,0,0.2*lo};
 Point(6) = {l2,0,0,lw};
 Point(7) = {-l1,h,0,lo};
 Point(8) = {l2,h,0,lo};
@@ -138,7 +138,7 @@ Transfinite Line {24} = nl2+1 Using Progression 1.01;
 Transfinite Line {-43} = nl2+1 Using Progression 1.01;
 
 // radially away from cylinder
-Transfinite Line{-9,-10,-11,-12,-13,59,64,69} = nr+1 Using Progression 1.1;
+Transfinite Line{-9,-10,-11,-12,-13,59,64,69} = nr+1 Using Progression 1.05;
 
 Transfinite Line {8,5,6,7,4,3,2,1,23} = nc+1 Using Progression 1.0;
 
