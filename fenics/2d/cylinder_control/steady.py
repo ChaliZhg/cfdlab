@@ -45,14 +45,10 @@ up0 = Function(X)  # u^{n-1}
 up1 = Function(X)  # u^{n}
 
 # Trial functions
-up  = TrialFunction(X)
-u   = as_vector((up[0],up[1]))
-p   = up[2]
+u,p = TrialFunctions(X)
 
 # Test functions
-vq  = TestFunction(X)
-v   = as_vector((vq[0],vq[1]))
-q   = vq[2]
+v,q = TestFunctions(X)
 
 # Boundary condition
 vin  = inlet_velocity()
@@ -77,7 +73,7 @@ up0.interpolate(initial_condition())
 u0 = as_vector((up0[0], up0[1]))
 u1 = as_vector((up1[0], up1[1]))
 
-fu = File("u.pvd")
+fu = File("steady.pvd")
 
 # Linear form
 F  = inner(grad(u)*u0, v)*dx      \
@@ -105,5 +101,7 @@ for i in range(20):
     [bc.apply(res) for bc in bcs0]
     res_norm = norm(res)/sqrt(X.dim())
     print "Iter = %d,  res norm = %e" % (i, res_norm)
+    if res_norm < 1.0e-14:
+        break
 
 File("steady.xml") << up1.vector()
