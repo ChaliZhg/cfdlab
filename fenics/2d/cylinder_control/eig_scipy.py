@@ -75,7 +75,7 @@ bcs0  = [bcin0, bccyl0, bcsid0]
 
 Ur = 1.0                # Reference velocity
 D  = 0.1                # dia of cylinder
-Re = 100.0              # Reynolds number
+Re = 50.0               # Reynolds number
 nu = Constant(Ur*D/Re)  # viscosity coefficient
 
 
@@ -118,17 +118,20 @@ print "Size of M =",M.shape
 # Compute eigenvalues/vectors of (A,M)
 print "Computing eigenvalues/vectors ..."
 sigma = 0.0
-vals, vecs = la.eigs(A, k=6, M=M, sigma=sigma, which='LM', ncv=50, tol=1.0e-8)
-for val in vals:
-    print np.real(val), np.imag(val)
-
+vals, vecs = la.eigs(A, k=100, M=M, sigma=sigma, which='LM', ncv=400, tol=1.0e-8)
+ii = np.argsort(vals)[::-1]
 fv = File("eig.pvd")
 up = Function(X)
+fe = open("eig.dat","w")
+for i in ii:
+    vr, vi = np.real(vals[i]), np.imag(vals[i])
+    print vr, vi
+    fe.write(str(vr)+"  "+str(vi)+"\n")
 
-up.vector()[freeinds] = np.array(np.real(vecs[:,0]))
-u,p = up.split()
-fv << u
+    up.vector()[freeinds] = np.array(np.real(vecs[:,i]))
+    u,p = up.split()
+    fv << u
 
-up.vector()[freeinds] = np.array(np.imag(vecs[:,0]))
-u,p = up.split()
-fv << u
+    up.vector()[freeinds] = np.array(np.imag(vecs[:,i]))
+    u,p = up.split()
+    fv << u
