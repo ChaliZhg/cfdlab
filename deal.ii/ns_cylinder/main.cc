@@ -16,6 +16,8 @@
 #include <deal.II/base/utilities.h>
 #include <deal.II/base/work_stream.h>
 #include <deal.II/base/multithread_info.h>
+#include <deal.II/base/parameter_handler.h>
+
 
 #include <deal.II/grid/tria.h>
 #include <deal.II/grid/grid_in.h>
@@ -48,6 +50,7 @@ using namespace dealii;
 enum runMode { norun, steady, unsteady };
 runMode run_mode;
 bool restart;
+std::string parameter_file;
 
 //------------------------------------------------------------------------------------
 // Get command line arguments
@@ -56,7 +59,7 @@ void
 parse_command_line (const int     argc,
                     char *const  *argv)
 {
-   if (argc < 2)
+   if (argc < 3)
    {
       std::cerr << "Not enough parameters given\n";
       exit (1);
@@ -68,6 +71,7 @@ parse_command_line (const int     argc,
    
    run_mode = norun;
    restart = false;
+   parameter_file = "null";
    
    while (args.size())
    {
@@ -86,6 +90,19 @@ parse_command_line (const int     argc,
          restart = true;
          args.pop_front ();
       }
+      else if (args.front() == std::string("-p"))
+      {
+         if (args.size() == 1)
+         {
+            std::cerr << "Error: flag '-p' must be followed by the\n"
+                      << "       name of a parameter file."
+                      << std::endl;
+            exit (1);
+         }
+         args.pop_front ();
+         parameter_file = args.front ();
+         args.pop_front ();
+      }
       else
       {
          std::cerr << "Unknown parameter: " << args.front() << std::endl;
@@ -96,9 +113,46 @@ parse_command_line (const int     argc,
    if(run_mode == norun)
    {
       std::cerr << "Run mode must be specified\n";
+      std::cerr << "    -steady or -unsteady\n";
       exit(1);
    }
 
+   if(parameter_file == "null")
+   {
+      std::cerr << "Parameter file must be specified\n";
+      std::cerr << "          -p filename\n";
+      exit(1);
+   }
+}
+
+//------------------------------------------------------------------------------
+// Declare parameters for simulation
+//------------------------------------------------------------------------------
+void declare_parameters(ParameterHandler& prm)
+{
+   prm.declare_entry("reynolds no", "1.0", Patterns::Double(0.0),
+                     "Reynolds number");
+   prm.declare_entry("reference length", "1.0", Patterns::Double(0.0),
+                     "Reference length");
+   prm.declare_entry("reference velocity", "1.0", Patterns::Double(0.0),
+                     "Reference velocity");
+   
+   prm.declare_entry("pressure degree", "1", Patterns::Integer(1,6),
+                     "Pressure polynomial degree");
+   
+   prm.declare_entry("mesh file", "turek.msh",
+                     Patterns::Anything(),
+                     "Mesh file name");
+   prm.declare_entry("linear solver", "umfpack",
+                     Patterns::Selection("umfpack"),
+                     "Linear solver");
+
+   prm.declare_entry("time step", "0.1", Patterns::Double(0.0),
+                     "Time step");
+   prm.declare_entry("final time", "1.0e20", Patterns::Double(0.0),
+                     "Final time");
+   prm.declare_entry("no of iterations", "1000000", Patterns::Integer(0),
+                     "Number of iterations");
 }
 
 //------------------------------------------------------------------------------------
@@ -145,7 +199,7 @@ template <int dim>
 class NS
 {
 public:
-   NS (unsigned int degree);
+   NS (ParameterHandler &prm);
    ~NS() {};
    void run ();
    
@@ -183,6 +237,7 @@ private:
    void compute_vorticity ();
    void output_results() const;
    
+   ParameterHandler           *parameters;
    unsigned int               degree;
    FESystem<dim>              fe;
    FE_Q<dim>                  fe_scalar;
@@ -211,9 +266,10 @@ private:
 // Constructor of the main class.
 //------------------------------------------------------------------------------------
 template <int dim>
-NS<dim>::NS (unsigned int degree)
+NS<dim>::NS (ParameterHandler &prm)
 :
-   degree (degree),
+   parameters (&prm),
+   degree (prm.get_integer("pressure degree")),
    fe( FE_Q<dim>(QGaussLobatto<1>(degree+2)), dim,
        FE_Q<dim>(QGaussLobatto<1>(degree+1)),   1),
    fe_scalar (FE_Q<dim>(QGaussLobatto<1>(degree+2))),
@@ -221,13 +277,12 @@ NS<dim>::NS (unsigned int degree)
    dof_handler_scalar (triangulation),
    mapping (degree+1)
 {
-   dt = 0.01;
-   Re = 100.0;
-   Uref = 1.0;
-   Lref = 0.1;
-   viscosity = Uref*Lref/Re;
-   final_time = 40.0;
-   std::string grid_file = "karman.msh";
+   dt = parameters->get_double("time step");
+   Re = parameters->get_double("reynolds no");
+   Uref = parameters->get_double("reference velocity");
+   Lref = parameters->get_double("reference length");
+   final_time = parameters->get_double("final time");
+   std::string grid_file = parameters->get("mesh file");
    
    std::cout << "Reading grid from " << grid_file << std::endl;
    GridIn<dim> grid_in;
@@ -235,6 +290,8 @@ NS<dim>::NS (unsigned int degree)
    std::ifstream input_file (grid_file.c_str());
    grid_in.read_msh (input_file);
    
+   viscosity = Uref*Lref/Re;
+
    // Set cylinder boundary description
    double radius = Lref / 2.0;
    Point<dim> center (0.0, 0.0);
@@ -550,7 +607,8 @@ local_assemble_system (const typename DoFHandler<dim>::active_cell_iterator &cel
             local_matrix(i,j) += (grad_phi_u[j] * velocity[q]) * phi_u[i]
                                  * fe_values.JxW(q);
             local_rhs(i) += (1.0/dt) *
-                            (-a1 * solution1(local_dof_indices[j]) - a0 * solution0(local_dof_indices[j]))
+                            (- a1 * solution1(local_dof_indices[j]) 
+                             - a0 * solution0(local_dof_indices[j]))
                             * phi_u[i] * phi_u[j] * fe_values.JxW(q);
          }
    }
@@ -871,9 +929,13 @@ int main(int argc, char *argv[])
       deallog.depth_console (0);
 
       parse_command_line (argc, argv);
-
-      unsigned int pressure_degree = 2;
-      NS<2> ns_problem (pressure_degree);
+      
+      ParameterHandler prm;
+      declare_parameters (prm);
+      bool status = prm.read_input (parameter_file, true);
+      AssertThrow( status, ExcFileNotOpen(parameter_file.c_str()) );
+      
+      NS<2> ns_problem (prm);
       ns_problem.run();
    }
    catch (std::exception &exc)
