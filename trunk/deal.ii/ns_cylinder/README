@@ -6,12 +6,12 @@ Create mesh
 
 Run steady solver
 
-   $ ./main -steady
+   $ ./main -p turek.in -steady
 
 Run unsteady solver
 
-   $ ./main -unsteady
+   $ ./main -p turek.in -unsteady
 
 Run unsteady solver starting from steady solution
 
-   $ ./main -unsteady -restart
+   $ ./main -p turek.in -unsteady -restart
