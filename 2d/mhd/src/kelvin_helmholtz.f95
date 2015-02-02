@@ -1,3 +1,4 @@
+!! http://www.astro.princeton.edu/~jstone/Athena/tests/kh/kh.html
 subroutine kelvin_helmholtz(pri)
    use comvar
    implicit none
@@ -7,6 +8,7 @@ subroutine kelvin_helmholtz(pri)
    integer :: i, j
    real    :: x, y, r
 
+   gamma      = 1.4
    final_time = 5.0
    xperiod    = yes
    yperiod    = yes
@@ -35,7 +37,7 @@ subroutine kelvin_helmholtz(pri)
          pri(3,i,j) = 0.01 * (2.0*r - 1.0)
          pri(4,i,j) = 0.0
          pri(5,i,j) = 2.5
-         pri(6,i,j) = 0.0
+         pri(6,i,j) = 0.5
          pri(7,i,j) = 0.0
          pri(8,i,j) = 0.0
       enddo
