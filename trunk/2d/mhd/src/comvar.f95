@@ -14,12 +14,9 @@ module comvar
    integer :: nrk
    real    :: ark(3), brk(3)
 
-   real,parameter :: gamma = 5.0/3.0
-   real :: g1 = sqrt( (gamma-1.0)/gamma )
-   real :: g2 = sqrt( 1.0/gamma )
-   real :: g3 = sqrt( 0.5/gamma )
-   real :: g4 = sqrt( 1.0/(gamma-1.0) )
-   real :: PI = 4.0*atan(1.0)
+   real,parameter :: PI = 4.0*atan(1.0)
+
+   real    :: gamma, g1, g2, g3, g4
 
    integer :: fileid_sol, fileid_omg
 
@@ -36,7 +33,7 @@ module comvar
 
    integer :: xperiod, yperiod
 
-   integer :: iot=1, ikh=2
+   integer :: iot=1, ikh=2, irotor=3, ialfven=4
    integer :: test_case
 
 end module comvar

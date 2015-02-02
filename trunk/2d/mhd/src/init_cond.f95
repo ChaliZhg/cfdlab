@@ -13,10 +13,20 @@ subroutine init_cond(pri, co1)
       call orszag_tang(pri)
    elseif(test_case == ikh)then
       call kelvin_helmholtz(pri)
+   elseif(test_case == irotor)then
+      call rotor(pri)
+   elseif(test_case == ialfven)then
+      call alfven(pri)
    else
       print*,'Unknown test case !!!'
       stop
    endif
+
+   ! Gas constants stored in comvar
+   g1 = sqrt( (gamma-1.0)/gamma )
+   g2 = sqrt( 1.0/gamma )
+   g3 = sqrt( 0.5/gamma )
+   g4 = sqrt( 1.0/(gamma-1.0) )
 
    do i=-1,nx+2
       do j=-1,ny+2
