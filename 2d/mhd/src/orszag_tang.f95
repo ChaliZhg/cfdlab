@@ -1,3 +1,4 @@
+! http://www.astro.princeton.edu/~jstone/Athena/tests/orszag-tang/pagesource.html
 subroutine orszag_tang(pri)
    use comvar
    implicit none
@@ -7,6 +8,7 @@ subroutine orszag_tang(pri)
    integer :: i, j
    real    :: x, y
 
+   gamma      = 5.0/3.0
    final_time = 2.5
    xperiod    = yes
    yperiod    = yes
