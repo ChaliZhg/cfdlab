@@ -8,14 +8,15 @@ program main
 
    integer :: fid
 
-   nx = 600
-   ny = 600
+   ! Grid size
+   nx = 400
+   ny = 400
 
    ! Default value, modified in initial condition function
-   final_time = 10.0
+   final_time = 5.0
 
    itmax = 500000
-   itsave= 200
+   itsave= 250
 
    ! Material properties
    gas_const = 1.0
@@ -26,21 +27,22 @@ program main
    yperiod = yes
 
    ! options: 
-   ! ient  = muscl type
-   ! ifent = entropy stable
+   ! ient  = primitive reconstruction
+   ! ifent = tecno
    fluxtype = ifent
 
    ! limiter: ford, muscl3, mmod
    limtype = mmod
 
    ! testcase: iot=orszag-tang, ikh=kelvin-helmholtz
-   test_case = iot
+   !           irotor=rotor, ialfven=alfven
+   test_case = irotor
 
    ! file id for saving solution
    fileid_sol = 0
    fileid_omg = 0
 
-   cfl = 0.25
+   cfl = 0.90
 
    nrk    = 3
 

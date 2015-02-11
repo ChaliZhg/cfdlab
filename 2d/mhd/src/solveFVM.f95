@@ -125,7 +125,7 @@ subroutine solveFVM(pri, co0, co1, res, divB)
 
       time = time + dt
       write(*,'(I6,E12.3,8E12.4)')it,time,resid(:)/resid1(:)
-      write(*,'("     Div B = ", E12.3)') maxdivB
+      write(*,'("         Div B = ", E12.3)') maxdivB
       call flush()
 
       if(mod(it,itsave)==0 .or. it==itmax .or. tostop)then
