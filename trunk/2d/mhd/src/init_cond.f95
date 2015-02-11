@@ -17,6 +17,8 @@ subroutine init_cond(pri, co1)
       call rotor(pri)
    elseif(test_case == ialfven)then
       call alfven(pri)
+   elseif(test_case == ibriowu)then
+      call briowu(pri)
    else
       print*,'Unknown test case !!!'
       stop
