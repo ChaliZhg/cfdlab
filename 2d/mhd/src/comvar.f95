@@ -34,6 +34,7 @@ module comvar
    integer :: xperiod, yperiod
 
    integer :: iot=1, ikh=2, irotor=3, ialfven=4
+   integer :: ibriowu=5
    integer :: test_case
 
 end module comvar
