@@ -1,4 +1,4 @@
-! http://www.astro.princeton.edu/~jstone/Athena/tests/orszag-tang/pagesource.html
+! First rotor problem from Toth
 subroutine rotor(pri)
    use comvar
    implicit none
@@ -8,7 +8,7 @@ subroutine rotor(pri)
    integer :: i, j
    real    :: x, y, r, r0, r1, f, u0
 
-   gamma = 5.0/3.0
+   gamma = 1.4
    final_time = 0.15
    xperiod    = yes
    yperiod    = yes

@@ -9,7 +9,7 @@ subroutine orszag_tang(pri)
    real    :: x, y
 
    gamma      = 5.0/3.0
-   final_time = 2.5
+   final_time = 0.5
    xperiod    = yes
    yperiod    = yes
 
