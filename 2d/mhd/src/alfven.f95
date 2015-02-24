@@ -1,4 +1,4 @@
-! http://www.astro.princeton.edu/~jstone/Athena/tests/orszag-tang/pagesource.html
+! Same as in Toth
 subroutine alfven(pri)
    use comvar
    implicit none
@@ -8,7 +8,7 @@ subroutine alfven(pri)
    integer :: i, j
    real    :: x, y, alpha, Bpar, Bperp, vperp
 
-   gamma = 1.4
+   gamma = 5.0/3.0
    alpha = 30.0 * PI/180.0
    Bpar  = 1.0
    final_time = 5.0
