@@ -1,6 +1,7 @@
 !------------------------------------------------------------------------------
 ! Numerical flux function
 ! exactly entropy consistent
+! left, right, left1, right1 are primitive variables (rho,u1,u2,u3,p,B1,B2,B3)
 !------------------------------------------------------------------------------
 subroutine ent_flux(lx, ly, left, right, left1, right1, flux)
    use comvar

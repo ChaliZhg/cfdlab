@@ -18,7 +18,6 @@ subroutine briowu(pri)
    dx = (xmax - xmin)/nx
    dy = dx
 
-   ny   = 5
    ymin = 0.0
    ymax = ny*dy
 
