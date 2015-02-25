@@ -120,12 +120,12 @@ subroutine solveFVM(pri, co0, co1, res, divB)
          enddo
       endif
 
-      !call global_quantities(rho,vex,vey,pre,ke,entropy)
+      call global_quantities(pri,ke,entropy)
       call compute_divB(pri,divB,maxdivB)
 
       time = time + dt
       write(*,'(I6,E12.3,8E12.4)')it,time,resid(:)/resid1(:)
-      write(*,'("         Div B = ", E12.3)') maxdivB
+      write(*,'("t,div,ke,entropy = ", 4E16.6)') time, maxdivB, ke, entropy
       call flush()
 
       if(mod(it,itsave)==0 .or. it==itmax .or. tostop)then
