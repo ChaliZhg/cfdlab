@@ -1,0 +1,212 @@
+c Pressure driven miscible channel flow with periodic bc
+c
+c Inlet velocity Uq is chosen so that velocity based on mass flow rate
+c is unity
+c    Um = int_0^1 u(y) dy = 1.0
+c
+c-----------------------------------------------------------------------
+      subroutine uservp (ix,iy,iz,ieg)
+      include 'SIZE'
+      include 'TOTAL'
+      include 'NEKUSE'
+      common /mygeom/ xmin,xmax
+      common /myparam/ smlen,r_k,r_T,Uq,Rey_no,Pr_no,Sc_no,visc_rat
+
+c     Clip concentration to interval [0,1]
+      sc    = max(0.0, ps(1))
+      sc    = min(1.0, sc)
+
+      if(ifield.eq.1)then   ! momentum equation
+         utrans= 1.0
+         udiff = exp(sc*log(visc_rat) - temp)/Rey_no
+      else if(ifield.eq.2)then ! temperature eqn
+         utrans= 1.0
+         udiff = sc*(r_k - 1.0) + 1.0
+         udiff = udiff/(Rey_no*Pr_no)
+      else if(ifield.eq.3)then  ! passive scalar
+         utrans= 1.0
+         udiff = 1.0/(Rey_no*Sc_no)
+      else
+         if(nid.eq.0) write(6,'("Only 3 fields")')
+         call exitt()
+      endif
+
+      return
+      end
+c-----------------------------------------------------------------------
+      subroutine userf  (ix,iy,iz,ieg)
+      include 'SIZE'
+      include 'TOTAL'
+      include 'NEKUSE'
+
+      ffx = 0.0
+      ffy = 0.0
+      ffz = 0.0
+
+      return
+      end
+c-----------------------------------------------------------------------
+      subroutine userq  (ix,iy,iz,ieg)
+      include 'SIZE'
+      include 'TOTAL'
+      include 'NEKUSE'
+C
+      qvol   = 0.0
+      source = 0.0
+      return
+      end
+c-----------------------------------------------------------------------
+      subroutine userchk
+      include 'SIZE'  
+      include 'TOTAL' 
+      common /cwdata/ cwgt(lx1*ly1*lz1*lelt),ctot0
+
+c     Calculate min, max values of concentration
+      if(mod(istep,10).eq.0)then
+         n    = nx1*ny1*nz1*nelt
+         cmin = glmin(t(1,1,1,1,2),n)
+         cmax = glmax(t(1,1,1,1,2),n)
+         if(nid.eq.0)then
+         write(6,'(5X,I6,5X,"Scalar min, max = ",2E12.4)') istep, 
+     1             cmin, cmax
+         endif
+      endif
+
+c     Clip the concentration to [0,1]
+      n    = nx1*ny1*nz1*nelt
+      do i=1,n
+         t(i,1,1,1,2) = max(0.0, t(i,1,1,1,2))
+         t(i,1,1,1,2) = min(1.0, t(i,1,1,1,2))
+      enddo
+
+      ! Save initial condition
+      if(istep.eq.0)then
+         ifxyo = .true.
+         call outpost2(vx,vy,vz,pr,t,2,'   ')
+      else
+         ifxyo = .false.
+      endif
+
+
+      return
+      end
+c-----------------------------------------------------------------------
+      subroutine userbc (ix,iy,iz,iside,ieg)
+      include 'SIZE'
+      include 'TOTAL'
+      include 'NEKUSE'
+      common /myparam/ smlen,r_k,r_T,Uq,Rey_no,Pr_no,Sc_no,visc_rat
+
+c     This function should not be called. 
+
+      return
+      end
+c-----------------------------------------------------------------------
+      subroutine useric (ix,iy,iz,ieg)
+      include 'SIZE'
+      include 'TOTAL'
+      include 'NEKUSE'
+      common /myparam/ smlen,r_k,r_T,Uq,Rey_no,Pr_no,Sc_no,visc_rat
+      common /inidatr/ ydata(1000), uxdata(1000), cdata(1000)
+      common /inidati/ ndata
+      integer icalld
+      save    icalld
+      data    icalld/0/
+
+      if(icalld.eq.0)then
+c        Read data from file
+         icalld = 1
+         open(44,file='3layer.dat',status='old')
+         read(44,*) ndata
+         do i=1,ndata
+            read(44,*) ydata(i), uxdata(i), cdata(i)
+         enddo
+         close(44)
+      endif
+
+c     Find y and get ux, c
+      call search_y (y, ux_init, c_init)
+
+      ux    = ux_init
+      uy    = 0.0
+      uz    = 0.0
+
+      if(ifield.eq.2)then       ! temperature: inlet=r_T, sides=0
+         temp  = 0.0
+      else if(ifield.eq.3)then  ! passive scalar
+         temp = c_init
+      endif
+
+      return
+      end
+c-----------------------------------------------------------------------
+      subroutine usrdat
+      include 'SIZE'
+      include 'TOTAL'
+      common /myparam/ smlen,r_k,r_T,Uq,Rey_no,Pr_no,Sc_no,visc_rat
+      common /stabpar/ alphax
+
+      ifpsco(1) = .true.   ! concentration
+      ifpsco(2) = .false.  ! used in post.usr to store vorticity
+
+      param(66) = 6
+      param(67) = 6
+
+c     Length over which to smooth initial condition at inlet
+      smlen = 5.0
+
+      r_k      = 1.0     ! ratio of thermal conducitivies
+      r_T      = 3.0     ! Temperature at inlet, walls = 0
+      Uq       = 1.5     ! avg velocity based on flow rate
+      Rey_no   = 500.0
+      Sc_no    = 100.0
+      Pr_no    = 7.0
+      visc_rat = 10.0
+
+      alphax   = 1.4     ! wave number
+
+      return
+      end
+c-----------------------------------------------------------------------
+      subroutine usrdat2
+      include 'SIZE'
+      include 'TOTAL'
+      common /mygeom/ xmin,xmax
+      common /stabpar/ alphax
+
+      ifuservp = .true.
+      ifstrs   = .true.
+
+      x0 = 0.0
+      x1 = alphax
+      call rescale_x (xm1, x0, x1)
+
+      n    = nx1*ny1*nz1*nelv
+      xmin = glmin(xm1,n)
+      xmax = glmax(xm1,n)
+
+      return
+      end
+c-----------------------------------------------------------------------
+      subroutine usrdat3
+      return
+      end
+c-----------------------------------------------------------------------
+      subroutine search_y (y, ux_init, c_init)
+      common /inidatr/ ydata(1000), uxdata(1000), cdata(1000)
+      common /inidati/ ndata
+
+      do i=1,ndata
+         if(abs(y-ydata(i)).lt.1.0e-13)then
+            ux_init = uxdata(i)
+            c_init  = cdata(i)
+            return
+         endif
+      enddo
+
+c     If we came here, then we did not find matching y
+      write(6,*) 'Error: did not find matching y'
+      call exitt()
+
+      return
+      end
