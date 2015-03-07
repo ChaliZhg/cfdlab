@@ -163,7 +163,7 @@ c     Length over which to smooth initial condition at inlet
       Pr_no    = 7.0
       visc_rat = 10.0
 
-      alphax   = 1.4     ! wave number
+      alphax   = 4.0     ! wave number
 
       return
       end
@@ -177,8 +177,10 @@ c-----------------------------------------------------------------------
       ifuservp = .true.
       ifstrs   = .true.
 
+      pi = 4.0*atan(1.0)
+
       x0 = 0.0
-      x1 = alphax
+      x1 = 2.0*pi/alphax
       call rescale_x (xm1, x0, x1)
 
       n    = nx1*ny1*nz1*nelv
