@@ -1,0 +1,96 @@
+grid
+{
+   type   delaundo
+   file   naca.dpl
+   cell   median
+}
+
+numeric
+{
+   time_mode    steady
+   time_scheme  lusgs
+   time_step    0.0
+   cfl          1e6
+   max_iter     25000
+   final_time   1.0e20
+   min_residue  1.0e-6
+   reconstruct  limited
+   bc_scheme    weak
+   nitsche_pen  0.0
+   smooth_res   yes
+}
+
+material
+{
+   gamma       1.4
+   gas_const   1.0
+   viscosity
+   {
+      model    constant
+      mu_ref   0.0
+   }
+   prandtl     1.0
+   model       euler
+   flux        roe
+}
+
+constants
+{
+  T    9.88630746416214e-01
+  p    9.88630746416214e-01
+  u    9.99847695156391e-01
+  v    1.74524064372835e-02
+}
+
+initial_condition
+{
+   temperature  T
+   xvelocity    u
+   yvelocity    v
+   zvelocity    0.0
+   pressure     p
+}
+
+boundary
+{
+   3 // airfoil surface
+   {
+      type         slip
+   }
+
+   5 // outer circle
+   {
+      type         farfield
+      temperature  T
+      xvelocity    u
+      yvelocity    v
+      zvelocity    0.0
+      pressure     p
+   }
+
+}
+
+integrals
+{
+   force
+   {
+      airfoil
+      3
+   }
+}
+
+output
+{
+   format     vtk
+   frequency  1000
+   variables
+   {
+      mach
+   }
+   surfaces
+   {
+      3
+   }
+   restart    true
+   global_KE  false
+}
