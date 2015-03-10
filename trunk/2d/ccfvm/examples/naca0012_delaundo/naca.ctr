@@ -1,0 +1,54 @@
+ VERBOSe:
+       3, User.
+ ALLPARameters:
+       f, User.
+ INFILE:
+       naca.pts
+ INFORMatted:
+       T
+ NODEUSe:
+       F, User.
+ NODECOnstr.:
+       T, User.
+ ANTICOnnect.:
+       f, User.
+ SPCRATio:
+         10.0, User.
+ DTOLERance:
+       0.6000, User.
+ QTOLERance:
+       0.6500, User.
+ STRETChing:
+       f, User.
+ BTOLERance:
+       1.5000, User.
+ DELTAStar:
+       0.500, User.
+ MAXASPect ratio:
+        10., User.
+ MVISROw:
+        1000, User.
+ ASKROW:
+        f
+ ISMOOTh:
+         2 User
+ MISOROw:
+         1000, User.
+ FLATSWap:
+       t, User.
+ ANGMAX:
+       120.
+ MCYCSWap:
+       20 User
+ LAPLAC:
+       t
+ OUTFILe:
+       ./naca.dpl
+ OUTTYPe:
+      t 
+ OUTFORmat:
+       dpl (dplot)
+ DOLOGFile:
+       T, User.
+ LOGFILe:
+       naca.log
