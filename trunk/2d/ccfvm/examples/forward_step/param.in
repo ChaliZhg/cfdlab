@@ -1,0 +1,86 @@
+grid
+{
+   type   gmsh 
+   file   step.msh
+   cell   median
+}
+
+numeric
+{
+   time_mode    unsteady
+   time_scheme  rk3
+   time_step    0.0
+   cfl          0.9
+   max_iter     50000
+   final_time   4.0
+   min_residue  1.0e-20
+   reconstruct  minmax
+   bc_scheme    weak
+}
+
+material
+{
+   gamma       1.4
+   gas_const   7.14285714285714e-01 // R = 1/gamma
+   viscosity   constant  0.0
+   prandtl     1.0
+   model       euler
+   flux        kfvs
+}
+
+constants
+{
+   T    1.0
+   p    1.0
+   u    3.0
+}
+
+initial_condition
+{
+   temperature  T
+   xvelocity    u
+   yvelocity    0.0
+   zvelocity    0.0
+   pressure     p
+}
+
+boundary
+{
+   100001
+   {
+      type         farfield
+      temperature  T
+      xvelocity    u
+      yvelocity    0.0
+      zvelocity    0.0
+      pressure     p
+   }
+
+   100002
+   {
+      type         slip
+   }
+
+   100003
+   {
+      type         outlet
+   }
+
+}
+
+integrals
+{
+}
+
+output
+{
+   format     tec
+   frequency  100
+   variables
+   {
+      mach
+      density
+   }
+   restart    false
+   global_KE  false
+}
