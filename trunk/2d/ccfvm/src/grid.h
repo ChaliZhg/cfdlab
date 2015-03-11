@@ -13,7 +13,6 @@ class Cell
       unsigned int vertex[3];
       int          face[3];
       double       area;
-      double       radius;
       double       alpha, beta, gamma, invA1[2][2];
       std::vector<Vector> normal; // Inward normal
 };
@@ -30,7 +29,6 @@ class Grid
 {
    public:
       Grid () { n_vertex = n_cell = n_face = n_boundary_face = 0; };
-      CellType cell_type;
       unsigned int n_vertex;
       unsigned int n_cell;
       unsigned int n_face;
@@ -38,9 +36,6 @@ class Grid
       std::vector<Vertex> vertex;
       std::vector<Cell>   cell;
       std::vector<Face>   face;
-      std::vector<Face>   bface;
-      std::vector<double> mcarea;
-      std::vector<double> dcarea;
       std::vector<unsigned int> old_num;
       std::vector<unsigned int> new_num;
 

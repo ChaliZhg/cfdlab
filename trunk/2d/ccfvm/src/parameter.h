@@ -8,7 +8,6 @@
 #include "reader.h"
 #include "vec.h"
 #include "material.h"
-#include "force.h"
 #include "ic.h"
 #include "bc.h"
 #include "constants.h"
@@ -31,23 +30,15 @@ class Parameter
 
       enum ReconstructScheme 
       { 
-         first, second, limited, minmod, bj, minmax
+         first, second, bj
       };
-
-      enum BCScheme
-      {
-         strong, weak
-      };
-      double Cpen;
 
       ReconstructScheme reconstruct_scheme;
-      BCScheme          bc_scheme;
 
       Material material;
 
       std::string grid_file;
       GridType    grid_type;
-      CellType    cell_type;
 
       InitialCondition initial_condition;
 
@@ -60,8 +51,6 @@ class Parameter
       bool write_restart;
       bool has_global;
       bool global_KE;
-
-      std::vector<ForceData> force_data;
 
       void read ();
 

@@ -530,11 +530,11 @@ void FiniteVolume::compute_global (unsigned int iter)
    if(param.global_KE)
    {
       double global_KE = 0;
-      for(unsigned int i=0; i<grid.n_vertex; ++i)
+      for(unsigned int i=0; i<grid.n_cell; ++i)
          global_KE += 0.5 * 
                       primitive[i].density *
                       primitive[i].velocity.square() *
-                      grid.dcarea[i];
+                      grid.cell[i].area;
       double global_Enstrophy = 0;
       for(unsigned int i=0; i<grid.n_cell; ++i)
          global_Enstrophy += 0.5 * 
@@ -613,8 +613,6 @@ void FiniteVolume::run ()
 {
    // Read grid from file
    grid.read (param);
-
-   create_force_face_list ();
 
    // Set initial condition
    initialize ();

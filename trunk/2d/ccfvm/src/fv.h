@@ -25,9 +25,6 @@ class FiniteVolume
          {
             res_file.open ("residue.dat");
 
-            if(param.force_data.size() > 0)
-               force_file.open ("force.dat");
-
             if(param.has_global == true)
                global_file.open ("global.dat");
          }
@@ -35,8 +32,6 @@ class FiniteVolume
       ~FiniteVolume () 
       {
          res_file.close ();
-         if(param.force_data.size() > 0)
-            force_file.close ();
          if(global_file.is_open())
             global_file.close ();
       };
@@ -67,7 +62,6 @@ class FiniteVolume
       double               residual_norm_total0;
       std::vector<double>  dt;
       double               dt_global;
-      std::vector<Force>   force;
       double               elapsed_time;
       int                  last_iter;
 

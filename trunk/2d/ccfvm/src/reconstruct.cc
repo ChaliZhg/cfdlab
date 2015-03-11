@@ -115,7 +115,6 @@ void FiniteVolume::reconstruct (const unsigned int& f,
 
       // Barth-Jespersen or MinMax scheme
       case Parameter::bj:
-      case Parameter::minmax:
          reconstruct_minmax (f, state);
          break;
 

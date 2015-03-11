@@ -43,8 +43,6 @@ void Writer::attach_variables (const vector<string>& variables)
    for(unsigned int i=0; i<variables.size(); ++i)
       if(variables[i]=="mach")
          write_mach = true;
-      else if(variables[i]=="density")
-         write_density = true;
       else if(variables[i]=="vorticity")
          write_vorticity = true;
       else
@@ -98,20 +96,6 @@ void Writer::output (int counter, double elapsed_time)
       output_tec (elapsed_time, filename);
    }
    cout << "Saving solution into file " << filename << endl;
-
-   // save solution at specified surfaces
-   string surffilename;
-   if     (counter <= 9)    surffilename = "000";
-   else if(counter <= 99)   surffilename = "00";
-   else if(counter <= 999)  surffilename = "0";
-   else if(counter <= 9999) surffilename = "";
-   else
-   {
-      cout << "Writer::output: counter is too large !!!\n";
-      exit(0);
-   }
-   surffilename += ss.str();
-   output_surfaces (surffilename);
 }
 
 //------------------------------------------------------------------------------
@@ -311,57 +295,6 @@ void Writer::output_tec (double time, string filename)
    }
    
    tec.close ();
-}
-
-//------------------------------------------------------------------------------
-// Write solution at surfaces
-// For each type, two files are created, one with data at vertices (pressure)
-// and another at face centers (skin friction)
-//------------------------------------------------------------------------------
-void Writer::output_surfaces (string surffilename)
-{
-   if(surfaces.size() == 0) return;
-
-   const int nsurf = surfaces.size();
-   vector<ofstream*> fv (nsurf);
-   vector<ofstream*> ff (nsurf);
-   map<int,int> type_to_idx;
-   for(int i=0; i<nsurf; ++i)
-   {
-      stringstream ss;
-      ss << surfaces[i];
-      string vfilename = "v" + surffilename + "_" + ss.str() + ".dat";
-      string ffilename = "f" + surffilename + "_" + ss.str() + ".dat";
-      fv[i] = new ofstream(vfilename.c_str());
-      ff[i] = new ofstream(ffilename.c_str());
-      assert (fv[i]->is_open());
-      assert (ff[i]->is_open());
-      type_to_idx.insert(pair<int,int>(surfaces[i], i));
-   }
-   for(unsigned int i=0; i<grid->bface.size(); ++i)
-   {
-      const int type = grid->bface[i].type;
-      const unsigned int v0 = grid->bface[i].vertex[0];
-      const unsigned int v1 = grid->bface[i].vertex[1];
-      map<int,int>::iterator it;
-      it = type_to_idx.find(type);
-      if(it != type_to_idx.end())
-      {
-         const int j = it->second;
-         *fv[j] << grid->vertex[v0].coord.x << "  "
-                << grid->vertex[v0].coord.y << "  "
-                << (*vertex_primitive)[v0].pressure << "  "
-                << (*vertex_primitive)[v0].density << "  "
-                << (*vertex_primitive)[i].velocity.x  << "  "
-                << (*vertex_primitive)[i].velocity.y  << "  "
-                << endl;
-      }
-   }
-   for(int i=0; i<nsurf; ++i)
-   {
-      fv[i]->close();
-      ff[i]->close();
-   }
 }
 
 //------------------------------------------------------------------------------
