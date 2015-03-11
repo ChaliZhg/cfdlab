@@ -16,17 +16,14 @@ void Material::roe_flux (const PrimVar& left,
    double area = normal.norm();
    Vector unit_normal = normal / area;
 
-   double left_density  = Density (left);
-   double right_density = Density (right);
-
    // Enthalpy
-   double h_left  = gamma*left.pressure/(left_density*(gamma-1.0))
+   double h_left  = gamma*left.pressure/(left.density*(gamma-1.0))
       + 0.5 * left.velocity.square();
-   double h_right = gamma*right.pressure/(right_density*(gamma-1.0))
+   double h_right = gamma*right.pressure/(right.density*(gamma-1.0))
       + 0.5 * right.velocity.square();
 
-   double rho_left_sqrt = sqrt(left_density);
-   double rho_right_sqrt = sqrt(right_density);
+   double rho_left_sqrt = sqrt(left.density);
+   double rho_right_sqrt = sqrt(right.density);
    double fact_left = rho_left_sqrt / (rho_left_sqrt + rho_right_sqrt);
    double fact_right = 1.0 - fact_left;
 
@@ -51,9 +48,9 @@ void Material::roe_flux (const PrimVar& left,
       double factor = min(lambda, 0.0) * coeff;
 
       // Left flux
-      flux.mass_flux = left_density * vel_left_normal;
+      flux.mass_flux = left.density * vel_left_normal;
       flux.momentum_flux = unit_normal * left.pressure +
-                           left.velocity * left_density * vel_left_normal;
+                           left.velocity * left.density * vel_left_normal;
       flux.energy_flux = h_left * flux.mass_flux;
 
       // Upwind term
@@ -68,9 +65,9 @@ void Material::roe_flux (const PrimVar& left,
       double factor = max(lambda, 0.0) * coeff;
 
       // Right flux
-      flux.mass_flux = right_density * vel_right_normal;
+      flux.mass_flux = right.density * vel_right_normal;
       flux.momentum_flux = unit_normal * right.pressure +
-                           right.velocity * right_density * vel_right_normal;
+                           right.velocity * right.density * vel_right_normal;
       flux.energy_flux = h_right * flux.mass_flux;
 
       // Upwind term

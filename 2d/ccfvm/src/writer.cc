@@ -156,10 +156,10 @@ void Writer::output_vtk (string filename)
       for(unsigned int i=0; i<grid->n_vertex; ++i)
          vtk << (*vertex_primitive)[i].pressure << endl;
 
-      vtk << "SCALARS temperature float 1" << endl;
+      vtk << "SCALARS density float 1" << endl;
       vtk << "LOOKUP_TABLE default" << endl;
       for(unsigned int i=0; i<grid->n_vertex; ++i)
-         vtk << (*vertex_primitive)[i].temperature << endl;
+         vtk << (*vertex_primitive)[i].density << endl;
 
       if(dim == axi)
       {
@@ -197,8 +197,7 @@ void Writer::output_vtk (string filename)
       vtk << "LOOKUP_TABLE default" << endl;
       for(unsigned int i=0; i<grid->n_vertex; ++i)
       {
-         double density = material->Density ((*vertex_primitive)[i]);
-         vtk << density << endl;
+         vtk << ((*vertex_primitive)[i]).density << endl;
       }
    }
 
@@ -292,7 +291,7 @@ void Writer::output_tec (double time, string filename)
          tec << (*vertex_primitive)[i].pressure << endl;
 
       for(unsigned int i=0; i<grid->n_vertex; ++i)
-         tec << (*vertex_primitive)[i].temperature << endl;
+         tec << (*vertex_primitive)[i].density << endl;
       
       for(unsigned int i=0; i<grid->n_vertex; ++i)
          tec << (*vertex_primitive)[i].velocity.x << endl;
@@ -318,8 +317,7 @@ void Writer::output_tec (double time, string filename)
    {
       for(unsigned int i=0; i<grid->n_vertex; ++i)
       {
-         double density = material->Density ((*vertex_primitive)[i]);
-         tec << density << endl;
+         tec << ((*vertex_primitive)[i]).density << endl;
       }
    }
    
@@ -387,33 +385,14 @@ void Writer::output_surfaces (string surffilename)
       it = type_to_idx.find(type);
       if(it != type_to_idx.end())
       {
-         // viscous force, using vertex gradients
-         const double T = ((*vertex_primitive)[v0].temperature +
-                           (*vertex_primitive)[v1].temperature)/2.0;
-         const double mu = material->viscosity(T);
-         const Vector gradU = ((*dU)[v0] + (*dU)[v1])/2.0;
-         const Vector gradV = ((*dV)[v0] + (*dV)[v1])/2.0;
-         const double div = gradU.x + gradV.y;
-         const double sxx = 2.0 * mu * (gradU.x - (1.0/3.0) * div);
-         const double syy = 2.0 * mu * (gradV.y - (1.0/3.0) * div);
-         const double sxy = mu * (gradU.y + gradV.x);
-         const Vector normal = grid->bface[i].normal / grid->bface[i].measure;
-         const double fx = (sxx * normal.x + sxy * normal.y);
-         const double fy = (sxy * normal.x + syy * normal.y);
-         const double cf = fx*normal.y - fy*normal.x;
-         const Vector center = (grid->vertex[v0].coord + grid->vertex[v1].coord)/2.0;
-
          const int j = it->second;
          *fv[j] << grid->vertex[v0].coord.x << "  "
                 << grid->vertex[v0].coord.y << "  "
                 << (*vertex_primitive)[v0].pressure << "  "
-                << (*vertex_primitive)[v0].temperature << "  "
+                << (*vertex_primitive)[v0].density << "  "
                 << (*vertex_primitive)[i].velocity.x  << "  "
                 << (*vertex_primitive)[i].velocity.y  << "  "
                 << (*vertex_primitive)[i].velocity.z  << "  "
-                << endl;
-         *ff[j] << center.x << "  " << center.y << "  "
-                << cf << "  "
                 << endl;
       }
    }
@@ -439,7 +418,7 @@ void Writer::output_restart (int iter)
 
    for(unsigned int i=0; i<grid->n_vertex; ++i)
       fo << scientific
-         << (*vertex_primitive)[i].temperature << "  "
+         << (*vertex_primitive)[i].density     << "  "
          << (*vertex_primitive)[i].velocity.x  << "  "
          << (*vertex_primitive)[i].velocity.y  << "  "
          << (*vertex_primitive)[i].velocity.z  << "  "

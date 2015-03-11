@@ -35,18 +35,18 @@ void minmax (const double& T,
              const PrimVar& prim, 
              PrimVar& phi)
 {
-   // temperature
-   if(T > pmax.temperature)
+   // density
+   if(T > pmax.density)
    {
-      double fact = (pmax.temperature - prim.temperature) / 
-                    (T - prim.temperature);
-      phi.temperature = std::min(phi.temperature, fact);
+      double fact = (pmax.density - prim.density) / 
+                    (T - prim.density);
+      phi.density = std::min(phi.density, fact);
    }
-   else if(T < pmin.temperature)
+   else if(T < pmin.density)
    {
-      double fact = (pmin.temperature - prim.temperature) / 
-                    (T - prim.temperature);
-      phi.temperature = std::min(phi.temperature, fact);
+      double fact = (pmin.density - prim.density) / 
+                    (T - prim.density);
+      phi.density = std::min(phi.density, fact);
    }
 
    // x velocity

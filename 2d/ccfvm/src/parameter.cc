@@ -369,9 +369,9 @@ void Parameter::read_initial_condition (Reader &fin)
    }
    else
    {
-      assert (input == "temperature");
+      assert (input == "density");
       fin.getline (input);
-      initial_condition.add ("temperature", input);
+      initial_condition.add ("density", input);
 
       fin.entry ("xvelocity");
       fin.getline (input);

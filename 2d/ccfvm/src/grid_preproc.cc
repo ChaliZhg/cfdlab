@@ -416,7 +416,9 @@ void Grid::compute_least_squares ()
       else
       {
          // Reflect cell cl about face
-         // TODO
+         // we just take face centroid
+         dx = face[i].centroid.x - cell[cl].centroid.x;
+         dy = face[i].centroid.y - cell[cl].centroid.y;
       }
       
       sdx2[cl]  += dx * dx;

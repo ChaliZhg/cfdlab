@@ -22,7 +22,7 @@ class InitialCondition
 
    private:
       bool has_lib;
-      FParser temperature;
+      FParser density;
       FParser xvelocity;
       FParser yvelocity;
       FParser zvelocity;
@@ -58,8 +58,8 @@ void InitialCondition::add (std::string lib_file)
 inline
 void InitialCondition::add (std::string variable, std::string fun)
 {
-   if(variable == "temperature")
-      temperature.FParse (fun);
+   if(variable == "density")
+      density.FParse (fun);
    else if(variable == "xvelocity")
       xvelocity.FParse (fun);
    else if(variable == "yvelocity")
@@ -86,7 +86,7 @@ PrimVar InitialCondition::value (const Vector& p)
    if (has_lib)
    {
       (*initial_condition)(p.x, p.y, 
-                           result.temperature, 
+                           result.density,
                            result.velocity.x,
                            result.velocity.y,
                            result.velocity.z,
@@ -96,7 +96,7 @@ PrimVar InitialCondition::value (const Vector& p)
    {
       double vals[2] = {p.x, p.y};
 
-      result.temperature= temperature.Eval (vals);
+      result.density    = density.Eval (vals);
       result.velocity.x = xvelocity.Eval (vals);
       result.velocity.y = yvelocity.Eval (vals);
       result.velocity.z = zvelocity.Eval (vals);
