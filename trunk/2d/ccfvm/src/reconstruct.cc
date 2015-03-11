@@ -72,25 +72,31 @@ void FiniteVolume::reconstruct_minmax
  vector<ConVar>&    state
  ) const
 {
-//   unsigned int cl = grid.face[f].vertex[0];
-//   unsigned int cr = grid.face[f].vertex[1];
-//   
-//   Vector  dr    = grid.vertex[cr].coord - grid.vertex[cl].coord;
-//   
-//   // left state
-//   state[0].temperature = primitive[cl].temperature+ 0.5 * phi[cl].temperature * (dT[cl] * dr);
-//   state[0].velocity.x  = primitive[cl].velocity.x + 0.5 * phi[cl].velocity.x  * (dU[cl] * dr);
-//   state[0].velocity.y  = primitive[cl].velocity.y + 0.5 * phi[cl].velocity.y  * (dV[cl] * dr);
-//   state[0].velocity.z  = primitive[cl].velocity.z + 0.5 * phi[cl].velocity.z  * (dW[cl] * dr);
-//   state[0].pressure    = primitive[cl].pressure   + 0.5 * phi[cl].pressure    * (dP[cl] * dr);
-//   
-//   // right state
-//   state[1].temperature = primitive[cr].temperature- 0.5 * phi[cr].temperature * (dT[cr] * dr);
-//   state[1].velocity.x  = primitive[cr].velocity.x - 0.5 * phi[cr].velocity.x  * (dU[cr] * dr);
-//   state[1].velocity.y  = primitive[cr].velocity.y - 0.5 * phi[cr].velocity.x  * (dV[cr] * dr);
-//   state[1].velocity.z  = primitive[cr].velocity.z - 0.5 * phi[cr].velocity.x  * (dW[cr] * dr);
-//   state[1].pressure    = primitive[cr].pressure   - 0.5 * phi[cr].pressure    * (dP[cr] * dr);
+   int cl = grid.face[f].lcell;
+   int cr = grid.face[f].rcell;
    
+   Vector  drl = grid.face[f].centroid - grid.cell[cl].centroid;
+   
+   // left state
+   state[0].density    = conserved[cl].density    + (drl * grad_rho[cl] ) * phi[cl].density;
+   state[0].momentum.x = conserved[cl].momentum.x + (drl * grad_rhoU[cl]) * phi[cl].momentum.x;
+   state[0].momentum.y = conserved[cl].momentum.y + (drl * grad_rhoV[cl]) * phi[cl].momentum.y;
+   state[0].momentum.z = 0.0;
+   state[0].energy     = conserved[cl].energy     + (drl * grad_E[cl]   ) * phi[cl].energy;
+   
+   if(cr >= 0)
+   {
+      Vector  drr = grid.face[f].centroid - grid.cell[cr].centroid;
+      
+      // right state
+      state[1].density    = conserved[cr].density    + (drr * grad_rho[cr] ) * phi[cr].density;
+      state[1].momentum.x = conserved[cr].momentum.x + (drr * grad_rhoU[cr]) * phi[cr].momentum.x;
+      state[1].momentum.y = conserved[cr].momentum.y + (drr * grad_rhoV[cr]) * phi[cr].momentum.y;
+      state[1].momentum.z = 0.0;
+      state[1].energy     = conserved[cr].energy     + (drr * grad_E[cr]   ) * phi[cr].energy;
+   }
+   else
+      state[1] = state[0];
 }
 
 //------------------------------------------------------------------------------

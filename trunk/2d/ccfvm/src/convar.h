@@ -13,12 +13,15 @@ class ConVar
       ConVar () {};
       ~ConVar () {};
       ConVar& operator=  (const ConVar& con_var);
+      ConVar& operator=  (const double& scalar);
       ConVar& operator+= (const ConVar& con_var);
       ConVar  operator+  (const ConVar& con_var) const;
       ConVar  operator-  (const ConVar& con_var) const;
       ConVar  operator+  (const Flux&   flux) const;
       ConVar  operator-  (const Flux&   flux) const;
       ConVar  operator*  (const double  scalar) const;
+      void min (const ConVar& p);
+      void max (const ConVar& p);
 
       double density, energy;
       Vector momentum;
@@ -35,6 +38,19 @@ ConVar& ConVar::operator= (const ConVar& con_var)
    momentum = con_var.momentum;
    energy   = con_var.energy;
 
+   return *this;
+}
+
+//------------------------------------------------------------------------------
+// Set a scalar value
+//------------------------------------------------------------------------------
+inline
+ConVar& ConVar::operator= (const double& scalar)
+{
+   density  = scalar;
+   momentum = scalar;
+   energy   = scalar;
+   
    return *this;
 }
 
@@ -124,6 +140,32 @@ ConVar ConVar::operator* (const double scalar) const
    result.energy   = energy   * scalar;
 
    return result;
+}
+
+//------------------------------------------------------------------------------
+// Update PrimVar = min(PrimVar, p)
+//------------------------------------------------------------------------------
+inline
+void ConVar::min (const ConVar& p)
+{
+   density = std::min(density, p.density);
+   momentum.x  = std::min(momentum.x,  p.momentum.x);
+   momentum.y  = std::min(momentum.y,  p.momentum.y);
+   momentum.z  = std::min(momentum.z,  p.momentum.z);
+   energy    = std::min(energy,    p.energy);
+}
+
+//------------------------------------------------------------------------------
+// Update PrimVar = max(PrimVar, p)
+//------------------------------------------------------------------------------
+inline
+void ConVar::max (const ConVar& p)
+{
+   density = std::max(density, p.density);
+   momentum.x  = std::max(momentum.x,  p.momentum.x);
+   momentum.y  = std::max(momentum.y,  p.momentum.y);
+   momentum.z  = std::max(momentum.z,  p.momentum.z);
+   energy    = std::max(energy,    p.energy);
 }
 
 #endif

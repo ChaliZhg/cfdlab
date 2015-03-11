@@ -30,6 +30,7 @@ void FiniteVolume::initialize ()
    conserved_old.resize (grid.n_cell);
    ang_mom.resize (grid.n_cell);
    residual.resize (grid.n_cell);
+   phi.resize (grid.n_cell);
    if(param.smooth_res)
    {
       residual1.resize (grid.n_cell);

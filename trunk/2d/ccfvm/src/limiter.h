@@ -25,84 +25,84 @@ double minmod (const double &a, const double &b)
 // Update phi using Barth-Jespersen scheme
 //------------------------------------------------------------------------------
 inline
-void minmax (const double& T, 
-             const double& u, 
-             const double& v, 
-             const double& w, 
-             const double& p, 
-             const PrimVar& pmin, 
-             const PrimVar& pmax, 
-             const PrimVar& prim, 
-             PrimVar& phi)
+void minmax (const double& rho,
+             const double& rhoU,
+             const double& rhoV,
+             const double& w,
+             const double& E,
+             const ConVar& Umin,
+             const ConVar& Umax,
+             const ConVar& con,
+             ConVar&       phi)
 {
    // density
-   if(T > pmax.density)
+   if(rho > Umax.density)
    {
-      double fact = (pmax.density - prim.density) / 
-                    (T - prim.density);
+      double fact = (Umax.density - con.density) / 
+                    (rho - con.density);
       phi.density = std::min(phi.density, fact);
    }
-   else if(T < pmin.density)
+   else if(rho < Umin.density)
    {
-      double fact = (pmin.density - prim.density) / 
-                    (T - prim.density);
+      double fact = (Umin.density - con.density) / 
+                    (rho - con.density);
       phi.density = std::min(phi.density, fact);
    }
 
-   // x velocity
-   if(u > pmax.velocity.x)
+   // x momentum
+   if(rhoU > Umax.momentum.x)
    {
-      double fact = (pmax.velocity.x - prim.velocity.x) / 
-                    (u - prim.velocity.x);
-      phi.velocity.x = std::min(phi.velocity.x, fact);
+      double fact = (Umax.momentum.x - con.momentum.x) / 
+                    (rhoU - con.momentum.x);
+      phi.momentum.x = std::min(phi.momentum.x, fact);
    }
-   else if(u < pmin.velocity.x)
+   else if(rhoU < Umin.momentum.x)
    {
-      double fact = (pmin.velocity.x - prim.velocity.x) / 
-                    (u - prim.velocity.x);
-      phi.velocity.x = std::min(phi.velocity.x, fact);
-   }
-
-   // y velocity
-   if(v > pmax.velocity.y)
-   {
-      double fact = (pmax.velocity.y - prim.velocity.y) / 
-                    (v - prim.velocity.y);
-      phi.velocity.y = std::min(phi.velocity.y, fact);
-   }
-   else if(v < pmin.velocity.y)
-   {
-      double fact = (pmin.velocity.y - prim.velocity.y) / 
-                    (v - prim.velocity.y);
-      phi.velocity.y = std::min(phi.velocity.y, fact);
+      double fact = (Umin.momentum.x - con.momentum.x) / 
+                    (rhoU - con.momentum.x);
+      phi.momentum.x = std::min(phi.momentum.x, fact);
    }
 
-   // z velocity
-   if(w > pmax.velocity.z)
+   // y momentum
+   if(rhoV > Umax.momentum.y)
    {
-      double fact = (pmax.velocity.z - prim.velocity.z) / 
-                    (w - prim.velocity.z);
-      phi.velocity.z = std::min(phi.velocity.z, fact);
+      double fact = (Umax.momentum.y - con.momentum.y) / 
+                    (rhoV - con.momentum.y);
+      phi.momentum.y = std::min(phi.momentum.y, fact);
    }
-   else if(w < pmin.velocity.z)
+   else if(rhoV < Umin.momentum.y)
    {
-      double fact = (pmin.velocity.z - prim.velocity.z) / 
-                    (w - prim.velocity.z);
-      phi.velocity.z = std::min(phi.velocity.z, fact);
+      double fact = (Umin.momentum.y - con.momentum.y) / 
+                    (rhoV - con.momentum.y);
+      phi.momentum.y = std::min(phi.momentum.y, fact);
    }
 
-   // pressure
-   if(p > pmax.pressure)
+   // z momentum
+   if(w > Umax.momentum.z)
    {
-      double fact = (pmax.pressure - prim.pressure) / 
-                    (p - prim.pressure);
-      phi.pressure = std::min(phi.pressure, fact);
+      double fact = (Umax.momentum.z - con.momentum.z) / 
+                    (w - con.momentum.z);
+      phi.momentum.z = std::min(phi.momentum.z, fact);
    }
-   else if(p < pmin.pressure)
+   else if(w < Umin.momentum.z)
    {
-      double fact = (pmin.pressure - prim.pressure) / 
-                    (p - prim.pressure);
-      phi.pressure = std::min(phi.pressure, fact);
+      double fact = (Umin.momentum.z - con.momentum.z) / 
+                    (w - con.momentum.z);
+      phi.momentum.z = std::min(phi.momentum.z, fact);
+   }
+
+   // energy
+   if(E > Umax.energy)
+   {
+      double fact = (Umax.energy - con.energy) / 
+                    (E - con.energy);
+      phi.energy = std::min(phi.energy, fact);
+   }
+   else if(E < Umin.energy)
+   {
+      double fact = (Umin.energy - con.energy) / 
+                    (E - con.energy);
+      phi.energy = std::min(phi.energy, fact);
    }
 
 }
