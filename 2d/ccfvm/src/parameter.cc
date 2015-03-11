@@ -23,7 +23,6 @@ void Parameter::read ()
    read_constants (fin);
    read_initial_condition (fin);
    read_boundary (fin);
-   read_integrals (fin);
    read_output (fin);
    check ();
 }
@@ -55,18 +54,6 @@ void Parameter::read_grid (Reader &fin)
 
    fin.entry ("file");
    fin >> grid_file;
-
-   fin.entry ("cell");
-   fin >> input;
-   if(input=="median")
-      cell_type = median;
-   else if(input=="voronoi")
-      cell_type = voronoi;
-   else
-   {
-      cout << "   Unknown cell type " << input << endl;
-      exit (0);
-   }
 
    fin.end_section ();
 }
@@ -125,36 +112,14 @@ void Parameter::read_numeric (Reader &fin)
       reconstruct_scheme = Parameter::first;
    else if(input == "second")
       reconstruct_scheme = Parameter::second;
-   else if(input == "limited")
-      reconstruct_scheme = Parameter::limited;
-   else if(input == "minmod")
-      reconstruct_scheme = Parameter::minmod;
    else if(input == "bj")
       reconstruct_scheme = Parameter::bj;
-   else if(input == "minmax")
-      reconstruct_scheme = Parameter::minmax;
    else
    {
       cout << "read_numeric: unknown reconstruction scheme " << input << endl;
-      cout << "              first, second, limited, minmod, bj, minmax\n";
+      cout << "              first, second, bj\n";
       exit (0);
    }
-
-   fin.entry ("bc_scheme");
-   fin >> input;
-   if(input == "strong")
-      bc_scheme = Parameter::strong;
-   else if(input == "weak")
-      bc_scheme = Parameter::weak;
-   else
-   {
-      cout << "read_numeric: unknown bc scheme " << input << endl;
-      exit (0);
-   }
-
-   fin.entry ("nitsche_pen");
-   fin >> Cpen;
-   assert (Cpen >= 0.0);
 
    fin.entry ("smooth_res");
    fin >> input;
@@ -430,41 +395,6 @@ void Parameter::read_boundary (Reader &fin)
       for(unsigned int i=0; i<f_type.size(); ++i)
          boundary_condition.insert (pair<int,BoundaryCondition>(f_type[i], bc));
    }
-}
-
-//------------------------------------------------------------------------------
-// Read integrals section
-//------------------------------------------------------------------------------
-void Parameter::read_integrals (Reader &fin)
-{
-   cout << "  Reading integrals section\n";
-
-   string input;
-
-   fin.begin_section ("integrals");
-
-   while (!fin.eos())
-   {
-      fin >> input;
-      if(input=="force") // integral type is force
-      {
-         fin.entry ("{");
-
-         force_data.resize( force_data.size() + 1 );
-         fin >> force_data.back().name; // name to identify force
-
-         while (!fin.eos())
-         {
-            int face_type;
-            fin >> face_type;
-            force_data.back().face_type.push_back(face_type);
-         }
-
-         // Check that there was atleast one face type given
-         assert (force_data.back().face_type.size() > 0);
-      }
-   }
-
 }
 
 //------------------------------------------------------------------------------

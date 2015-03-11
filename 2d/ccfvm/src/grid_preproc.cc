@@ -258,11 +258,6 @@ void Grid::make_faces ()
 
    find_vertex_opposite_face ();
 
-   // Copy boundary faces into bface
-   for(i=0; i<n_face; ++i)
-      if(face[i].type != -1)
-         bface.push_back(face[i]);
-
    // Free memory of node_face since we dont need it any more
    for(i=0; i<n_vertex; ++i)
       node_face[i].resize (0);

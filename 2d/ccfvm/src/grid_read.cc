@@ -13,9 +13,6 @@ using namespace std;
 //------------------------------------------------------------------------------
 void Grid::read (const Parameter& param)
 {
-   // copy cell type into grid
-   cell_type = param.cell_type;
-
    if(param.grid_type == gmsh)
       read_gmsh (param.grid_file);
    else if(param.grid_type == bamg)
@@ -64,20 +61,14 @@ void Grid::info ()
    {
       min_face_length = min ( min_face_length, face[i].normal.norm() );
       max_face_length = max ( max_face_length, face[i].normal.norm() );
-      min_fradius = min ( min_fradius, face[i].radius );
-      max_fradius = max ( max_fradius, face[i].radius );
    }
    
    double min_cell_area =  1.0e20;
    double max_cell_area = -1.0e20;
-   double min_cradius =  1.0e20;
-   double max_cradius = -1.0e20;
    for(unsigned int i=0; i<n_cell; ++i)
    {
       min_cell_area = min ( min_cell_area, cell[i].area );
       max_cell_area = max ( max_cell_area, cell[i].area );
-      min_cradius = min ( min_cradius, cell[i].radius );
-      max_cradius = max ( max_cradius, cell[i].radius );
    }
 
    cout << "Grid information:\n";
@@ -89,13 +80,6 @@ void Grid::info ()
                                 << setw(15) << max_cell_area << endl;
    cout << "  face length  =  " << setw(15) << min_face_length
                                 << setw(15) << max_face_length << endl;
-   cout << "  face   radius = " << setw(15) << min_fradius
-                                << setw(15) << max_fradius << endl;
-   cout << "  tri    radius = " << setw(15) << min_cradius
-                                << setw(15) << max_cradius << endl;
-
-   //assert (min_fradius > 0.0);
-   //assert (min_cradius > 0.0);
 }
 
 //------------------------------------------------------------------------------
