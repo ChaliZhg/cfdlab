@@ -104,10 +104,8 @@ void FiniteVolume::compute_gradients ()
    
    for(unsigned int i=0; i<grid.n_cell; ++i)
    {
-      sdxdU[i].density = sdydU[i].density = 0.0;
-      sdxdU[i].energy  = sdydU[i].energy  = 0.0;
-      sdxdU[i].momentum = 0.0;
-      sdydU[i].momentum = 0.0;
+      sdxdU[i] = 0.0;
+      sdydU[i] = 0.0;
    }
    
    for(unsigned int i=0; i<grid.n_face; ++i)
@@ -172,15 +170,11 @@ void FiniteVolume::compute_gradients ()
                     grid.cell[i].invA1[1][1] * sdydU[i].energy;
       grad_E[i].z = 0.0;
    }
-
-   return;
    
    // TODO
    // minmax limiter
    if(param.reconstruct_scheme == Parameter::bj)
       limit_gradients_bj ();
-   else if(param.reconstruct_scheme == Parameter::minmax)
-      limit_gradients_mm ();
 
 }
 
@@ -205,8 +199,6 @@ void FiniteVolume::compute_inviscid_residual ()
          int face_type = grid.face[i].type;
          BoundaryCondition& bc = param.boundary_condition[face_type];
          bc.apply (grid.face[i].centroid, grid.face[i], state);
-//         std::cout << state[0].momentum.x << " " << state[0].momentum.y << "\n";
-//         std::cout << state[1].momentum.x << " " << state[1].momentum.y << "\n";
       }
       
       FluxData data;
@@ -221,16 +213,8 @@ void FiniteVolume::compute_inviscid_residual ()
       
       if(cr >= 0)
          residual[cr] -= flux;
-      
-//      std::cout << state[0].density << " " << state[0].energy << "\n";
-//      std::cout << state[1].density << " " << state[1].energy << "\n";
-//      std::cout << grid.face[i].normal.x << "  " << grid.face[i].normal.y << "\n";
-//      std::cout << flux.mass_flux << " " << flux.energy_flux << std::endl;
    }
 }
-
-
-
 
 //------------------------------------------------------------------------------
 // Compute residual for each cell
@@ -333,7 +317,6 @@ void FiniteVolume::update_solution (const unsigned int r)
          conserved[i]= conserved_old[i] * a_rk[r] +
                        (conserved[i] - residual[i] * factor) * b_rk[r];
          primitive[i]= param.material.con2prim (conserved[i]);
-         //std::cout << residual[i].mass_flux << " " << residual[i].energy_flux << "\n";
       }
    }
    else if(param.time_scheme == "rk1" ||
