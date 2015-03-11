@@ -1,0 +1,96 @@
+grid
+{
+   type   gmsh 
+   file   wedge.msh
+   cell   median
+}
+
+numeric
+{
+   time_mode    steady
+   time_scheme  ssprk3
+   time_step    0.0
+   cfl          0.8
+   max_iter     25000
+   final_time   1.0e20
+   min_residue  1.0e-6
+   reconstruct  first
+   bc_scheme    weak
+   nitsche_pen  0
+   smooth_res   no
+   ducros       no
+}
+
+material
+{
+   gamma       1.4
+   gas_const   1.0
+   viscosity
+   {
+      model    constant
+      mu_ref   0.0
+   }
+   prandtl     1.0
+   model       euler
+   flux        roe
+}
+
+constants
+{
+  rho  1.0
+  p    1.0
+  u    2.36643191323985
+}
+
+initial_condition
+{
+   density      rho
+   xvelocity    u
+   yvelocity    0.0
+   zvelocity    0.0
+   pressure     p
+}
+
+boundary
+{
+   100004
+   {
+      type         farfield
+      density      rho
+      xvelocity    u
+      yvelocity    0.0
+      zvelocity    0.0
+      pressure     p
+   }
+
+   100001
+   100003
+   {
+      type         slip
+   }
+
+   100002
+   {
+     type          outlet
+   }
+
+}
+
+integrals
+{
+}
+
+output
+{
+   format     vtk
+   frequency  1000
+   variables
+   {
+      mach
+   }
+   surfaces
+   {
+   }
+   restart    true
+   global_KE  false
+}
