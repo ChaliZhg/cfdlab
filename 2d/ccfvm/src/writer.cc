@@ -146,31 +146,31 @@ void Writer::output_vtk (string filename)
 
    // Write vertex data
    if(vertex_data.size() > 0 || has_primitive) 
-      vtk << "POINT_DATA  " << grid->n_vertex << endl;
+      vtk << "CELL_DATA  " << grid->n_cell << endl;
 
    // If vertex primitive data is available, write to file
    if (has_primitive)
    {
       vtk << "SCALARS pressure float 1" << endl;
       vtk << "LOOKUP_TABLE default" << endl;
-      for(unsigned int i=0; i<grid->n_vertex; ++i)
+      for(unsigned int i=0; i<grid->n_cell; ++i)
          vtk << (*vertex_primitive)[i].pressure << endl;
 
       vtk << "SCALARS density float 1" << endl;
       vtk << "LOOKUP_TABLE default" << endl;
-      for(unsigned int i=0; i<grid->n_vertex; ++i)
+      for(unsigned int i=0; i<grid->n_cell; ++i)
          vtk << (*vertex_primitive)[i].density << endl;
 
       if(dim == axi)
       {
          vtk << "SCALARS Vtheta float 1" << endl;
          vtk << "LOOKUP_TABLE default" << endl;
-         for(unsigned int i=0; i<grid->n_vertex; ++i)
+         for(unsigned int i=0; i<grid->n_cell; ++i)
             vtk << (*vertex_primitive)[i].velocity.z << endl;
       }
 
       vtk << "VECTORS velocity float" << endl;
-      for(unsigned int i=0; i<grid->n_vertex; ++i)
+      for(unsigned int i=0; i<grid->n_cell; ++i)
          vtk << (*vertex_primitive)[i].velocity.x << "  "
              << (*vertex_primitive)[i].velocity.y << "  "
              << 0.0
@@ -183,21 +183,10 @@ void Writer::output_vtk (string filename)
    {
       vtk << "SCALARS mach float 1" << endl;
       vtk << "LOOKUP_TABLE default" << endl;
-      for(unsigned int i=0; i<grid->n_vertex; ++i)
+      for(unsigned int i=0; i<grid->n_cell; ++i)
       {
          double mach = material->Mach ( (*vertex_primitive)[i] );
          vtk << mach << endl;
-      }
-   }
-
-   // Write density
-   if(write_density)
-   {
-      vtk << "SCALARS density float 1" << endl;
-      vtk << "LOOKUP_TABLE default" << endl;
-      for(unsigned int i=0; i<grid->n_vertex; ++i)
-      {
-         vtk << ((*vertex_primitive)[i]).density << endl;
       }
    }
 
@@ -209,7 +198,7 @@ void Writer::output_vtk (string filename)
 
       vtk << "SCALARS vorticity float 1" << endl;
       vtk << "LOOKUP_TABLE default" << endl;
-      for(unsigned int i=0; i<grid->n_vertex; ++i)
+      for(unsigned int i=0; i<grid->n_cell; ++i)
       {
          double vorticity = (*dV)[i].x - (*dU)[i].y;
          vtk << vorticity << endl;
@@ -221,7 +210,7 @@ void Writer::output_vtk (string filename)
    {
       vtk << "SCALARS  " << vertex_data_name[d] << "  float 1" << endl;
       vtk << "LOOKUP_TABLE default" << endl;
-      for(unsigned int i=0; i<grid->n_vertex; ++i)
+      for(unsigned int i=0; i<grid->n_cell; ++i)
          vtk << (*vertex_data[d])[i] << endl;
    }
 
@@ -267,11 +256,9 @@ void Writer::output_tec (double time, string filename)
    tec.open (filename.c_str());
    
    tec << "FILETYPE = SOLUTION" << endl;
-   tec << "VARIABLES = \"P\" \"T\" \"U\" \"V\"";
+   tec << "VARIABLES = \"P\" \"RHO\" \"U\" \"V\"";
    if(write_mach)
       tec << " \"Mach\"";
-   if(write_density)
-      tec << " \"Density\"";
    if(write_vorticity)
       tec << " \"Vorticity\"";
    if(dim == axi)
@@ -287,37 +274,27 @@ void Writer::output_tec (double time, string filename)
    // If vertex primitive data is available, write to file
    if (has_primitive)
    {
-      for(unsigned int i=0; i<grid->n_vertex; ++i)
+      for(unsigned int i=0; i<grid->n_cell; ++i)
          tec << (*vertex_primitive)[i].pressure << endl;
 
-      for(unsigned int i=0; i<grid->n_vertex; ++i)
+      for(unsigned int i=0; i<grid->n_cell; ++i)
          tec << (*vertex_primitive)[i].density << endl;
       
-      for(unsigned int i=0; i<grid->n_vertex; ++i)
+      for(unsigned int i=0; i<grid->n_cell; ++i)
          tec << (*vertex_primitive)[i].velocity.x << endl;
       
-      for(unsigned int i=0; i<grid->n_vertex; ++i)
+      for(unsigned int i=0; i<grid->n_cell; ++i)
          tec << (*vertex_primitive)[i].velocity.y << endl;
 
    }
    
-   
    // Write mach number
    if(write_mach)
    {
-      for(unsigned int i=0; i<grid->n_vertex; ++i)
+      for(unsigned int i=0; i<grid->n_cell; ++i)
       {
          double mach = material->Mach ( (*vertex_primitive)[i] );
          tec << mach << endl;
-      }
-   }
-   
-   // Write density
-   if(write_density)
-   {
-      for(unsigned int i=0; i<grid->n_vertex; ++i)
-      {
-         tec << ((*vertex_primitive)[i]).density << endl;
       }
    }
    
@@ -327,7 +304,7 @@ void Writer::output_tec (double time, string filename)
       // Check if gradient information is available
       assert(has_gradient);
       
-      for(unsigned int i=0; i<grid->n_vertex; ++i)
+      for(unsigned int i=0; i<grid->n_cell; ++i)
       {
          double vorticity = (*dV)[i].x - (*dU)[i].y;
          tec << vorticity << endl;
@@ -337,14 +314,14 @@ void Writer::output_tec (double time, string filename)
    // Theta component of velocity
    if(dim == axi)
    {
-      for(unsigned int i=0; i<grid->n_vertex; ++i)
+      for(unsigned int i=0; i<grid->n_cell; ++i)
          tec << (*vertex_primitive)[i].velocity.z << endl;
    }
 
    // Write vertex data to file
    for(unsigned int d=0; d<vertex_data.size(); ++d)
    {
-      for(unsigned int i=0; i<grid->n_vertex; ++i)
+      for(unsigned int i=0; i<grid->n_cell; ++i)
          tec << (*vertex_data[d])[i] << endl;
    }
    
