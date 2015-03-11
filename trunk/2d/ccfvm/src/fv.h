@@ -72,19 +72,19 @@ class FiniteVolume
       int                  last_iter;
 
       void reconstruct (const unsigned int&      f,
-                        std::vector<PrimVar>&    state) const;
+                        std::vector<ConVar>&    state) const;
       void reconstruct_first (const unsigned int&      f,
-                              std::vector<PrimVar>&    state) const;
+                              std::vector<ConVar>&    state) const;
       void reconstruct_second (const unsigned int&      f,
-                               std::vector<PrimVar>&    state) const;
+                               std::vector<ConVar>&    state) const;
       void reconstruct_limited (const unsigned int&      f,
-                                std::vector<PrimVar>&    state) const;
-      PrimVar limited_slope (const PrimVar& ul, const PrimVar& ur) const;
+                                std::vector<ConVar>&    state) const;
+      PrimVar limited_slope (const ConVar& ul, const ConVar& ur) const;
       void reconstruct_minmod (const unsigned int&      f,
-                               std::vector<PrimVar>&    state) const;
-      PrimVar minmod_slope (const PrimVar& ul, const PrimVar& ur) const;
+                               std::vector<ConVar>&    state) const;
+      PrimVar minmod_slope (const ConVar& ul, const ConVar& ur) const;
       void reconstruct_minmax(const unsigned int&      f,
-                              std::vector<PrimVar>&    state) const;
+                              std::vector<ConVar>&    state) const;
       void prec_thornber(std::vector<PrimVar>& state) const;
       void compute_ssw();
       void compute_ducros();

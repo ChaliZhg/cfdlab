@@ -36,7 +36,7 @@ void FiniteVolume::limit_gradients_bj ()
       unsigned int n1 = grid.face[i].vertex[1];
       Vector dr = grid.vertex[n1].coord - grid.vertex[n0].coord;
 
-      double T0 = primitive[n0].temperature + 0.5 * (dT[n0] * dr);
+      double T0 = primitive[n0].density     + 0.5 * (dT[n0] * dr);
       double u0 = primitive[n0].velocity.x  + 0.5 * (dU[n0] * dr);
       double v0 = primitive[n0].velocity.y  + 0.5 * (dV[n0] * dr);
       double w0 = primitive[n0].velocity.z  + 0.5 * (dW[n0] * dr);
@@ -44,7 +44,7 @@ void FiniteVolume::limit_gradients_bj ()
 
       minmax (T0, u0, v0, w0, p0, pmin[n0], pmax[n0], primitive[n0], phi[n0]);
 
-      double T1 = primitive[n1].temperature - 0.5 * (dT[n1] * dr);
+      double T1 = primitive[n1].density     - 0.5 * (dT[n1] * dr);
       double u1 = primitive[n1].velocity.x  - 0.5 * (dU[n1] * dr);
       double v1 = primitive[n1].velocity.y  - 0.5 * (dV[n1] * dr);
       double w1 = primitive[n1].velocity.z  - 0.5 * (dW[n1] * dr);

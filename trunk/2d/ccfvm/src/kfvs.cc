@@ -11,21 +11,19 @@ void Material::kfvs_split_flux (const double   sign,
                                 const PrimVar& state,
                                 Flux&          flux) const
 {
-   double density = Density (state);
-
    // Normal velocity
    const double un = state.velocity * normal;
 
-   const double beta = 0.5 * density / state.pressure;
+   const double beta = 0.5 * state.density / state.pressure;
    const double s    = un * sqrt(beta);
    const double A    = 0.5 * (1.0 + sign * erf(s));
    const double B    = 0.5 * sign * exp(-s*s) / sqrt(M_PI * beta);
    const double uf   = un * A + B;
    const double E    = total_energy (state);
 
-   flux.mass_flux = density * uf;
+   flux.mass_flux = state.density * uf;
    flux.momentum_flux = normal * state.pressure * A + 
-                        state.velocity * density * uf;
+                        state.velocity * state.density * uf;
    flux.energy_flux = (E + state.pressure) * A * un +
                       (E + 0.5 * state.pressure) * B;
 }

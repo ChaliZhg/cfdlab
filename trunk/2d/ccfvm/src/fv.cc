@@ -51,7 +51,7 @@ void FiniteVolume::initialize ()
       fi.open ("restart.dat");
       assert (fi.is_open());
       for(unsigned int i=0; i<grid.n_cell; ++i)
-         fi >> primitive[i].temperature
+         fi >> primitive[i].density
             >> primitive[i].velocity.x
             >> primitive[i].velocity.y
             >> primitive[i].velocity.z
@@ -65,7 +65,7 @@ void FiniteVolume::initialize ()
       for(unsigned int i=0; i<grid.n_cell; ++i)
       {
          primitive[i] = param.initial_condition.value (grid.vertex[i].coord);
-         assert (primitive[i].temperature  > 0.0);
+         assert (primitive[i].density  > 0.0);
          assert (primitive[i].pressure > 0.0);
       }
       cout << " Done\n";
@@ -88,7 +88,7 @@ void FiniteVolume::initialize ()
 }
 
 //------------------------------------------------------------------------------
-// Compute derivatives of velocity and temperature at grid vertices
+// Compute derivatives of velocity and density at grid vertices
 //------------------------------------------------------------------------------
 void FiniteVolume::compute_gradients ()
 {
@@ -96,27 +96,45 @@ void FiniteVolume::compute_gradients ()
    std::vector<ConVar> sdxdU(grid.n_cell), sdydU(grid.n_cell);
    double dx, dy;
    
+   for(unsigned int i=0; i<grid.n_cell; ++i)
+   {
+      sdxdU[i].density = sdydU[i].density = 0.0;
+      sdxdU[i].energy  = sdydU[i].energy  = 0.0;
+      sdxdU[i].momentum = 0.0;
+      sdydU[i].momentum = 0.0;
+   }
+   
    for(unsigned int i=0; i<grid.n_face; ++i)
    {
-      unsigned int cl = grid.face[i].lcell;
-      unsigned int cr = grid.face[i].rcell;
+      int cl = grid.face[i].lcell;
+      int cr = grid.face[i].rcell;
       
       ConVar dU;
-      if(cr>=0)
+      Vector dr;
+      if(cr >= 0)
+      {
          dU = conserved[cr] - conserved[cl];
-      else
+         dr = grid.cell[cr].centroid - grid.cell[cl].centroid;
+      }
+      else // This is a boundary face
       {
          // apply boundary condition
-         // TODO
+         int face_type = grid.face[i].type;
+         BoundaryCondition& bc = param.boundary_condition[face_type];
+         std::vector<ConVar> state(2);
+         state[0] = conserved[cl];
+         bc.apply (grid.face[i].centroid, grid.face[i], state);
+         dU = state[1] - conserved[cl];
+         dr = grid.face[i].centroid - grid.cell[cl].centroid;
       }
       
-      sdxdU[cl] += dU * dx;
-      sdydU[cl] += dU * dy;
+      sdxdU[cl] += dU * dr.x;
+      sdydU[cl] += dU * dr.y;
       
-      if(cr>=0)
+      if(cr >= 0)
       {
-         sdxdU[cr] += dU * dx;
-         sdydU[cr] += dU * dy;
+         sdxdU[cr] += dU * dr.x;
+         sdydU[cr] += dU * dr.y;
       }
    }
    
@@ -145,6 +163,9 @@ void FiniteVolume::compute_gradients ()
    }
 
 
+   return;
+   
+   // TODO
    // minmax limiter
    if(param.reconstruct_scheme == Parameter::bj)
       limit_gradients_bj ();
@@ -161,21 +182,22 @@ void FiniteVolume::compute_inviscid_residual ()
    // Loop over interior faces and accumulate flux
    for(unsigned int i=0; i<grid.n_face; ++i)
    {
-      unsigned int cl = grid.face[i].lcell;
-      unsigned int cr = grid.face[i].rcell;
+      int cl = grid.face[i].lcell;
+      int cr = grid.face[i].rcell;
       
       // reconstruct left/right state
-      vector<PrimVar> state(2);
+      vector<ConVar> state(2);
       reconstruct ( i, state );
+      
+      // If boundary face, apply bc
       
       FluxData data;
       data.ssw = ssw[cl]+ssw[cr];
       data.ducros = max(ducros[cl], ducros[cr]);
 
       Flux flux;
-      param.material.num_flux ( primitive[cl], primitive[cr], 
-                                state[0], state[1], 
-                                grid.face[i].normal, data, flux );
+      param.material.num_flux (state[0], state[1],
+                               grid.face[i].normal, data, flux );
 
       residual[cl] += flux;
       
@@ -225,12 +247,12 @@ void FiniteVolume::compute_dt ()
    {
       double area = grid.face[i].measure;
 
-      unsigned int cl = grid.face[i].lcell;
+      int cl = grid.face[i].lcell;
       double vel_normal_left = primitive[cl].velocity * grid.face[i].normal;
       double c_left = param.material.sound_speed (primitive[cl]);
       dt[cl] += fabs(vel_normal_left) + c_left * area;
 
-      unsigned int cr = grid.face[i].rcell;
+      int cr = grid.face[i].rcell;
       if(cr >= 0)
       {
          double vel_normal_right = primitive[cr].velocity * grid.face[i].normal;
@@ -244,9 +266,9 @@ void FiniteVolume::compute_dt ()
 
    if( param.time_scheme != "lusgs") 
    {
-      for(unsigned int i=0; i<grid.n_vertex; ++i)
+      for(unsigned int i=0; i<grid.n_cell; ++i)
       {
-         dt[i] = param.cfl * grid.dcarea[i] / dt[i];
+         dt[i] = param.cfl * grid.cell[i].area / dt[i];
          dt_global = min( dt_global, dt[i] );
       }
    }
@@ -305,8 +327,9 @@ void FiniteVolume::update_solution (const unsigned int r)
    }
    else if(param.time_scheme == "lusgs")
    { 
-
-     // Forward Sweep and backward sweep
+      std::cout << "LUSGS not implemented\n";
+      exit(0);
+      // Forward Sweep and backward sweep
       lusgs();
 
       for (unsigned int i=0; i<grid.n_cell; ++i)
@@ -316,17 +339,6 @@ void FiniteVolume::update_solution (const unsigned int r)
       }
    }
 
-   // Apply strong bc
-   if (param.bc_scheme == Parameter::strong)
-      for(unsigned int i=0; i<grid.bface.size(); ++i)
-      {
-         int face_type = grid.bface[i].type;
-         BoundaryCondition& bc = param.boundary_condition[face_type];
-         unsigned int v0 = grid.bface[i].vertex[0];
-         unsigned int v1 = grid.bface[i].vertex[1];
-         bc.apply (grid.vertex[v0].coord, grid.bface[i], primitive[v0]);
-         bc.apply (grid.vertex[v1].coord, grid.bface[i], primitive[v1]);
-      }
 }
 
 //------------------------------------------------------------------------------
@@ -341,7 +353,7 @@ void FiniteVolume::compute_residual_norm (const unsigned int iter)
    // Sum of squares for each component
    for(unsigned int i=0; i<grid.n_cell; ++i)
    {
-      double area = grid.dcarea[i];
+      double area = grid.cell[i].area;
       residual_norm.mass_flux       += pow(residual[i].mass_flux       / area, 2);
       residual_norm.momentum_flux.x += pow(residual[i].momentum_flux.x / area, 2);
       residual_norm.momentum_flux.y += pow(residual[i].momentum_flux.y / area, 2);
@@ -474,13 +486,13 @@ void FiniteVolume::compute_bounds (const unsigned int iter)
    PrimVar prim_min;
    PrimVar prim_max;
 
-   prim_min.temperature=  1.0e20;
+   prim_min.density    =  1.0e20;
    prim_min.velocity.x =  1.0e20;
    prim_min.velocity.y =  1.0e20;
    prim_min.velocity.z =  1.0e20;
    prim_min.pressure   =  1.0e20;
 
-   prim_max.temperature= -1.0e20;
+   prim_max.density    = -1.0e20;
    prim_max.velocity.x = -1.0e20;
    prim_max.velocity.y = -1.0e20;
    prim_max.velocity.z = -1.0e20;
@@ -492,9 +504,9 @@ void FiniteVolume::compute_bounds (const unsigned int iter)
       prim_max.max(primitive[i]);
    }
 
-   cout << "\t\t Temperature :" 
-        << setw(15) << prim_min.temperature 
-        << setw(15) << prim_max.temperature << endl;
+   cout << "\t\t Density :"
+        << setw(15) << prim_min.density 
+        << setw(15) << prim_max.density << endl;
    cout << "\t\t xVelocity   :"
         << setw(15) << prim_min.velocity.x 
         << setw(15) << prim_max.velocity.x << endl;
@@ -508,7 +520,7 @@ void FiniteVolume::compute_bounds (const unsigned int iter)
         << setw(15) << prim_min.pressure 
         << setw(15) << prim_max.pressure << endl;
 
-   if (prim_min.temperature < 0.0 ||
+   if (prim_min.density < 0.0 ||
        prim_min.pressure    < 0.0)
    {
          output (iter, false);
@@ -529,7 +541,7 @@ void FiniteVolume::compute_global (unsigned int iter)
       double global_KE = 0;
       for(unsigned int i=0; i<grid.n_vertex; ++i)
          global_KE += 0.5 * 
-                      param.material.Density (primitive[i]) * 
+                      primitive[i].density *
                       primitive[i].velocity.square() *
                       grid.dcarea[i];
       double global_Enstrophy = 0;

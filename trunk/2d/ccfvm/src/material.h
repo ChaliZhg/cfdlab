@@ -67,13 +67,11 @@ class Material
       MuModel mu_model;
 
       void initialize ();
-      ConVar  prim2con (const PrimVar& prim_var);
-      PrimVar con2prim (const ConVar&  con_var);
-      void num_flux(const PrimVar& left0, 
-                    const PrimVar& right0, 
-                    const PrimVar& left, 
-                    const PrimVar& right, 
-                    const Vector& normal, 
+      ConVar  prim2con (const PrimVar& prim_var) const;
+      PrimVar con2prim (const ConVar&  con_var) const;
+      void num_flux(const ConVar&   left,
+                    const ConVar&   right,
+                    const Vector&   normal,
                     const FluxData& data,
                     Flux& flux) const;
       void    lxf_flux (const PrimVar& left, 
@@ -131,7 +129,6 @@ class Material
       double viscosity (const double T) const;
       double total_energy (const PrimVar& state) const;
       double sound_speed (const PrimVar& state) const;
-      double Density (const PrimVar& state) const;
       double Mach (const PrimVar& state) const;
 
 };
@@ -140,15 +137,14 @@ class Material
 // Convert primitive to conserved
 //------------------------------------------------------------------------------
 inline
-ConVar Material::prim2con(const PrimVar& prim_var)
+ConVar Material::prim2con(const PrimVar& prim_var) const
 {
    ConVar con_var;
-   double density = Density (prim_var);
 
-   con_var.density  = density;
-   con_var.momentum = prim_var.velocity * density;
+   con_var.density  = prim_var.density;
+   con_var.momentum = prim_var.velocity * prim_var.density;
    con_var.energy   = prim_var.pressure/(gamma - 1.0) +
-                        0.5 * prim_var.velocity.square() * density;
+                        0.5 * prim_var.velocity.square() * prim_var.density;
 
    return con_var;
 }
@@ -157,14 +153,14 @@ ConVar Material::prim2con(const PrimVar& prim_var)
 // Convert conserved to primitive
 //------------------------------------------------------------------------------
 inline
-PrimVar Material::con2prim (const ConVar& con_var)
+PrimVar Material::con2prim (const ConVar& con_var) const
 {
    PrimVar prim_var;
 
    prim_var.velocity = con_var.momentum / con_var.density;
    prim_var.pressure = (gamma - 1.0) * 
         ( con_var.energy - 0.5 * con_var.momentum.square() / con_var.density );
-   prim_var.temperature = prim_var.pressure / (gas_const * con_var.density);
+   prim_var.density = con_var.density;
 
    return prim_var;
 }
@@ -198,9 +194,8 @@ double Material::viscosity (const double T) const
 inline
 double Material::total_energy (const PrimVar& state) const
 {
-   double density = Density (state);
-   return state.pressure / (gamma - 1.0) + 
-          0.5 * density * state.velocity.square();
+   return state.pressure / (gamma - 1.0) +
+          0.5 * state.density * state.velocity.square();
 }
 
 //------------------------------------------------------------------------------
@@ -209,16 +204,7 @@ double Material::total_energy (const PrimVar& state) const
 inline
 double Material::sound_speed (const PrimVar& state) const
 {
-   return sqrt(gamma * gas_const * state.temperature);
-}
-
-//------------------------------------------------------------------------------
-// Density
-//------------------------------------------------------------------------------
-inline
-double Material::Density (const PrimVar& state) const
-{
-   return state.pressure / (gas_const * state.temperature);
+   return sqrt(gamma * state.pressure / state.density);
 }
 
 //------------------------------------------------------------------------------

@@ -25,31 +25,31 @@ class BoundaryCondition
                          std::string              &bc_type,
                          std::vector<std::string> &variable,
                          std::vector<std::string> &function);
-      void apply (const Vector         &vertex,
-                  const Face           &face,
-                  std::vector<PrimVar> &state);
+      void apply (const Vector        &vertex,
+                  const Face          &face,
+                  std::vector<ConVar> &state);
       void apply (const Vector &vertex,
                   const Face   &face,
-                  PrimVar      &state);
-      void apply_slip (const Face           &face,
-                       std::vector<PrimVar> &state);
+                  ConVar       &state);
+      void apply_slip (const Face          &face,
+                       std::vector<ConVar> &state);
       void apply_slip (const Face &face,
-                       PrimVar    &state);
-      void apply_noslip (const Vector         &vertex,
-                         std::vector<PrimVar> &state);
+                       ConVar     &state);
+      void apply_noslip (const Vector        &vertex,
+                         std::vector<ConVar> &state);
       void apply_noslip (const Vector &vertex,
-                         PrimVar      &state);
-      void apply_maxwell (const Face           &face,
-                          std::vector<PrimVar> &state);
-      void apply_pressure (const Vector         &vertex,
-                           std::vector<PrimVar> &state);
-      void apply_inlet (const Vector         &vertex,
-                        std::vector<PrimVar> &state);
+                         ConVar       &state);
+      void apply_maxwell (const Face          &face,
+                          std::vector<ConVar> &state);
+      void apply_pressure (const Vector        &vertex,
+                           std::vector<ConVar> &state);
+      void apply_inlet (const Vector        &vertex,
+                        std::vector<ConVar> &state);
       void apply_inlet (const Vector &vertex,
-                        PrimVar      &state);
-      void apply_outlet (std::vector<PrimVar> &state);
-      void apply_farfield (const Vector         &vertex,
-                           std::vector<PrimVar> &state);
+                        ConVar       &state);
+      void apply_outlet (std::vector<ConVar> &state);
+      void apply_farfield (const Vector        &vertex,
+                           std::vector<ConVar> &state);
       std::string    name;
       BC::BCType     type;
       bool           adiabatic;
@@ -61,6 +61,7 @@ class BoundaryCondition
       FParser        zvelocity;
       FParser        pressure;
       FParser        temperature;
+      FParser        density;
 };
 
 //------------------------------------------------------------------------------
@@ -232,105 +233,13 @@ BoundaryCondition::BoundaryCondition (Material                 &material,
 // Then u[1] * n = u[0] * n = 0
 //------------------------------------------------------------------------------
 inline
-void BoundaryCondition::apply_slip(const Face           &face,
-                                   std::vector<PrimVar> &state)
+void BoundaryCondition::apply_slip(const Face          &face,
+                                   std::vector<ConVar> &state)
 {
    Vector unit_normal = face.normal / face.measure;
-   state[0].velocity -= unit_normal * (state[0].velocity * unit_normal);
+   state[0].momentum -= unit_normal * (state[0].momentum * unit_normal);
 
    state[1] = state[0];
-}
-
-inline
-void BoundaryCondition::apply_slip(const Face &face,
-                                   PrimVar    &state)
-{
-   Vector unit_normal = face.normal / face.measure;
-   state.velocity -= unit_normal * (state.velocity * unit_normal);
-}
-
-//------------------------------------------------------------------------------
-// Velocity is specified
-// If temperature is specified, then pressure is computed using the temperature
-//------------------------------------------------------------------------------
-inline
-void BoundaryCondition::apply_noslip(const Vector         &vertex,
-                                     std::vector<PrimVar> &state)
-{
-   double point[2]  = {vertex.x, vertex.y};
-   state[0].velocity.x = xvelocity.Eval(point);
-   state[0].velocity.y = yvelocity.Eval(point);
-   state[0].velocity.z = zvelocity.Eval(point);
-
-   state[1].velocity = state[0].velocity;
-   state[1].pressure = state[0].pressure;
-
-   if(adiabatic)
-      state[1].temperature  = state[0].temperature;
-   else
-   {
-      double T = temperature.Eval(point);
-      state[0].temperature = T;
-      state[1].temperature = T;
-   }
-}
-
-//------------------------------------------------------------------------------
-// Velocity is modified, others kept same.
-// Used to enforce noslip after update.
-//------------------------------------------------------------------------------
-inline
-void BoundaryCondition::apply_noslip(const Vector &vertex,
-                                     PrimVar      &state)
-{
-   double point[2]  = {vertex.x, vertex.y};
-   state.velocity.x = xvelocity.Eval(point);
-   state.velocity.y = yvelocity.Eval(point);
-   state.velocity.z = zvelocity.Eval(point);
-   if(!adiabatic)
-   {
-      state.temperature = temperature.Eval(point);
-   }
-}
-
-//------------------------------------------------------------------------------
-// state[1] = wall state
-//------------------------------------------------------------------------------
-inline
-void BoundaryCondition::apply_maxwell(const Face           &face,
-                                      std::vector<PrimVar> &state)
-{
-   // wall values
-   double point[2]  = {face.centroid.x, face.centroid.y};
-   state[1].velocity.x = xvelocity.Eval(point);
-   state[1].velocity.y = yvelocity.Eval(point);
-   state[1].velocity.z = zvelocity.Eval(point);
-   state[1].temperature = temperature.Eval(point);
-
-   // normal velocity should be zero
-   // state[1] must already have zero normal velocity
-   Vector unit_normal = face.normal / face.measure;
-   state[0].velocity -= unit_normal * (state[0].velocity * unit_normal);
-
-   double density = material->Density(state[0]);
-
-   double taunn= 0.0;
-   double rhow = density * 
-                 sqrt(state[0].temperature / state[1].temperature) * 
-                 (1.0 - 0.5 * taunn/state[0].pressure);
-   state[1].pressure = rhow * material->gas_const * state[1].temperature;
-}
-
-//------------------------------------------------------------------------------
-// Reset pressure value. Other states remain same
-//------------------------------------------------------------------------------
-inline
-void BoundaryCondition::apply_pressure (const Vector         &vertex,
-                                        std::vector<PrimVar> &state)
-{
-   double point[2]  = {vertex.x, vertex.y};
-
-   state[1].pressure  = pressure.Eval(point);
 }
 
 //------------------------------------------------------------------------------
@@ -340,35 +249,29 @@ void BoundaryCondition::apply_pressure (const Vector         &vertex,
 //------------------------------------------------------------------------------
 inline
 void BoundaryCondition::apply_inlet (const Vector         &vertex,
-                                     std::vector<PrimVar> &state)
+                                     std::vector<ConVar> &state)
 {
    double point[2]  = {vertex.x, vertex.y};
-   state[0].temperature= temperature.Eval(point);
-   state[0].velocity.x = xvelocity.Eval(point);
-   state[0].velocity.y = yvelocity.Eval(point);
-   state[0].velocity.z = zvelocity.Eval(point);
-   state[0].pressure   = pressure.Eval(point);
+   double rho = density.Eval(point);
+   double pre = pressure.Eval(point);
 
+   Vector velocity;
+   velocity.x = xvelocity.Eval(point);
+   velocity.y = yvelocity.Eval(point);
+   velocity.z = zvelocity.Eval(point);
+   
+   state[0].density  = rho;
+   state[0].momentum = velocity * rho;
+   state[0].energy   = pre/(material->gamma-1) + 0.5 * rho * velocity.square();
+   
    state[1] = state[0];
-}
-
-inline
-void BoundaryCondition::apply_inlet (const Vector &vertex,
-                                     PrimVar      &state)
-{
-   double point[2]  = {vertex.x, vertex.y};
-   state.temperature= temperature.Eval(point);
-   state.velocity.x = xvelocity.Eval(point);
-   state.velocity.y = yvelocity.Eval(point);
-   state.velocity.z = zvelocity.Eval(point);
-   state.pressure   = pressure.Eval(point);
 }
 
 //------------------------------------------------------------------------------
 // At outlet all all values are from inside values
 //------------------------------------------------------------------------------
 inline
-void BoundaryCondition::apply_outlet (std::vector<PrimVar> &state)
+void BoundaryCondition::apply_outlet (std::vector<ConVar> &state)
 {
    state[1] = state[0];
 }
@@ -377,41 +280,36 @@ void BoundaryCondition::apply_outlet (std::vector<PrimVar> &state)
 // At farfield all values are specified
 //------------------------------------------------------------------------------
 inline
-void BoundaryCondition::apply_farfield (const Vector         &vertex,
-                                        std::vector<PrimVar> &state)
+void BoundaryCondition::apply_farfield (const Vector        &vertex,
+                                        std::vector<ConVar> &state)
 {
    double point[2]     = {vertex.x, vertex.y};
-   state[1].temperature= temperature.Eval(point);
-   state[1].velocity.x = xvelocity.Eval(point);
-   state[1].velocity.y = yvelocity.Eval(point);
-   state[1].velocity.z = zvelocity.Eval(point);
-   state[1].pressure   = pressure.Eval(point);
+   
+   double rho = density.Eval(point);
+   double pre = pressure.Eval(point);
+   
+   Vector velocity;
+   velocity.x = xvelocity.Eval(point);
+   velocity.y = yvelocity.Eval(point);
+   velocity.z = zvelocity.Eval(point);
+   
+   state[1].density = rho;
+   state[1].momentum = velocity * rho;
+   state[1].energy = pre/(material->gamma-1) + 0.5 * rho * velocity.square();
 }
 
 //------------------------------------------------------------------------------
 // Apply boundary condition based on type
 //------------------------------------------------------------------------------
 inline
-void BoundaryCondition::apply(const Vector         &vertex,
-                              const Face           &face,
-                              std::vector<PrimVar> &state)
+void BoundaryCondition::apply(const Vector        &vertex,
+                              const Face          &face,
+                              std::vector<ConVar> &state)
 {
    switch(type)
    {
       case BC::slip:
          apply_slip (face, state);
-         break;
-
-      case BC::noslip:
-         apply_noslip (vertex, state);
-         break;
-
-      case BC::maxwell:
-         apply_maxwell (face, state);
-         break;
-
-      case BC::pressure:
-         apply_pressure (vertex, state);
          break;
 
       case BC::inlet:
@@ -424,48 +322,6 @@ void BoundaryCondition::apply(const Vector         &vertex,
 
       case BC::farfield:
          apply_farfield (vertex, state);
-         break;
-
-      default:
-         std::cout << "BoundaryCondition::apply" << std::endl;
-         std::cout << "   Unknown boundary condition: " << name << std::endl;
-         abort ();
-   }
-}
-
-//------------------------------------------------------------------------------
-// Apply boundary condition based on type
-//------------------------------------------------------------------------------
-inline
-void BoundaryCondition::apply(const Vector  &vertex,
-                              const Face    &face,
-                              PrimVar       &state)
-{
-   switch(type)
-   {
-      case BC::slip:
-      case BC::maxwell:
-         apply_slip (face, state);
-         break;
-
-      case BC::noslip:
-         apply_noslip (vertex, state);
-         break;
-
-      case BC::pressure:
-         // Nothing to be done
-         break;
-
-      case BC::inlet:
-         apply_inlet (vertex, state);
-         break;
-
-      case BC::outlet:
-         // Nothing to be done
-         break;
-
-      case BC::farfield:
-         //apply_farfield (vertex, state);
          break;
 
       default:
