@@ -7,7 +7,7 @@
 class Vector
 {
    public:
-      double x, y, z;
+      double x, y;
       Vector& operator=  (const Vector rhs);
       Vector& operator=  (const double scalar);
       Vector& operator+= (const Vector rhs);
@@ -19,7 +19,7 @@ class Vector
       double  operator*  (const Vector vec) const; // Dot product of two vectors
       Vector  operator+  (const Vector vec) const;
       Vector  operator-  (const Vector vec) const;
-      Vector  operator^  (const Vector vec) const; // Cross product of two vectors
+      double  operator^  (const Vector vec) const; // Cross product of two vectors
       double  square () const;
       double  norm () const;
 };
@@ -29,7 +29,6 @@ inline
 Vector& Vector::operator= (const Vector rhs){
    x = rhs.x;
    y = rhs.y;
-   z = rhs.z;
 
    return *this;
 }
@@ -37,7 +36,7 @@ Vector& Vector::operator= (const Vector rhs){
 // Assign one vector to another
 inline
 Vector& Vector::operator= (const double scalar){
-   x = y = z = scalar;
+   x = y = scalar;
 
    return *this;
 }
@@ -47,7 +46,6 @@ inline
 Vector& Vector::operator+= (const Vector rhs){
    x += rhs.x;
    y += rhs.y;
-   z += rhs.z;
 
    return *this;
 }
@@ -57,7 +55,6 @@ inline
 Vector& Vector::operator-= (const Vector rhs){
    x -= rhs.x;
    y -= rhs.y;
-   z -= rhs.z;
 
    return *this;
 }
@@ -67,7 +64,6 @@ inline
 Vector& Vector::operator*= (const double scalar){
    x *= scalar;
    y *= scalar;
-   z *= scalar;
 
    return *this;
 }
@@ -77,7 +73,6 @@ inline
 Vector& Vector::operator/= (const double scalar){
    x /= scalar;
    y /= scalar;
-   z /= scalar;
 
    return *this;
 }
@@ -90,7 +85,6 @@ Vector Vector::operator+  (const Vector vec) const
 
    result.x = x + vec.x;
    result.y = y + vec.y;
-   result.z = z + vec.z;
 
    return result;
 }
@@ -103,7 +97,6 @@ Vector Vector::operator-  (const Vector vec) const
 
    result.x = x - vec.x;
    result.y = y - vec.y;
-   result.z = z - vec.z;
 
    return result;
 }
@@ -115,7 +108,6 @@ Vector Vector::operator/ (const double scalar) const
    Vector result;
    result.x = x / scalar;
    result.y = y / scalar;
-   result.z = z / scalar;
 
    return result;
 }
@@ -127,7 +119,6 @@ Vector Vector::operator* (const double scalar) const
    Vector result;
    result.x = x * scalar;
    result.y = y * scalar;
-   result.z = z * scalar;
 
    return result;
 }
@@ -136,34 +127,28 @@ Vector Vector::operator* (const double scalar) const
 inline
 double Vector::square () const
 {
-   return x*x + y*y + z*z;
+   return x*x + y*y;
 }
 
 // L2 norm of vector
 inline
 double Vector::norm () const
 {
-   return std::sqrt(x*x + y*y + z*z);
+   return std::sqrt(x*x + y*y);
 }
 
 // Dot product of two vectors
 inline
 double Vector::operator* (const Vector vec) const
 {
-   return x * vec.x + y * vec.y + z * vec.z;
+   return x * vec.x + y * vec.y;
 }
 
 // Cross product of two vectors
 inline
-Vector Vector::operator^ (const Vector vec) const
+double Vector::operator^ (const Vector vec) const
 {
-   Vector result;
-
-   result.x = y * vec.z - z * vec.y;
-   result.y = z * vec.x - x * vec.z;
-   result.z = x * vec.y - y * vec.x;
-
-   return result;
+   return  x * vec.y - y * vec.x;
 }
 
 #endif

@@ -40,7 +40,7 @@ void FiniteVolume::limit_gradients_bj ()
          double rhoU = conserved[i].momentum.x + dr * grad_rhoU[i];
          double rhoV = conserved[i].momentum.y + dr * grad_rhoV[i];
          double E    = conserved[i].energy     + dr * grad_E[i];
-         minmax (rho, rhoU, rhoV, 0.0, E, Umin[v], Umax[v], conserved[i], phi[i]);
+         minmax (rho, rhoU, rhoV, E, Umin[v], Umax[v], conserved[i], phi[i]);
       }
    }
 

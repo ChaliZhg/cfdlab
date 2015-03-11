@@ -131,7 +131,7 @@ void Writer::output_vtk (string filename)
    for(unsigned int i=0; i<grid->n_vertex; ++i)
       vtk << grid->vertex[i].coord.x << " " 
           << grid->vertex[i].coord.y << " " 
-          << grid->vertex[i].coord.z << endl;
+          << 0.0 << endl;
 
    vtk << "CELLS  " << grid->n_cell << " " << 4 * grid->n_cell << endl;
    for(unsigned int i=0; i<grid->n_cell; ++i)
@@ -160,14 +160,6 @@ void Writer::output_vtk (string filename)
       vtk << "LOOKUP_TABLE default" << endl;
       for(unsigned int i=0; i<grid->n_cell; ++i)
          vtk << (*vertex_primitive)[i].density << endl;
-
-      if(dim == axi)
-      {
-         vtk << "SCALARS Vtheta float 1" << endl;
-         vtk << "LOOKUP_TABLE default" << endl;
-         for(unsigned int i=0; i<grid->n_cell; ++i)
-            vtk << (*vertex_primitive)[i].velocity.z << endl;
-      }
 
       vtk << "VECTORS velocity float" << endl;
       for(unsigned int i=0; i<grid->n_cell; ++i)
@@ -311,13 +303,6 @@ void Writer::output_tec (double time, string filename)
       }
    }
 
-   // Theta component of velocity
-   if(dim == axi)
-   {
-      for(unsigned int i=0; i<grid->n_cell; ++i)
-         tec << (*vertex_primitive)[i].velocity.z << endl;
-   }
-
    // Write vertex data to file
    for(unsigned int d=0; d<vertex_data.size(); ++d)
    {
@@ -369,7 +354,6 @@ void Writer::output_surfaces (string surffilename)
                 << (*vertex_primitive)[v0].density << "  "
                 << (*vertex_primitive)[i].velocity.x  << "  "
                 << (*vertex_primitive)[i].velocity.y  << "  "
-                << (*vertex_primitive)[i].velocity.z  << "  "
                 << endl;
       }
    }
@@ -398,7 +382,6 @@ void Writer::output_restart (int iter)
          << (*vertex_primitive)[i].density     << "  "
          << (*vertex_primitive)[i].velocity.x  << "  "
          << (*vertex_primitive)[i].velocity.y  << "  "
-         << (*vertex_primitive)[i].velocity.z  << "  "
          << (*vertex_primitive)[i].pressure    << endl;
 
    fo << iter << endl;

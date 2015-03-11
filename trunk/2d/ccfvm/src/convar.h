@@ -151,7 +151,6 @@ void ConVar::min (const ConVar& p)
    density = std::min(density, p.density);
    momentum.x  = std::min(momentum.x,  p.momentum.x);
    momentum.y  = std::min(momentum.y,  p.momentum.y);
-   momentum.z  = std::min(momentum.z,  p.momentum.z);
    energy    = std::min(energy,    p.energy);
 }
 
@@ -164,7 +163,6 @@ void ConVar::max (const ConVar& p)
    density = std::max(density, p.density);
    momentum.x  = std::max(momentum.x,  p.momentum.x);
    momentum.y  = std::max(momentum.y,  p.momentum.y);
-   momentum.z  = std::max(momentum.z,  p.momentum.z);
    energy    = std::max(energy,    p.energy);
 }
 

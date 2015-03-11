@@ -28,7 +28,6 @@ inline
 void minmax (const double& rho,
              const double& rhoU,
              const double& rhoV,
-             const double& w,
              const double& E,
              const ConVar& Umin,
              const ConVar& Umax,
@@ -75,20 +74,6 @@ void minmax (const double& rho,
       double fact = (Umin.momentum.y - con.momentum.y) / 
                     (rhoV - con.momentum.y);
       phi.momentum.y = std::min(phi.momentum.y, fact);
-   }
-
-   // z momentum
-   if(w > Umax.momentum.z)
-   {
-      double fact = (Umax.momentum.z - con.momentum.z) / 
-                    (w - con.momentum.z);
-      phi.momentum.z = std::min(phi.momentum.z, fact);
-   }
-   else if(w < Umin.momentum.z)
-   {
-      double fact = (Umin.momentum.z - con.momentum.z) / 
-                    (w - con.momentum.z);
-      phi.momentum.z = std::min(phi.momentum.z, fact);
    }
 
    // energy

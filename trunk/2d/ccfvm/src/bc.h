@@ -253,7 +253,6 @@ void BoundaryCondition::apply_inlet (const Vector         &vertex,
    Vector velocity;
    velocity.x = xvelocity.Eval(point);
    velocity.y = yvelocity.Eval(point);
-   velocity.z = zvelocity.Eval(point);
    
    state[0].density  = rho;
    state[0].momentum = velocity * rho;
@@ -286,7 +285,6 @@ void BoundaryCondition::apply_farfield (const Vector        &vertex,
    Vector velocity;
    velocity.x = xvelocity.Eval(point);
    velocity.y = yvelocity.Eval(point);
-   velocity.z = zvelocity.Eval(point);
    
    state[1].density = rho;
    state[1].momentum = velocity * rho;
