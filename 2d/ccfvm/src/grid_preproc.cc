@@ -437,7 +437,7 @@ void Grid::compute_least_squares ()
    for(unsigned int i=0; i<n_cell; ++i)
    {
       double det = sdx2[i] * sdy2[i] - sdxdy[i] * sdxdy[i];
-      assert (det > 1.0e-14);
+      assert (det > 1.0e-13);
       cell[i].invA1[0][0] =  sdy2[i]  / det;
       cell[i].invA1[1][1] =  sdx2[i]  / det;
       cell[i].invA1[0][1] = -sdxdy[i] / det;

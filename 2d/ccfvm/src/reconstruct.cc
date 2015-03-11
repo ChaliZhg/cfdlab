@@ -45,6 +45,7 @@ void FiniteVolume::reconstruct_second
    state[0].density    = conserved[cl].density    + drl * grad_rho[cl];
    state[0].momentum.x = conserved[cl].momentum.x + drl * grad_rhoU[cl];
    state[0].momentum.y = conserved[cl].momentum.y + drl * grad_rhoV[cl];
+   state[0].momentum.z = 0.0;
    state[0].energy     = conserved[cl].energy     + drl * grad_E[cl];
 
    if(cr >= 0)
@@ -55,6 +56,7 @@ void FiniteVolume::reconstruct_second
       state[1].density    = conserved[cr].density    + drr * grad_rho[cr];
       state[1].momentum.x = conserved[cr].momentum.x + drr * grad_rhoU[cr];
       state[1].momentum.y = conserved[cr].momentum.y + drr * grad_rhoV[cr];
+      state[1].momentum.z = 0.0;
       state[1].energy     = conserved[cr].energy     + drr * grad_E[cr];
    }
    else

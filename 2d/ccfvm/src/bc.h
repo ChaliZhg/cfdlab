@@ -227,8 +227,7 @@ BoundaryCondition::BoundaryCondition (Material                 &material,
 
 //------------------------------------------------------------------------------
 // Normal velocity is zero
-// u[1] = u[0] - (u[0] * n) n
-// Then u[1] * n = u[0] * n = 0
+// u[1] = u[0] - 2(u[0] * n) n
 //------------------------------------------------------------------------------
 inline
 void BoundaryCondition::apply_slip(const Face          &face,
@@ -236,8 +235,6 @@ void BoundaryCondition::apply_slip(const Face          &face,
 {
    Vector unit_normal = face.normal / face.measure;
    state[1].momentum -= unit_normal * (state[1].momentum * unit_normal) * 2.0;
-
-   //state[1] = state[0];
 }
 
 //------------------------------------------------------------------------------
