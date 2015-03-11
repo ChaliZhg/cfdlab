@@ -424,14 +424,6 @@ void Parameter::read_output (Reader &fin)
       write_variables.push_back (input);
    }
 
-   fin.begin_section ("surfaces");
-   while (!fin.eos())
-   {
-      int id;
-      fin >> id;
-      write_surfaces.push_back (id);
-   }
-
    fin.entry ("restart");
    fin >> input;
    if(input=="false")

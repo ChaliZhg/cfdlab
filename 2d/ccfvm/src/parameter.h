@@ -47,7 +47,6 @@ class Parameter
       std::string  write_format;
       unsigned int write_frequency;
       std::vector<std::string> write_variables;
-      std::vector<int> write_surfaces;
       bool write_restart;
       bool has_global;
       bool global_KE;

@@ -452,7 +452,7 @@ void FiniteVolume::output (const unsigned int iter, bool write_variables)
 {
    static int counter = 0;
 
-   Writer writer (grid, param.material, param.write_format, param.write_surfaces);
+   Writer writer (grid, param.material, param.write_format);
    writer.attach_data (primitive);
    writer.attach_gradient (dU, dV, dW);
    if(param.write_variables.size() > 0 && write_variables == true)

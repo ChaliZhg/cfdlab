@@ -19,8 +19,7 @@ class Writer
          {};
       Writer (const Grid&      grid,
               const Material&  material,
-              std::string      format,
-              std::vector<int> surfaces) 
+              std::string      format) 
          : 
          grid (&grid),
          material (&material),
