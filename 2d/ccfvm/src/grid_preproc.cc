@@ -56,9 +56,9 @@ void Grid::compute_cell_area ()
       unsigned int v2 = cell[i].vertex[2];
 
       // compute area as vector cross product
-      Vector area = (vertex[v1].coord - vertex[v0].coord) ^ 
+      double area = (vertex[v1].coord - vertex[v0].coord) ^
                     (vertex[v2].coord - vertex[v0].coord);
-      cell[i].area = 0.5 * area.z;
+      cell[i].area = 0.5 * area;
 
       assert ( cell[i].area > 0.0 );
    }
@@ -82,7 +82,6 @@ void Grid::compute_face_normal_and_area ()
          Vector normal;
          normal.x = +dr.y;
          normal.y = -dr.x;
-         normal.z =  0.0;
          
          // Check orintation of boundary face
          unsigned int cl = face[i].lcell;
@@ -103,7 +102,6 @@ void Grid::compute_face_normal_and_area ()
          
          face[i].normal.x =  dr.y;
          face[i].normal.y = -dr.x;
-         face[i].normal.z =  0.0;
          face[i].measure  = dr.norm();
       }
    }

@@ -34,7 +34,6 @@ void Grid::read_bamg (string grid_file)
    for(i=0; i<n_vertex; i++)
    {
       file >> vertex[i].coord.x >> vertex[i].coord.y >> v_type;
-      vertex[i].coord.z = 0; //dimension =2
    }
    //Reading the edges next
    file >> line;

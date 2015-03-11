@@ -98,7 +98,6 @@ PrimVar PrimVar::operator* (const PrimVar& prim_var) const
    result.density = density * prim_var.density;
    result.velocity.x  = velocity.x  * prim_var.velocity.x;
    result.velocity.y  = velocity.y  * prim_var.velocity.y;
-   result.velocity.z  = velocity.z  * prim_var.velocity.z;
    result.pressure    = pressure    * prim_var.pressure;
 
    return result;
@@ -152,7 +151,6 @@ void PrimVar::min (const PrimVar& p)
    density = std::min(density, p.density);
    velocity.x  = std::min(velocity.x,  p.velocity.x);
    velocity.y  = std::min(velocity.y,  p.velocity.y);
-   velocity.z  = std::min(velocity.z,  p.velocity.z);
    pressure    = std::min(pressure,    p.pressure);
 }
 
@@ -165,7 +163,6 @@ void PrimVar::max (const PrimVar& p)
    density = std::max(density, p.density);
    velocity.x  = std::max(velocity.x,  p.velocity.x);
    velocity.y  = std::max(velocity.y,  p.velocity.y);
-   velocity.z  = std::max(velocity.z,  p.velocity.z);
    pressure    = std::max(pressure,    p.pressure);
 }
 

@@ -28,8 +28,8 @@ class InitialCondition
       FParser zvelocity;
       FParser pressure;
 
-      void INITIAL_CONDITION(double,double,double&,double&,double&,double&,double&);
-      void (*initial_condition)(double,double,double&,double&,double&,double&,double&);
+      void INITIAL_CONDITION(double,double,double&,double&,double&,double&);
+      void (*initial_condition)(double,double,double&,double&,double&,double&);
 };
 
 //------------------------------------------------------------------------------
@@ -46,7 +46,7 @@ void InitialCondition::add (std::string lib_file)
    }
 
    initial_condition = 
-      (void (*)(double,double,double&,double&,double&,double&,double&))
+      (void (*)(double,double,double&,double&,double&,double&))
       dlsym (lib_handle, "INITIAL_CONDITION");
    has_lib = true;
    
@@ -89,7 +89,6 @@ PrimVar InitialCondition::value (const Vector& p)
                            result.density,
                            result.velocity.x,
                            result.velocity.y,
-                           result.velocity.z,
                            result.pressure);
    }
    else
@@ -99,7 +98,6 @@ PrimVar InitialCondition::value (const Vector& p)
       result.density    = density.Eval (vals);
       result.velocity.x = xvelocity.Eval (vals);
       result.velocity.y = yvelocity.Eval (vals);
-      result.velocity.z = zvelocity.Eval (vals);
       result.pressure   = pressure.Eval (vals);
    }
 

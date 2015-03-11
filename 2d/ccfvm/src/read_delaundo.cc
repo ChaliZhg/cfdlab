@@ -67,7 +67,6 @@ void Grid::read_delaundo (string grid_file)
            >> rdummy
            >> rdummy
            >> idummy;
-      vertex[i].coord.z = 0; //dimension =2
    }
 
    unsigned int n_seg, n_corner, c=0;

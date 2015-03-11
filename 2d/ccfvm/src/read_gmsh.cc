@@ -34,11 +34,12 @@ void Grid::read_gmsh (string grid_file)
    assert (n_vertex > 0);
    vertex.resize (n_vertex);
 
+   double z;
    for(i=0; i<n_vertex; ++i)
       file >> count
            >> vertex[i].coord.x
            >> vertex[i].coord.y
-           >> vertex[i].coord.z;
+           >> z;
 
    file >> line;
    file >> line;

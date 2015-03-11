@@ -55,7 +55,6 @@ void FiniteVolume::initialize ()
          fi >> primitive[i].density
             >> primitive[i].velocity.x
             >> primitive[i].velocity.y
-            >> primitive[i].velocity.z
             >> primitive[i].pressure;
       fi >> last_iter;
       fi.close ();
@@ -149,26 +148,21 @@ void FiniteVolume::compute_gradients ()
                       grid.cell[i].invA1[0][1] * sdydU[i].density;
       grad_rho[i].y = grid.cell[i].invA1[1][0] * sdxdU[i].density +
                       grid.cell[i].invA1[1][1] * sdydU[i].density;
-      grad_rho[i].z = 0.0;
       
       grad_rhoU[i].x = grid.cell[i].invA1[0][0] * sdxdU[i].momentum.x +
                        grid.cell[i].invA1[0][1] * sdydU[i].momentum.x;
       grad_rhoU[i].y = grid.cell[i].invA1[1][0] * sdxdU[i].momentum.x +
                        grid.cell[i].invA1[1][1] * sdydU[i].momentum.x;
-      grad_rhoU[i].z = 0.0;
 
       grad_rhoV[i].x = grid.cell[i].invA1[0][0] * sdxdU[i].momentum.y +
                        grid.cell[i].invA1[0][1] * sdydU[i].momentum.y;
       grad_rhoV[i].y = grid.cell[i].invA1[1][0] * sdxdU[i].momentum.y +
                        grid.cell[i].invA1[1][1] * sdydU[i].momentum.y;
-      grad_rhoV[i].z = 0.0;
-
       
       grad_E[i].x = grid.cell[i].invA1[0][0] * sdxdU[i].energy +
                     grid.cell[i].invA1[0][1] * sdydU[i].energy;
       grad_E[i].y = grid.cell[i].invA1[1][0] * sdxdU[i].energy +
                     grid.cell[i].invA1[1][1] * sdydU[i].energy;
-      grad_E[i].z = 0.0;
    }
    
    // TODO
@@ -363,7 +357,6 @@ void FiniteVolume::compute_residual_norm (const unsigned int iter)
       residual_norm.mass_flux       += pow(residual[i].mass_flux       / area, 2);
       residual_norm.momentum_flux.x += pow(residual[i].momentum_flux.x / area, 2);
       residual_norm.momentum_flux.y += pow(residual[i].momentum_flux.y / area, 2);
-      residual_norm.momentum_flux.z += pow(residual[i].momentum_flux.z / area, 2);
       residual_norm.energy_flux     += pow(residual[i].energy_flux     / area, 2);
    }
 
@@ -371,7 +364,6 @@ void FiniteVolume::compute_residual_norm (const unsigned int iter)
    residual_norm.mass_flux       = sqrt (residual_norm.mass_flux)       / grid.n_cell;
    residual_norm.momentum_flux.x = sqrt (residual_norm.momentum_flux.x) / grid.n_cell;
    residual_norm.momentum_flux.y = sqrt (residual_norm.momentum_flux.y) / grid.n_cell;
-   residual_norm.momentum_flux.z = sqrt (residual_norm.momentum_flux.z) / grid.n_cell;
    residual_norm.energy_flux     = sqrt (residual_norm.energy_flux)     / grid.n_cell;
 
    // Total residual of all components
@@ -413,7 +405,6 @@ void FiniteVolume::log_messages (const unsigned int iter)
                 << residual_norm.mass_flux << "  "
                 << residual_norm.momentum_flux.x << "  "
                 << residual_norm.momentum_flux.y << "  "
-                << residual_norm.momentum_flux.z << "  "
                 << residual_norm.energy_flux
                 << endl;
 
@@ -426,7 +417,6 @@ void FiniteVolume::log_messages (const unsigned int iter)
            << residual_norm.mass_flux << "  "
            << residual_norm.momentum_flux.x << "  "
            << residual_norm.momentum_flux.y << "  "
-           << residual_norm.momentum_flux.z << "  "
            << residual_norm.energy_flux
            << endl;
    }
@@ -495,13 +485,11 @@ void FiniteVolume::compute_bounds (const unsigned int iter)
    prim_min.density    =  1.0e20;
    prim_min.velocity.x =  1.0e20;
    prim_min.velocity.y =  1.0e20;
-   prim_min.velocity.z =  1.0e20;
    prim_min.pressure   =  1.0e20;
 
    prim_max.density    = -1.0e20;
    prim_max.velocity.x = -1.0e20;
    prim_max.velocity.y = -1.0e20;
-   prim_max.velocity.z = -1.0e20;
    prim_max.pressure   = -1.0e20;
 
    for(unsigned int i=0; i<grid.n_cell; ++i)
@@ -519,9 +507,6 @@ void FiniteVolume::compute_bounds (const unsigned int iter)
    cout << "\t\t yVelocity   :"
         << setw(15) << prim_min.velocity.y 
         << setw(15) << prim_max.velocity.y << endl;
-   cout << "\t\t zVelocity   :"
-        << setw(15) << prim_min.velocity.z 
-        << setw(15) << prim_max.velocity.z << endl;
    cout << "\t\t Pressure    :"
         << setw(15) << prim_min.pressure 
         << setw(15) << prim_max.pressure << endl;
