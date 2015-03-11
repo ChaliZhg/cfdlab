@@ -60,7 +60,7 @@ class FiniteVolume
       std::vector<Vector>  dT_cell, dU_cell, dV_cell, dW_cell, dP_cell;
       std::vector<Vector>  grad_rho, grad_rhoU, grad_rhoV, grad_E;
       std::vector<double>  ducros;
-      std::vector<PrimVar> phi;
+      std::vector<ConVar> phi;
       std::vector<double>  ssw;
       Flux                 residual_norm;
       double               residual_norm_total;
