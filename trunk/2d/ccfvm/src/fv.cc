@@ -64,7 +64,7 @@ void FiniteVolume::initialize ()
       cout << "Setting initial condition to input values ...";
       for(unsigned int i=0; i<grid.n_cell; ++i)
       {
-         primitive[i] = param.initial_condition.value (grid.vertex[i].coord);
+         primitive[i] = param.initial_condition.value (grid.cell[i].centroid);
          assert (primitive[i].density  > 0.0);
          assert (primitive[i].pressure > 0.0);
       }
@@ -72,6 +72,11 @@ void FiniteVolume::initialize ()
       last_iter = 0;
    }
 
+   for(unsigned int i=0; i<grid.n_cell; ++i)
+   {
+      conserved[i] = param.material.prim2con(primitive[i]);
+   }
+   
    // Check if solution conversion was requested
    // Then save solution and abort
    if(convert_to_tec) param.write_format = "tec";
@@ -162,7 +167,6 @@ void FiniteVolume::compute_gradients ()
                     grid.cell[i].invA1[1][1] * sdydU[i].energy;
    }
 
-
    return;
    
    // TODO
@@ -190,10 +194,18 @@ void FiniteVolume::compute_inviscid_residual ()
       reconstruct ( i, state );
       
       // If boundary face, apply bc
+      if(cr < 0)
+      {
+         int face_type = grid.face[i].type;
+         BoundaryCondition& bc = param.boundary_condition[face_type];
+         bc.apply (grid.face[i].centroid, grid.face[i], state);
+//         std::cout << state[0].momentum.x << " " << state[0].momentum.y << "\n";
+//         std::cout << state[1].momentum.x << " " << state[1].momentum.y << "\n";
+      }
       
       FluxData data;
-      data.ssw = ssw[cl]+ssw[cr];
-      data.ducros = max(ducros[cl], ducros[cr]);
+      //data.ssw = ssw[cl]+ssw[cr];
+      //data.ducros = max(ducros[cl], ducros[cr]);
 
       Flux flux;
       param.material.num_flux (state[0], state[1],
@@ -203,6 +215,11 @@ void FiniteVolume::compute_inviscid_residual ()
       
       if(cr >= 0)
          residual[cr] -= flux;
+      
+//      std::cout << state[0].density << " " << state[0].energy << "\n";
+//      std::cout << state[1].density << " " << state[1].energy << "\n";
+//      std::cout << grid.face[i].normal.x << "  " << grid.face[i].normal.y << "\n";
+//      std::cout << flux.mass_flux << " " << flux.energy_flux << std::endl;
    }
 }
 
@@ -216,7 +233,7 @@ void FiniteVolume::compute_residual ()
 {
 
    // Set residual vector to zero
-   for(unsigned int i=0; i<grid.n_vertex; ++i)
+   for(unsigned int i=0; i<grid.n_cell; ++i)
       residual[i].zero ();
 
    // Compute cell and vertex gradients
@@ -306,11 +323,11 @@ void FiniteVolume::update_solution (const unsigned int r)
    {
       for(unsigned int i=0; i<grid.n_cell; ++i)
       {
-         factor      = dt[i] / (grid.vertex[i].radius * grid.dcarea[i]);
-         conserved[i]= param.material.prim2con (primitive[i]);
+         factor      = dt[i] / grid.cell[i].area;
          conserved[i]= conserved_old[i] * a_rk[r] +
                        (conserved[i] - residual[i] * factor) * b_rk[r];
          primitive[i]= param.material.con2prim (conserved[i]);
+         //std::cout << residual[i].mass_flux << " " << residual[i].energy_flux << "\n";
       }
    }
    else if(param.time_scheme == "rk1" ||
@@ -320,7 +337,7 @@ void FiniteVolume::update_solution (const unsigned int r)
       double f = 1.0/(param.n_rks - r);
       for(unsigned int i=0; i<grid.n_cell; ++i)
       {
-         factor      = f * dt[i] / (grid.vertex[i].radius * grid.dcarea[i]);
+         factor      = f * dt[i] / grid.cell[i].area;
          conserved[i]= conserved_old[i]  - residual[i] * factor;
          primitive[i]= param.material.con2prim (conserved[i]);
       }
@@ -565,7 +582,9 @@ void FiniteVolume::solve ()
    elapsed_time = 0.0;
    residual_norm_total = 1.0e20;
    unsigned int last_output_iter = 0;
-
+   
+   //output(0); return;
+   
    if(param.time_mode == "unsteady")
    {
       compute_gradients ();
@@ -580,13 +599,13 @@ void FiniteVolume::solve ()
    {
       store_conserved_old ();
       compute_dt ();
-      compute_ssw ();
-      compute_ducros ();
+      //compute_ssw ();
+      //compute_ducros ();
       for(unsigned int r=0; r<param.n_rks; ++r)
       {
          compute_residual ();
 
-         smooth_residual ();
+         //smooth_residual ();
          if(r == param.n_rks-1)
             compute_residual_norm (iter);
          update_solution (r);
@@ -596,8 +615,8 @@ void FiniteVolume::solve ()
       elapsed_time += dt_global;
       log_messages (iter);
 
-      compute_forces (iter);
-      compute_global (iter);
+      //compute_forces (iter);
+      //compute_global (iter);
       if(iter % param.write_frequency == 0) 
       {
          output (iter);
@@ -626,8 +645,6 @@ void FiniteVolume::run ()
    // Set initial condition
    initialize ();
    
-   return;
-
    // If -p flag given on command line, then we stop
    if(preprocess)
       return;

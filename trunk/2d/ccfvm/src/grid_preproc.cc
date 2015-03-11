@@ -104,6 +104,7 @@ void Grid::compute_face_normal_and_area ()
          face[i].normal.x =  dr.y;
          face[i].normal.y = -dr.x;
          face[i].normal.z =  0.0;
+         face[i].measure  = dr.norm();
       }
    }
 }

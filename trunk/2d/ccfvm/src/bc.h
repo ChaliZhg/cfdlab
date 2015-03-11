@@ -60,7 +60,6 @@ class BoundaryCondition
       FParser        yvelocity;
       FParser        zvelocity;
       FParser        pressure;
-      FParser        temperature;
       FParser        density;
 };
 
@@ -114,10 +113,9 @@ BoundaryCondition::BoundaryCondition (Material                 &material,
             has_zvelocity = true;
             zvelocity.FParse (function[i]);
          }
-         else if(variable[i] == "temperature")
+         else if(variable[i] == "density")
          {
-            temperature.FParse (function[i]);
-            adiabatic = false;
+            density.FParse (function[i]);
          }
       }
       assert (has_xvelocity && has_yvelocity && has_zvelocity);
@@ -130,7 +128,7 @@ BoundaryCondition::BoundaryCondition (Material                 &material,
       bool has_xvelocity   = false;
       bool has_yvelocity   = false;
       bool has_zvelocity   = false;
-      bool has_temperature = false;
+      bool has_density = false;
       for(unsigned int i=0; i<variable.size(); ++i)
       {
          if(variable[i] == "xvelocity")
@@ -148,13 +146,13 @@ BoundaryCondition::BoundaryCondition (Material                 &material,
             has_zvelocity = true;
             zvelocity.FParse (function[i]);
          }
-         else if(variable[i] == "temperature")
+         else if(variable[i] == "density")
          {
-            has_temperature = true;
-            temperature.FParse (function[i]);
+            has_density = true;
+            density.FParse (function[i]);
          }
       }
-      assert (has_xvelocity && has_yvelocity && has_zvelocity && has_temperature);
+      assert (has_xvelocity && has_yvelocity && has_zvelocity && has_density);
    }
    // In this case only pressure is specified
    else if(bc_type == "pressure")
@@ -172,17 +170,17 @@ BoundaryCondition::BoundaryCondition (Material                 &material,
          type = BC::inlet;
       else
          type = BC::farfield;
-      bool has_temperature = false;
+      bool has_density = false;
       bool has_xvelocity   = false;
       bool has_yvelocity   = false;
       bool has_zvelocity   = false;
       bool has_pressure    = false;
       for(unsigned int i=0; i<variable.size(); ++i)
       {
-         if(variable[i] == "temperature")
+         if(variable[i] == "density")
          {
-            has_temperature = true;
-            temperature.FParse (function[i]);
+            has_density = true;
+            density.FParse (function[i]);
          }
          else if(variable[i] == "xvelocity")
          {
@@ -205,7 +203,7 @@ BoundaryCondition::BoundaryCondition (Material                 &material,
             pressure.FParse (function[i]);
          }
       }
-      assert (has_temperature && has_xvelocity && has_yvelocity && has_zvelocity &&
+      assert (has_density && has_xvelocity && has_yvelocity && has_zvelocity &&
               has_pressure);
    }
    // At outflow nothing is specified
@@ -237,9 +235,9 @@ void BoundaryCondition::apply_slip(const Face          &face,
                                    std::vector<ConVar> &state)
 {
    Vector unit_normal = face.normal / face.measure;
-   state[0].momentum -= unit_normal * (state[0].momentum * unit_normal);
+   state[1].momentum -= unit_normal * (state[1].momentum * unit_normal) * 2.0;
 
-   state[1] = state[0];
+   //state[1] = state[0];
 }
 
 //------------------------------------------------------------------------------
