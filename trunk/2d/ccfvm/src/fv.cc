@@ -128,6 +128,7 @@ void FiniteVolume::compute_gradients ()
          BoundaryCondition& bc = param.boundary_condition[face_type];
          std::vector<ConVar> state(2);
          state[0] = conserved[cl];
+         state[1] = conserved[cl];
          bc.apply (grid.face[i].centroid, grid.face[i], state);
          dU = state[1] - conserved[cl];
          dr = grid.face[i].centroid - grid.cell[cl].centroid;
@@ -149,22 +150,26 @@ void FiniteVolume::compute_gradients ()
                       grid.cell[i].invA1[0][1] * sdydU[i].density;
       grad_rho[i].y = grid.cell[i].invA1[1][0] * sdxdU[i].density +
                       grid.cell[i].invA1[1][1] * sdydU[i].density;
+      grad_rho[i].z = 0.0;
       
       grad_rhoU[i].x = grid.cell[i].invA1[0][0] * sdxdU[i].momentum.x +
                        grid.cell[i].invA1[0][1] * sdydU[i].momentum.x;
       grad_rhoU[i].y = grid.cell[i].invA1[1][0] * sdxdU[i].momentum.x +
                        grid.cell[i].invA1[1][1] * sdydU[i].momentum.x;
+      grad_rhoU[i].z = 0.0;
 
       grad_rhoV[i].x = grid.cell[i].invA1[0][0] * sdxdU[i].momentum.y +
                        grid.cell[i].invA1[0][1] * sdydU[i].momentum.y;
       grad_rhoV[i].y = grid.cell[i].invA1[1][0] * sdxdU[i].momentum.y +
                        grid.cell[i].invA1[1][1] * sdydU[i].momentum.y;
+      grad_rhoV[i].z = 0.0;
 
       
       grad_E[i].x = grid.cell[i].invA1[0][0] * sdxdU[i].energy +
                     grid.cell[i].invA1[0][1] * sdydU[i].energy;
       grad_E[i].y = grid.cell[i].invA1[1][0] * sdxdU[i].energy +
                     grid.cell[i].invA1[1][1] * sdydU[i].energy;
+      grad_E[i].z = 0.0;
    }
 
    return;
