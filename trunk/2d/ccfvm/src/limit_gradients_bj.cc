@@ -42,6 +42,28 @@ void FiniteVolume::limit_gradients_bj ()
          double E    = conserved[i].energy     + dr * grad_E[i];
          minmax (rho, rhoU, rhoV, E, Umin[v], Umax[v], conserved[i], phi[i]);
       }
+      
+      // Apply positivity limiter. Make pressure at face centers to be positive.
+      const double eps = 1.0e-13;
+      for(unsigned int j=0; j<3; ++j)
+      {
+         unsigned int f = grid.cell[i].face[j];
+         Vector dr = grid.face[f].centroid - grid.cell[i].centroid;
+         
+         ConVar con;
+         con.density    = conserved[i].density    + (dr * grad_rho[i] ) * phi[i].density;
+         con.momentum.x = conserved[i].momentum.x + (dr * grad_rhoU[i]) * phi[i].momentum.x;
+         con.momentum.y = conserved[i].momentum.y + (dr * grad_rhoV[i]) * phi[i].momentum.y;
+         con.energy     = conserved[i].energy     + (dr * grad_E[i]   ) * phi[i].energy;
+         
+         double pre = param.material.Pressure (con);
+         if(pre < eps)
+         {
+            //std::cout << "Pressure is negative\n";
+            //exit(0);
+            phi[i] = 0.0;
+         }
+      }
    }
 
 }
