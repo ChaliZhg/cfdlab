@@ -2,27 +2,31 @@ grid
 {
    type   gmsh 
    file   step.msh
-   cell   median
 }
 
 numeric
 {
    time_mode    unsteady
-   time_scheme  rk3
+   time_scheme  ssprk3
    time_step    0.0
    cfl          0.9
    max_iter     50000
    final_time   4.0
    min_residue  1.0e-20
-   reconstruct  minmax
-   bc_scheme    weak
+   reconstruct  first
+   smooth_res   no
+   ducros       no
 }
 
 material
 {
    gamma       1.4
    gas_const   7.14285714285714e-01 // R = 1/gamma
-   viscosity   constant  0.0
+   viscosity
+   {
+      model   constant
+      mu_ref  0.0
+   }
    prandtl     1.0
    model       euler
    flux        kfvs
@@ -30,14 +34,14 @@ material
 
 constants
 {
-   T    1.0
+   rho  1.4
    p    1.0
    u    3.0
 }
 
 initial_condition
 {
-   temperature  T
+   density      rho
    xvelocity    u
    yvelocity    0.0
    zvelocity    0.0
@@ -49,7 +53,7 @@ boundary
    100001
    {
       type         farfield
-      temperature  T
+      density      rho
       xvelocity    u
       yvelocity    0.0
       zvelocity    0.0
@@ -68,18 +72,13 @@ boundary
 
 }
 
-integrals
-{
-}
-
 output
 {
-   format     tec
+   format     vtk
    frequency  100
    variables
    {
       mach
-      density
    }
    restart    false
    global_KE  false
