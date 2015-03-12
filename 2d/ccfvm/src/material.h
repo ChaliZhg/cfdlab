@@ -130,6 +130,7 @@ class Material
       double total_energy (const PrimVar& state) const;
       double sound_speed (const PrimVar& state) const;
       double Mach (const PrimVar& state) const;
+      double Pressure(const ConVar& state) const;
 
 };
 
@@ -216,5 +217,15 @@ double Material::Mach (const PrimVar& state) const
    double sonic = sound_speed (state);
    return state.velocity.norm() / sonic;
 }
+
+//------------------------------------------------------------------------------
+// Pressure
+//------------------------------------------------------------------------------
+inline
+double Material::Pressure(const ConVar& state) const
+{
+   return (gamma - 1.0) * (state.energy - 0.5 * state.momentum.square() / state.density);
+}
+
 
 #endif
