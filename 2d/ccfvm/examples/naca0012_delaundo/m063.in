@@ -14,7 +14,7 @@ numeric
    max_iter     25000
    final_time   1.0e20
    min_residue  1.0e-6
-   reconstruct  first
+   reconstruct  second
    bc_scheme    weak
    nitsche_pen  0
    smooth_res   no
