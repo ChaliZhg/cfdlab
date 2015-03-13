@@ -448,6 +448,7 @@ void Grid::compute_moments ()
    int nq = dunavant_order_num ( rule );
    std::cout << "Dunavant rule, no of nodes = " << nq << std::endl;
    
+   // Get quadrature nodes and weights
    double *wtab;
    double *xytab;
    
