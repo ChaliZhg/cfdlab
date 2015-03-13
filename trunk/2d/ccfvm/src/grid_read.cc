@@ -55,8 +55,7 @@ void Grid::info ()
 
    double min_face_length =  1.0e20;
    double max_face_length = -1.0e20;
-   double min_fradius =  1.0e20;
-   double max_fradius = -1.0e20;
+
    for(unsigned int i=0; i<n_face; ++i)
    {
       min_face_length = min ( min_face_length, face[i].normal.norm() );

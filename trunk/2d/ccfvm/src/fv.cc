@@ -99,7 +99,6 @@ void FiniteVolume::compute_gradients ()
 {
 
    std::vector<ConVar> sdxdU(grid.n_cell), sdydU(grid.n_cell);
-   double dx, dy;
    
    for(unsigned int i=0; i<grid.n_cell; ++i)
    {

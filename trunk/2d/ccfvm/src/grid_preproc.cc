@@ -4,6 +4,7 @@
 #include <fstream>
 #include <cstdlib>
 #include "grid.h"
+#include "triangle_dunavant_rule.h"
 
 extern Dimension dim;
 extern bool debug;
@@ -439,6 +440,52 @@ void Grid::compute_least_squares ()
 }
 
 //------------------------------------------------------------------------------
+// Compute quadratic moments for each cell
+//------------------------------------------------------------------------------
+void Grid::compute_moments ()
+{
+   int rule = 2;
+   int nq = dunavant_order_num ( rule );
+   std::cout << "Dunavant rule, no of nodes = " << nq << std::endl;
+   
+   double *wtab;
+   double *xytab;
+   
+   xytab = new double[2*nq];
+   wtab = new double[nq];
+   dunavant_rule ( rule, nq, xytab, wtab );
+   
+   std::vector<double> xq(nq), yq(nq);
+   for (int q = 0; q < nq; ++q )
+   {
+      xq[q] = xytab[0+q*2];
+      yq[q] = xytab[1+q*2];
+      std::cout << "x, y, w = " << xq[q] << " " << yq[q] << " " << wtab[q] << std::endl;
+   }
+   
+   for(unsigned int i=0; i<n_cell; ++i)
+   {
+      cell[i].alpha = cell[i].beta = cell[i].gamma = 0.0;
+      Vector v0 = vertex[cell[i].vertex[0]].coord;
+      Vector v1 = vertex[cell[i].vertex[1]].coord;
+      Vector v2 = vertex[cell[i].vertex[2]].coord;
+
+      for(unsigned int q=0; q<nq; ++q)
+      {
+         double x = v0.x + (v1.x - v0.x) * xq[q] + (v2.x - v0.x) * yq[q];
+         double y = v0.y + (v1.y - v0.y) * xq[q] + (v2.y - v0.y) * yq[q];
+
+         double dx = x - cell[i].centroid.x;
+         double dy = y - cell[i].centroid.y;
+         cell[i].alpha += dx * dx * wtab[q];
+         cell[i].beta  += dx * dy * wtab[q];
+         cell[i].gamma += dy * dy * wtab[q];
+      }
+      // No need to divide by cell area
+   }
+}
+
+//------------------------------------------------------------------------------
 // Preprocess the grid
 //------------------------------------------------------------------------------
 void Grid::preproc ()
@@ -455,4 +502,5 @@ void Grid::preproc ()
    //renumber ();
    
    compute_least_squares ();
+   compute_moments ();
 }
