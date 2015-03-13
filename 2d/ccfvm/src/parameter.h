@@ -27,6 +27,7 @@ class Parameter
       double min_residue;
       bool smooth_res;
       bool ducros;
+      bool ang_mom;
 
       enum ReconstructScheme 
       { 

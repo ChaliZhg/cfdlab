@@ -47,12 +47,13 @@ class FiniteVolume
       std::vector<PrimVar> primitive;
       std::vector<ConVar>  conserved;
       std::vector<ConVar>  conserved_old;
-      std::vector<double>  ang_mom;
+      std::vector<double>  ang_mom, ang_mom_old, res_ang_mom;
       std::vector<Flux>    residual;
       std::vector<Flux>    residual1;
       std::vector<Flux>    residual2;
       std::vector<Vector>  dT, dU, dV, dW, dP;
       std::vector<Vector>  dT_cell, dU_cell, dV_cell, dW_cell, dP_cell;
+      std::vector<ConVar>  sdxdU, sdydU;
       std::vector<Vector>  grad_rho, grad_rhoU, grad_rhoV, grad_E;
       std::vector<double>  ducros;
       std::vector<ConVar> phi;

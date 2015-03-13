@@ -29,8 +29,12 @@ void FiniteVolume::initialize ()
    conserved.resize (grid.n_cell);
    conserved_old.resize (grid.n_cell);
    ang_mom.resize (grid.n_cell);
+   ang_mom_old.resize (grid.n_cell);
    residual.resize (grid.n_cell);
+   res_ang_mom.resize (grid.n_cell);
    phi.resize (grid.n_cell);
+   sdxdU.resize (grid.n_cell);
+   sdydU.resize (grid.n_cell);
    if(param.smooth_res)
    {
       residual1.resize (grid.n_cell);
@@ -75,6 +79,7 @@ void FiniteVolume::initialize ()
    for(unsigned int i=0; i<grid.n_cell; ++i)
    {
       conserved[i] = param.material.prim2con(primitive[i]);
+      ang_mom[i]   = 0.0; // TODO
    }
    
    // Check if solution conversion was requested
@@ -93,13 +98,10 @@ void FiniteVolume::initialize ()
 }
 
 //------------------------------------------------------------------------------
-// Compute derivatives of velocity and density at grid vertices
+// Compute derivatives of conserved variables
 //------------------------------------------------------------------------------
 void FiniteVolume::compute_gradients ()
 {
-
-   std::vector<ConVar> sdxdU(grid.n_cell), sdydU(grid.n_cell);
-   
    for(unsigned int i=0; i<grid.n_cell; ++i)
    {
       sdxdU[i] = 0.0;
@@ -162,13 +164,35 @@ void FiniteVolume::compute_gradients ()
                     grid.cell[i].invA1[0][1] * sdydU[i].energy;
       grad_E[i].y = grid.cell[i].invA1[1][0] * sdxdU[i].energy +
                     grid.cell[i].invA1[1][1] * sdydU[i].energy;
+      
+      // Apply angular momentum constraint
+      if(param.ang_mom)
+      {
+         double c[4] = {-grid.cell[i].beta,
+                        -grid.cell[i].gamma,
+                         grid.cell[i].alpha,
+                         grid.cell[i].beta};
+         double invAc[4];
+         invAc[0] = grid.cell[i].invA1[0][0] * c[0] + grid.cell[i].invA1[0][1] * c[1];
+         invAc[1] = grid.cell[i].invA1[1][0] * c[0] + grid.cell[i].invA1[1][1] * c[1];
+         invAc[2] = grid.cell[i].invA1[0][0] * c[2] + grid.cell[i].invA1[0][1] * c[3];
+         invAc[3] = grid.cell[i].invA1[1][0] * c[2] + grid.cell[i].invA1[1][1] * c[3];
+         
+         double num = c[0]*grad_rhoU[i].x + c[1]*grad_rhoU[i].y +
+                      c[2]*grad_rhoV[i].x + c[3]*grad_rhoV[i].y - ang_mom[i];
+         double den = c[0]*invAc[0] + c[1]*invAc[1] + c[2]*invAc[2] + c[3]*invAc[3];
+         double lam = num/den;
+         
+         grad_rhoU[i].x -= lam * invAc[0];
+         grad_rhoU[i].y -= lam * invAc[1];
+         grad_rhoV[i].x -= lam * invAc[2];
+         grad_rhoV[i].y -= lam * invAc[3];
+      }
    }
    
-   // TODO
    // minmax limiter
    if(param.reconstruct_scheme == Parameter::bj)
       limit_gradients_bj ();
-
 }
 
 //------------------------------------------------------------------------------
@@ -206,6 +230,18 @@ void FiniteVolume::compute_inviscid_residual ()
       
       if(cr >= 0)
          residual[cr] -= flux;
+      
+      if(param.ang_mom)
+      {
+         Vector drl = grid.face[i].centroid - grid.cell[cl].centroid;
+         res_ang_mom[cl] += drl ^ flux.momentum_flux;
+         
+         if(cr >= 0)
+         {
+            Vector drr = grid.face[i].centroid - grid.cell[cr].centroid;
+            res_ang_mom[cr] -= drr ^ flux.momentum_flux;
+         }
+      }
    }
 }
 
@@ -217,7 +253,10 @@ void FiniteVolume::compute_residual ()
 
    // Set residual vector to zero
    for(unsigned int i=0; i<grid.n_cell; ++i)
+   {
       residual[i].zero ();
+      res_ang_mom[i] = 0.0;
+   }
 
    // Compute cell and vertex gradients
    compute_gradients ();
@@ -292,7 +331,10 @@ void FiniteVolume::compute_dt ()
 void FiniteVolume::store_conserved_old ()
 {
    for(unsigned int i=0; i<grid.n_cell; ++i)
+   {
       conserved_old[i] = conserved[i];
+      ang_mom_old[i] = ang_mom[i];
+   }
 }
 
 //------------------------------------------------------------------------------
@@ -310,6 +352,9 @@ void FiniteVolume::update_solution (const unsigned int r)
          conserved[i]= conserved_old[i] * a_rk[r] +
                        (conserved[i] - residual[i] * factor) * b_rk[r];
          primitive[i]= param.material.con2prim (conserved[i]);
+         
+         ang_mom[i]= ang_mom_old[i] * a_rk[r] +
+                     (ang_mom[i] - res_ang_mom[i] * factor) * b_rk[r];
       }
    }
    else if(param.time_scheme == "rk1" ||
@@ -322,20 +367,14 @@ void FiniteVolume::update_solution (const unsigned int r)
          factor      = f * dt[i] / grid.cell[i].area;
          conserved[i]= conserved_old[i]  - residual[i] * factor;
          primitive[i]= param.material.con2prim (conserved[i]);
+         
+         ang_mom[i]= ang_mom_old[i]  - res_ang_mom[i] * factor;
       }
    }
    else if(param.time_scheme == "lusgs")
    { 
       std::cout << "LUSGS not implemented\n";
       exit(0);
-      // Forward Sweep and backward sweep
-      lusgs();
-
-      for (unsigned int i=0; i<grid.n_cell; ++i)
-      {
-         conserved[i] = conserved_old[i] + residual[i];
-         primitive[i] = param.material.con2prim (conserved[i]);
-      }
    }
 
 }

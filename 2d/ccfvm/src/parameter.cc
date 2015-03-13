@@ -121,6 +121,18 @@ void Parameter::read_numeric (Reader &fin)
       exit (0);
    }
 
+   fin.entry ("ang_mom");
+   fin >> input;
+   if(input == "yes")
+      ang_mom = true;
+   else if(input == "no")
+      ang_mom = false;
+   else
+   {
+      cout << "read_numeric: unknown option for ang_mom " << input << endl;
+      exit (0);
+   }
+   
    fin.entry ("smooth_res");
    fin >> input;
    if(input == "yes")
