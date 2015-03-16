@@ -18,7 +18,7 @@ Define  MU(c)  exp(CLAMP(c,0,1)*log(m))
 
    GfsOutputTime { istep = 10 } stdout
    GfsOutputBalance { istep = 10 } stdout
-   GfsOutputSimulation { istep = 100 } mc-%ld.plt { 
+   GfsOutputSimulation { istep = 250 } mc-%ld.plt { 
       format = Tecplot
       variables = c
    }
