@@ -224,10 +224,10 @@ int main (int argc, char** argv)
    equation_systems.init ();
    equation_systems.print_info ();
 
-   GMVIO(mesh).write_equation_systems ("out_000.gmv",
+   GMVIO(mesh).write_equation_systems ("out_00000.gmv",
                                        equation_systems);
 
-   const unsigned int n_time_steps = 100;
+   const unsigned int n_time_steps = 2000;
    const Real dt = 0.001;
    system.time = 0.0;
 
@@ -243,18 +243,18 @@ int main (int argc, char** argv)
 
       std::cout << "Iter = " << ts << " Time = " << system.time << std::endl;
 
-      if ( (ts+1)%10 == 0)
+      if ( (ts+1)%50 == 0)
       {
          std::ostringstream file_name;
 
          file_name << "out_"
-                   << std::setw(3)
+                   << std::setw(5)
                    << std::setfill('0')
                    << std::right
                    << ts+1
                    << ".gmv";
 
-         std::cout << "Writing solution into " << file_name << std::endl;
+         std::cout << "Writing solution into " << file_name.str() << std::endl;
          GMVIO(mesh).write_equation_systems (file_name.str(),
                                              equation_systems);
       }
