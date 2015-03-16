@@ -93,7 +93,8 @@ for bc in bcs0:
 
 #create eigensolver
 eigensolver = SLEPcEigenSolver(A, M)
-eigensolver.parameters['spectrum'] = 'smallest magnitude'
+eigensolver.parameters['spectrum'] = 'largest real'
+#eigensolver.parameters['spectrum'] = 'smallest magnitude'
 #eigensolver.parameters['solver'] = 'arnoldi'
 #eigensolver.parameters['problem_type'] = 'gen_non_hermitian'
 eigensolver.parameters["spectral_transform"] = "shift-and-invert"
@@ -113,5 +114,8 @@ for i in range(num):
     r, c, rx, cx = eigensolver.get_eigenpair(i)
     print "Eigenvalue: %5d %20.10e %20.10e" % (i, r, c)
     ue.vector()[:] = rx
+    u,p = ue.split()
+    fe << u
+    ue.vector()[:] = cx
     u,p = ue.split()
     fe << u
