@@ -1,2 +1,0 @@
-    template void FEValues<deal_II_dimension,deal_II_space_dimension>::reinit(
-    TriaIterator<DoFCellAccessor<dof_handler<deal_II_dimension,deal_II_space_dimension>, lda> >, const std::vector< dealii::Point<deal_II_space_dimension> >&);

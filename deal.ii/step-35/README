@@ -1,5 +1,0 @@
-Modification of step-35 to solve 2-d cylinder problem
-
-Generate mesh
-
-gmsh -2 cyl.geo
