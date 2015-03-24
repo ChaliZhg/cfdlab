@@ -281,6 +281,8 @@ void Parameter::read_material (Reader &fin)
       material.flux_scheme = Material::lxf;
    else if(input == "roe")
       material.flux_scheme = Material::roe;
+   else if(input == "hllc")
+      material.flux_scheme = Material::hllc;
    else if(input == "kfvs")
       material.flux_scheme = Material::kfvs;
    else if(input == "kepes")

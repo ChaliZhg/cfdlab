@@ -42,6 +42,10 @@ void Material::num_flux (const ConVar& con_left,
          roe_flux (left, right, normal, flux);
          break;
 
+      case hllc:
+         hllc_flux (left, right, normal, flux);
+         break;
+
       case kfvs:
          kfvs_flux (left, right, normal, flux);
          break;
