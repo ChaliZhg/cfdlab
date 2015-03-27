@@ -67,10 +67,12 @@ class FiniteVolume
       int                  last_iter;
 
       void reconstruct (const unsigned int&      f,
+                        const Vector& p,
                         std::vector<ConVar>&    state) const;
       void reconstruct_first (const unsigned int&      f,
                               std::vector<ConVar>&    state) const;
       void reconstruct_second (const unsigned int&      f,
+                               const Vector& p,
                                std::vector<ConVar>&    state) const;
       void reconstruct_limited (const unsigned int&      f,
                                 std::vector<ConVar>&    state) const;
@@ -79,6 +81,7 @@ class FiniteVolume
                                std::vector<ConVar>&    state) const;
       PrimVar minmod_slope (const ConVar& ul, const ConVar& ur) const;
       void reconstruct_minmax(const unsigned int&      f,
+                              const Vector& p,
                               std::vector<ConVar>&    state) const;
       void prec_thornber(std::vector<PrimVar>& state) const;
       void compute_ssw();
@@ -91,6 +94,7 @@ class FiniteVolume
       void limit_gradients_mm ();
       void store_conserved_old ();
       void compute_inviscid_residual ();
+      void compute_inviscid_residual_2 ();
       void compute_viscous_residual ();
       void compute_axisymmetric_residual ();
       void compute_residual ();

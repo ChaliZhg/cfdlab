@@ -33,13 +33,14 @@ void FiniteVolume::reconstruct_first
 void FiniteVolume::reconstruct_second
 (
  const unsigned int& f,
+ const Vector& p,
  vector<ConVar>&    state
 ) const
 {
    int cl = grid.face[f].lcell;
    int cr = grid.face[f].rcell;
 
-   Vector  drl = grid.face[f].centroid - grid.cell[cl].centroid;
+   Vector  drl = p - grid.cell[cl].centroid;
 
    // left state
    state[0].density    = conserved[cl].density    + drl * grad_rho[cl];
@@ -49,7 +50,7 @@ void FiniteVolume::reconstruct_second
 
    if(cr >= 0)
    {
-      Vector  drr = grid.face[f].centroid - grid.cell[cr].centroid;
+      Vector  drr = p - grid.cell[cr].centroid;
       
       // right state
       state[1].density    = conserved[cr].density    + drr * grad_rho[cr];
@@ -67,13 +68,14 @@ void FiniteVolume::reconstruct_second
 void FiniteVolume::reconstruct_minmax
 (
  const unsigned int& f,
+ const Vector& p,
  vector<ConVar>&    state
  ) const
 {
    int cl = grid.face[f].lcell;
    int cr = grid.face[f].rcell;
    
-   Vector  drl = grid.face[f].centroid - grid.cell[cl].centroid;
+   Vector  drl = p - grid.cell[cl].centroid;
    
    // left state
    state[0].density    = conserved[cl].density    + (drl * grad_rho[cl] ) * phi[cl].density;
@@ -83,7 +85,7 @@ void FiniteVolume::reconstruct_minmax
    
    if(cr >= 0)
    {
-      Vector  drr = grid.face[f].centroid - grid.cell[cr].centroid;
+      Vector  drr = p - grid.cell[cr].centroid;
       
       // right state
       state[1].density    = conserved[cr].density    + (drr * grad_rho[cr] ) * phi[cr].density;
@@ -99,6 +101,7 @@ void FiniteVolume::reconstruct_minmax
 // Reconstruct left and right states
 //------------------------------------------------------------------------------
 void FiniteVolume::reconstruct (const unsigned int& f,
+                                const Vector& p,
                                 vector<ConVar>&    state) const
 {
    switch(param.reconstruct_scheme)
@@ -110,12 +113,12 @@ void FiniteVolume::reconstruct (const unsigned int& f,
          
       // Second order
       case Parameter::second:
-         reconstruct_second (f, state);
+         reconstruct_second (f, p, state);
          break;
 
       // Barth-Jespersen or MinMax scheme
       case Parameter::bj:
-         reconstruct_minmax (f, state);
+         reconstruct_minmax (f, p, state);
          break;
 
       default:

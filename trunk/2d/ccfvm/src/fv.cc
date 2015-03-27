@@ -19,6 +19,9 @@ using namespace std;
 
 bool check_for_stop_file ();
 
+const double gauss_x[2] = {-1.0/sqrt(3.0), +1.0/sqrt(3.0)};
+const double gauss_wt[2] = {0.5, 0.5};
+
 //------------------------------------------------------------------------------
 // Set initial condition
 //------------------------------------------------------------------------------
@@ -208,7 +211,7 @@ void FiniteVolume::compute_inviscid_residual ()
       
       // reconstruct left/right state
       vector<ConVar> state(2);
-      reconstruct ( i, state );
+      reconstruct ( i, grid.face[i].centroid, state );
       
       // If boundary face, apply bc
       if(cr < 0)
@@ -240,6 +243,79 @@ void FiniteVolume::compute_inviscid_residual ()
          {
             Vector drr = grid.face[i].centroid - grid.cell[cr].centroid;
             res_ang_mom[cr] -= drr ^ flux.momentum_flux;
+         }
+      }
+   }
+}
+
+//------------------------------------------------------------------------------
+// Compute inviscid residual for each cell
+//------------------------------------------------------------------------------
+void FiniteVolume::compute_inviscid_residual_2 ()
+{
+   // Loop over interior faces and accumulate flux
+   for(unsigned int i=0; i<grid.n_face; ++i)
+   {
+      int cl = grid.face[i].lcell;
+      int cr = grid.face[i].rcell;
+      
+      unsigned int v0 = grid.face[i].vertex[0];
+      unsigned int v1 = grid.face[i].vertex[1];
+      
+      Vector p0 = grid.vertex[v0].coord * (1.0 - gauss_x[0])/2 + grid.vertex[v1].coord * (1.0 + gauss_x[0])/2;
+      Vector p1 = grid.vertex[v0].coord * (1.0 - gauss_x[1])/2 + grid.vertex[v1].coord * (1.0 + gauss_x[1])/2;
+      
+      // reconstruct left/right state
+      vector<ConVar> state0(2), state1(2);
+      reconstruct ( i, p0, state0 );
+      reconstruct ( i, p1, state1 );
+      
+      // If boundary face, apply bc
+      if(cr < 0)
+      {
+         int face_type = grid.face[i].type;
+         BoundaryCondition& bc = param.boundary_condition[face_type];
+         bc.apply (p0, grid.face[i], state0);
+         bc.apply (p1, grid.face[i], state1);
+      }
+      
+      FluxData data;
+      //data.ssw = ssw[cl]+ssw[cr];
+      //data.ducros = max(ducros[cl], ducros[cr]);
+      
+      Flux flux0, flux1;
+      param.material.num_flux (state0[0], state0[1],
+                               grid.face[i].normal, data, flux0 );
+      param.material.num_flux (state1[0], state1[1],
+                               grid.face[i].normal, data, flux1 );
+      
+      flux0 *= gauss_wt[0];
+      flux1 *= gauss_wt[1];
+      
+      residual[cl] += flux0;
+      residual[cl] += flux1;
+      
+      if(cr >= 0)
+      {
+         residual[cr] -= flux0;
+         residual[cr] -= flux1;
+      }
+      
+      if(param.ang_mom)
+      {
+         Vector drl0 = p0 - grid.cell[cl].centroid;
+         res_ang_mom[cl] += drl0 ^ flux0.momentum_flux;
+         
+         Vector drl1 = p1 - grid.cell[cl].centroid;
+         res_ang_mom[cl] += drl1 ^ flux1.momentum_flux;
+
+         if(cr >= 0)
+         {
+            Vector drr0 = p0 - grid.cell[cr].centroid;
+            res_ang_mom[cr] -= drr0 ^ flux0.momentum_flux;
+            
+            Vector drr1 = p1 - grid.cell[cr].centroid;
+            res_ang_mom[cr] -= drr1 ^ flux1.momentum_flux;
          }
       }
    }
