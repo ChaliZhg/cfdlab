@@ -90,6 +90,10 @@ class Material
                         const PrimVar& right, 
                         const Vector& normal, 
                         Flux& flux) const;
+   void   kepes_roe_flux (const PrimVar& left,
+                     const PrimVar& right,
+                     const Vector& normal,
+                     Flux& flux) const;
       void kfvs_split_flux (const double   sign,
                             const Vector&  normal,
                             const PrimVar& state,
